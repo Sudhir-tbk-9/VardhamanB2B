@@ -9,6 +9,7 @@ import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class FeedbackDialog extends StatelessWidget {
   FeedbackDialog({super.key});
@@ -21,7 +22,7 @@ class FeedbackDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Dialog(
+      () => AdaptiveDialog(
         insetPadding: EdgeInsets.all(80),
         clipBehavior: Clip.antiAlias,
         child: SizedBox(

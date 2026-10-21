@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 /// Dialog listing every [ThemeVariants.all] entry as a preview tile. Tapping
 /// one closes the dialog, then applies and saves the theme.
@@ -61,7 +62,7 @@ class _ThemeSwitcherDialogState extends State<ThemeSwitcherDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
+    return AdaptiveDialog(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(

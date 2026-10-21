@@ -16,6 +16,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/dtm/create_dtm_order_view.dart';
 import 'package:vardhman_b2b/dtm/dtm_controller.dart';
 import 'package:vardhman_b2b/dtm/dtm_entry_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class DtmOrdersView extends StatelessWidget {
   const DtmOrdersView({
@@ -65,11 +66,7 @@ class DtmOrdersView extends StatelessWidget {
                   );
 
                   Get.dialog(
-                    const Dialog(
-                      insetPadding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 24,
-                      ),
+                    const AdaptiveDialog(
                       clipBehavior: Clip.hardEdge,
                       child: CreateDtmOrderView(),
                     ),
@@ -168,11 +165,7 @@ class DtmOrdersView extends StatelessWidget {
                                   );
 
                                   Get.dialog(
-                                    const Dialog(
-                                      insetPadding: EdgeInsets.symmetric(
-                                        horizontal: 40,
-                                        vertical: 24,
-                                      ),
+                                    const AdaptiveDialog(
                                       clipBehavior: Clip.hardEdge,
                                       child: CreateDtmOrderView(),
                                     ),
