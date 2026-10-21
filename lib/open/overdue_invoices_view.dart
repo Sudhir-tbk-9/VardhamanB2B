@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:vardhman_b2b/api/invoice_info.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/open/open_invoices_list.dart';
+import 'package:vardhman_b2b/common/min_width_scroll.dart';
 
 class OverdueInvoicesView extends StatelessWidget {
   const OverdueInvoicesView({super.key});
@@ -15,46 +16,50 @@ class OverdueInvoicesView extends StatelessWidget {
         .where((invoice) => invoice.status == InvoiceStatus.overdue)
         .toList();
 
-    return Column(
-      children: [
-        OpenInvoicesList(
-          invoicesDetails: [],
-          selectAllValue: selectedOverdueInvoices.isEmpty
-              ? false
-              : selectedOverdueInvoices.length ==
-                      invoicesController.overdueInvoices.length
-                  ? true
-                  : null,
-          onSelectAllChanged: (triStateBool) {
-            if (selectedOverdueInvoices.length ==
-                invoicesController.overdueInvoices.length) {
-              invoicesController.rxSelectedInvoiceInfos.removeWhere(
-                (invoice) => invoice.status == InvoiceStatus.overdue,
-              );
-            } else {
-              for (var invoiceInfo in invoicesController.overdueInvoices) {
-                if (!invoicesController.rxSelectedInvoiceInfos
-                    .contains(invoiceInfo)) {
-                  invoicesController.rxSelectedInvoiceInfos.add(invoiceInfo);
+    // Header and rows scroll sideways together on a narrow window.
+    return MinWidthScroll(
+      minWidth: OpenInvoicesList.minWidth,
+      child: Column(
+        children: [
+          OpenInvoicesList(
+            invoicesDetails: [],
+            selectAllValue: selectedOverdueInvoices.isEmpty
+                ? false
+                : selectedOverdueInvoices.length ==
+                        invoicesController.overdueInvoices.length
+                    ? true
+                    : null,
+            onSelectAllChanged: (triStateBool) {
+              if (selectedOverdueInvoices.length ==
+                  invoicesController.overdueInvoices.length) {
+                invoicesController.rxSelectedInvoiceInfos.removeWhere(
+                  (invoice) => invoice.status == InvoiceStatus.overdue,
+                );
+              } else {
+                for (var invoiceInfo in invoicesController.overdueInvoices) {
+                  if (!invoicesController.rxSelectedInvoiceInfos
+                      .contains(invoiceInfo)) {
+                    invoicesController.rxSelectedInvoiceInfos.add(invoiceInfo);
+                  }
                 }
               }
-            }
-          },
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                OpenInvoicesList(
-                  showHeader: false,
-                  invoicesDetails: invoicesController.overdueInvoices,
-                ),
-              ],
+            },
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  OpenInvoicesList(
+                    showHeader: false,
+                    invoicesDetails: invoicesController.overdueInvoices,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

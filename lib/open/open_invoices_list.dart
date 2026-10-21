@@ -15,6 +15,10 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 
 class OpenInvoicesList extends StatelessWidget {
+  /// Narrowest the table gets before scrolling sideways (MinWidthScroll):
+  /// its columns are shares of the width.
+  static const minWidth = 600.0;
+
   const OpenInvoicesList({
     super.key,
     required this.invoicesDetails,
