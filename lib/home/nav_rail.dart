@@ -9,10 +9,21 @@ class NavRail extends StatelessWidget {
   const NavRail({
     super.key,
     required this.selectedIndex,
+    this.onSelected,
   });
 
   /// Index into [homeTabPaths] of the tab shown.
   final int selectedIndex;
+
+  /// Called after a tab is picked, e.g. to close the drawer the rail is in
+  /// on a phone.
+  final VoidCallback? onSelected;
+
+  void _select(BuildContext context, int index) {
+    context.go(homeTabPaths[index]);
+
+    onSelected?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +80,7 @@ class NavRail extends StatelessWidget {
                         child: NavigationRail(
                           selectedIndex: ordersNavSelectedIndex,
                           onDestinationSelected: (value) =>
-                              context.go(homeTabPaths[value]),
+                              _select(context, value),
                           groupAlignment: 0,
                           labelType: NavigationRailLabelType.all,
                           useIndicator: true,
@@ -149,7 +160,7 @@ class NavRail extends StatelessWidget {
                         child: NavigationRail(
                           selectedIndex: paymentsNavSelectedIndex,
                           onDestinationSelected: (value) =>
-                              context.go(homeTabPaths[value + 4]),
+                              _select(context, value + 4),
                           groupAlignment: 0,
                           labelType: NavigationRailLabelType.all,
                           useIndicator: true,

@@ -11,6 +11,8 @@ import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
+import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
 import 'package:vardhman_b2b/home/lazy_indexed_stack.dart';
@@ -39,8 +41,12 @@ class HomeScaffold extends StatefulWidget {
 }
 
 class _HomeScaffoldState extends State<HomeScaffold> {
+  /// Whether the account menu under the user's name is open. It opens on
+  /// hover (mouse) or tap (touch, where there is no hover).
   bool _isHoveringOnName = false;
   Timer? _hideContainerTimer;
+
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -83,13 +89,27 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     final HomeController homeController = Get.find();
     final UserController userController = Get.find(tag: 'userController');
 
+    // Phone sized: the nav rail moves into a drawer opened from the header.
+    final isCompact = context.isCompact;
+
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: isCompact
+          ? Drawer(
+              width: 120,
+              shape: const RoundedRectangleBorder(),
+              child: NavRail(
+                selectedIndex: widget.tabIndex,
+                onSelected: () => _scaffoldKey.currentState?.closeDrawer(),
+              ),
+            )
+          : null,
       body: Obx(
         () => Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            NavRail(selectedIndex: widget.tabIndex),
+            if (!isCompact) NavRail(selectedIndex: widget.tabIndex),
             Expanded(
               child: Stack(
                 children: [
@@ -105,30 +125,73 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Vardhman B2B Portal v2.0',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                              if (isCompact)
+                                IconButton(
+                                  tooltip: 'Menu',
+                                  icon: const Icon(
+                                    Icons.menu,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () =>
+                                      _scaffoldKey.currentState?.openDrawer(),
                                 ),
-                              ),
-                              MouseRegion(
-                                onEnter: (_) => setState(() {
-                                  _isHoveringOnName = true;
-                                }),
-                                onExit: (_) {
-                                  _hideContainerTimer = Timer(
-                                    const Duration(milliseconds: 500),
-                                    _hideMenu,
-                                  );
-                                },
+                              Flexible(
                                 child: Text(
-                                  'Welcome! ${userController.rxUserDetail.value.name}',
+                                  isCompact
+                                      ? 'Vardhman B2B'
+                                      : 'Vardhman B2B Portal v2.0',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Flexible(
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  onEnter: (_) => setState(() {
+                                    _isHoveringOnName = true;
+                                  }),
+                                  onExit: (_) {
+                                    _hideContainerTimer = Timer(
+                                      const Duration(milliseconds: 500),
+                                      _hideMenu,
+                                    );
+                                  },
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _hideContainerTimer?.cancel();
+
+                                      setState(() {
+                                        _isHoveringOnName = !_isHoveringOnName;
+                                      });
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Welcome! ${userController.rxUserDetail.value.name}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_drop_down,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -156,6 +219,8 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                   if (_isHoveringOnName) // Only show on LabdipView
                     Positioned(
                       top: 36,
+                      // Full width on a phone, where 380–480 may not fit.
+                      left: isCompact ? 0 : null,
                       right: 0,
                       child: MouseRegion(
                         onEnter: (_) {
@@ -171,20 +236,25 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                         },
                         child: _isHoveringOnName
                             ? Container(
-                                width: userController.rxUserDetail.value.role !=
-                                        'CUSTOMER'
-                                    ? 480
-                                    : 380,
+                                width: isCompact
+                                    ? null
+                                    : userController.rxUserDetail.value.role !=
+                                            'CUSTOMER'
+                                        ? 480
+                                        : 380,
                                 padding: EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.only(
                                       bottomLeft: Radius.circular(24)),
                                   color: VardhmanColors.darkGrey,
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                // Wrap: on a phone the buttons go onto a
+                                // second line instead of overflowing.
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
                                     userController.rxUserDetail.value.role !=
                                             'CUSTOMER'
@@ -201,12 +271,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                                 OrderSummaryController(),
                                               );
                                               Get.dialog(
-                                                const Dialog(
-                                                  insetPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal: 40,
-                                                    vertical: 24,
-                                                  ),
+                                                const AdaptiveDialog(
                                                   clipBehavior: Clip.hardEdge,
                                                   child: SizedBox(
                                                     width: 1000,
@@ -226,7 +291,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                                     .value.soldToNumber);
                                         homeController.rxEmail.value = email;
                                         Get.dialog(
-                                          Dialog(
+                                          AdaptiveDialog(
                                             insetPadding: EdgeInsets.all(80),
                                             clipBehavior: Clip.antiAlias,
                                             child: SizedBox(
