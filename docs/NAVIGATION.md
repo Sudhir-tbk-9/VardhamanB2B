@@ -4,34 +4,62 @@ How the user moves through the Vardhman B2B app, and what happens when they
 leave for the ICICI payment gateway and come back through the return / cancel
 URL.
 
-## 1. No routes, only state
+## 1. Routes
 
-The app has **no named routes and no URL routing**. `GetMaterialApp` has only a
-`home:` and no `getPages` or `routes` (`lib/app/app.dart`). Screens change
-when reactive state changes:
+Routing uses **go_router** (`lib/app/app_router.dart`), plugged into
+`GetMaterialApp.router` (`lib/app/app.dart`). The router shares GetX's
+navigator key (`Get.key`), so `Get.dialog`, `Get.back()` and
+`Get.showSnackbar` work as before.
+
+| URL | Shows |
+|---|---|
+| `#/login` (`?from=/open`) | Login flow, switched by `rxLoginState` |
+| `#/sampling` `#/labdip` `#/dtm` `#/bulk` | Orders tabs (nav rail index 0–3) |
+| `#/open` `#/paid` | Payments tabs (nav rail index 4–5) |
+
+The URL uses Flutter web's default hash strategy, so the server only ever sees
+the app root (`/` or `/vytldev/`), and the gateway's `POST /vytldev/` handling
+is unchanged.
 
 | State | Owner | Decides |
 |---|---|---|
-| `rxLoginState` | `LoginController` (`lib/login/login_controller.dart`) | Login flow vs. home |
-| `rxNavRailIndex` | `HomeController` (`lib/home/home_controller.dart`) | Which tab the home shows |
-| `Get.dialog` / `Get.back()` | GetX navigator | Dialogs on top of a tab |
+| `rxLoginState` | `LoginController` (`lib/login/login_controller.dart`) | Login flow vs. home (via the router's redirect) |
+| The URL | go_router | Which tab the home shows |
+| `rxNavRailIndex` | `HomeController` (`lib/home/home_controller.dart`) | Mirrors the URL's tab for code that reads it (payment dialogs); set before login to pick the tab after a payment return |
+| `Get.dialog` / `Get.back()` | Router's root navigator | Dialogs on top of a tab |
 
-The browser URL stays as `http://host:port/` the whole time. Refreshing the page
-or coming back from another site **always starts the app from the beginning**.
+The router's redirect:
+
+- **Not logged in:** any URL goes to `/login`. A tab URL is kept as `from`
+  (`/login?from=/open`).
+- **Logged in, on a tab URL:** shown as is.
+- **Logged in, anywhere else** (`/login`, the bare app URL after the gateway
+  return, an unknown path): goes to `from` if it is a tab, otherwise to the
+  tab in `rxNavRailIndex` (the payment-return marker's tab, or Sampling).
+
+So a **refresh keeps the tab** (after the password, as before), **browser back /
+forward moves between tabs**, and **locking and logging back in returns to the
+same tab**. The URL alone never logs anyone in: skipping the password still
+needs the payment-return marker (5.3).
+
+Every tab is one page with a fixed key, so switching tabs updates the same
+`HomeScaffold`. Tabs visited once are kept alive (`LazyIndexedStack`,
+`lib/home/lazy_indexed_stack.dart`), so going back to one is instant and keeps
+its scroll position.
 
 ```mermaid
 flowchart TD
-    A[main.dart] --> B[GetMaterialApp home: Obx]
-    B -->|rxLoginState != loggedIn| L[LoginView]
-    B -->|rxLoginState == loggedIn| H[HomeScaffold]
-    H --> N[NavRail]
-    N -->|rxNavRailIndex| T{index}
-    T -->|0| S[SamplingView]
-    T -->|1| LD[LabdipView]
-    T -->|2| D[DtmView]
-    T -->|3| BK[BulkView]
-    T -->|4| O[OpenView]
-    T -->|5| P[PaidView]
+    A[main.dart] --> B[GetMaterialApp.router + appRouter]
+    B -->|rxLoginState != loggedIn| L["#/login → LoginView"]
+    B -->|rxLoginState == loggedIn| H["#/:tab → HomeScaffold(tabIndex)"]
+    H --> N[NavRail → context.go]
+    H --> T{LazyIndexedStack}
+    T -->|/sampling| S[SamplingView]
+    T -->|/labdip| LD[LabdipView]
+    T -->|/dtm| D[DtmView]
+    T -->|/bulk| BK[BulkView]
+    T -->|/open| O[OpenView]
+    T -->|/paid| P[PaidView]
 ```
 
 ## 2. Startup and login flow
@@ -64,19 +92,21 @@ read UserDetails row from drift DB
 (`UserController`, `CatalogController`, `OrdersController`, `DtmController`,
 `SamplingController`, `LabdipController`, `BulkController`,
 `InvoicesController`, `HomeController`). Because of this, **`rxNavRailIndex`
-goes back to `0` (Sampling) on every login**.
+goes back to `0` (Sampling) on every login**, but the router then opens the tab
+from the URL (`/login?from=…`) when there is one.
 
 `lockUser()` sends the user back to the `password` screen. `forgotPassword()`
 sends them back to `loggedOut`.
 
 ## 3. Home: the nav rail
 
-`HomeScaffold` (`lib/home/home_scaffold.dart`) shows `NavRail` next to a body
-picked by `rxNavRailIndex` (chained ternaries at around line 112). `NavRail`
-(`lib/home/nav_rail.dart`) draws **two** `NavigationRail`s that share the one
-index:
+`HomeScaffold` (`lib/home/home_scaffold.dart`) gets the tab index from the
+route and shows `NavRail` next to a `LazyIndexedStack` of the six tab views.
+`NavRail` (`lib/home/nav_rail.dart`) draws **two** `NavigationRail`s that
+share the one index, and selecting an item calls `context.go` with the tab's
+path from `homeTabPaths`:
 
-| Rail | Items | Index written |
+| Rail | Items | Index (path) |
 |---|---|---|
 | Orders | Sampling, Labdip, DTM, Bulk | `value` (0–3) |
 | Payments | Open, Paid | `value + 4` (4–5) |
@@ -175,7 +205,10 @@ in again (`rxLoginState` → `password`) and would land on **Sampling**
    less than 30 minutes old exists (`pendingPaymentReturn`), it calls `_logIn`
    straight away, skipping the password screen.
 3. `_registerSession` sets `rxNavRailIndex` to the saved tab (normally `4`,
-   Open).
+   Open). The gateway returns to the bare app URL, which has no tab in it, so
+   the router's redirect sends the user to that tab (`#/open`). The return URL
+   could carry the tab itself (`…/vytldev/#/open`), but only once ICICI has
+   confirmed it accepts that URL.
 4. After login, `_checkPaymentStatus` calls
    `Api.getPaymentStatus(receiptNumber)` (`ORCH55_GetPaymentWrapper`), logs the
    decrypted text and shows it in a SnackBar. For now this is only to learn

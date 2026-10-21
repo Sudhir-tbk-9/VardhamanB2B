@@ -26,7 +26,13 @@ import 'package:vardhman_b2b/sampling/sampling_view.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
 class HomeScaffold extends StatefulWidget {
-  const HomeScaffold({super.key});
+  const HomeScaffold({
+    super.key,
+    required this.tabIndex,
+  });
+
+  /// Nav rail index of the tab shown, taken from the URL (see appRouter).
+  final int tabIndex;
 
   @override
   State<HomeScaffold> createState() => _HomeScaffoldState();
@@ -35,6 +41,27 @@ class HomeScaffold extends StatefulWidget {
 class _HomeScaffoldState extends State<HomeScaffold> {
   bool _isHoveringOnName = false;
   Timer? _hideContainerTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _syncNavRailIndex();
+  }
+
+  @override
+  void didUpdateWidget(HomeScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    _syncNavRailIndex();
+  }
+
+  /// The URL decides the tab; rxNavRailIndex mirrors it for code that reads
+  /// the current tab, such as the payment dialogs saving where to come back
+  /// to.
+  void _syncNavRailIndex() {
+    Get.find<HomeController>().rxNavRailIndex.value = widget.tabIndex;
+  }
 
   void _hideMenu() {
     _hideContainerTimer?.cancel();
@@ -62,7 +89,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const NavRail(),
+            NavRail(selectedIndex: widget.tabIndex),
             Expanded(
               child: Stack(
                 children: [
@@ -113,7 +140,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                         // Order matches the nav rail indexes: 0–3 orders,
                         // 4–5 payments (see NavRail).
                         child: LazyIndexedStack(
-                          index: homeController.rxNavRailIndex.value,
+                          index: widget.tabIndex,
                           children: const <Widget>[
                             SamplingView(),
                             LabdipView(),
