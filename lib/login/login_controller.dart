@@ -124,6 +124,9 @@ class LoginController extends GetxController {
   Future<void> _checkUser() async {
     _logGatewayReturn();
 
+    // Logged above, so the gateway's query string can leave the address bar.
+    clearGatewayQueryFromUrl();
+
     final isReturning = pendingPaymentReturn != null;
 
     rxLoginState.value =

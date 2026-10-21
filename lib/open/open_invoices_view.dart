@@ -37,8 +37,13 @@ class OpenInvoicesView extends StatelessWidget {
                   text: 'Refresh',
                   onPressed: invoicesController.refreshInvoices,
                 ),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                // Wrap, not Row: on a narrow window the two totals move to
+                // separate lines instead of overflowing.
+                title: Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 4,
                   children: <Widget>[
                     RupeeText(
                       label: 'Net Overdue',

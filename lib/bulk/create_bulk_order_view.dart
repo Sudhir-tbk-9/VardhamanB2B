@@ -53,7 +53,7 @@ class CreateBulkOrderView extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const ShipToSelector(),
+                const Flexible(child: ShipToSelector()),
               ],
             ),
             trailing: DefaultTextStyle(

@@ -74,8 +74,10 @@ class SamplingOrderDetailsView extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      // Wrap: on a narrow window the order facts go onto a second line.
+                      alignment: WrapAlignment.spaceBetween,
+                      runSpacing: 4,
                       children: [
                         if (samplingController
                                 .rxSelectedOrderHeaderLine.value !=

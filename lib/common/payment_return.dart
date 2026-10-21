@@ -84,6 +84,28 @@ Future<void> leaveAppTo(String url, {required int navRailIndex}) async {
   html.window.location.assign(url);
 }
 
+/// The gateway's return lands on the app with its response as query
+/// parameters (`?errorStatus=…&collectResponseMessage=…`). Once read, drop
+/// them from the address bar so it shows the plain app URL again. The history
+/// state is kept so Flutter's own navigation entries are untouched.
+void clearGatewayQueryFromUrl() {
+  try {
+    final location = html.window.location;
+
+    if ((location.search ?? '').isEmpty) {
+      return;
+    }
+
+    html.window.history.replaceState(
+      html.window.history.state,
+      '',
+      '${location.pathname}${location.hash}',
+    );
+  } catch (e) {
+    log('clearGatewayQueryFromUrl error - $e');
+  }
+}
+
 Future<void> clearPaymentReturn() async {
   try {
     html.window.sessionStorage.remove(_paymentReturnKey);

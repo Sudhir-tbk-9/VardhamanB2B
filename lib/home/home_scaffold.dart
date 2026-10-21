@@ -13,6 +13,7 @@ import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
+import 'package:vardhman_b2b/home/lazy_indexed_stack.dart';
 import 'package:vardhman_b2b/home/nav_rail.dart';
 import 'package:vardhman_b2b/bulk/bulk_view.dart';
 import 'package:vardhman_b2b/dtm/dtm_view.dart';
@@ -109,18 +110,19 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                         ),
                       ),
                       Expanded(
-                        child: homeController.rxNavRailIndex.value == 0
-                            ? const SamplingView()
-                            : homeController.rxNavRailIndex.value == 1
-                                ? const LabdipView()
-                                : homeController.rxNavRailIndex.value == 2
-                                    ? const DtmView()
-                                    : homeController.rxNavRailIndex.value == 3
-                                        ? const BulkView()
-                                        : homeController.rxNavRailIndex.value ==
-                                                4
-                                            ? const OpenView()
-                                            : const PaidView(),
+                        // Order matches the nav rail indexes: 0–3 orders,
+                        // 4–5 payments (see NavRail).
+                        child: LazyIndexedStack(
+                          index: homeController.rxNavRailIndex.value,
+                          children: const <Widget>[
+                            SamplingView(),
+                            LabdipView(),
+                            DtmView(),
+                            BulkView(),
+                            OpenView(),
+                            PaidView(),
+                          ],
+                        ),
                       ),
                     ],
                   ),
