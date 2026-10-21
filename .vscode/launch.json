@@ -1,0 +1,49 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+
+    {
+      // Open http://localhost:8000 (the payment return URL), not 8001.
+      "name": "Flutter Web (Payment, port 8000 via proxy)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "preLaunchTask": "payment proxy",
+      "args": ["-d", "web-server", "--web-port", "8001"]
+    },
+
+     {
+      "name": "Flutter Web (Port 8000)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--web-port",
+        "8000"
+      ]
+    },
+
+    {
+      "name": "Flutter",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart"
+    },
+    // {
+    //   "name": "Chrome",
+    //   "request": "launch",
+    //   "type": "dart",
+    //   "args": [
+    //     "--web-port","8000",
+    //   ]
+    // },
+    {
+      "name": "Web Server",
+      "request": "launch",
+      "type": "dart",
+      "args": ["-d", "web-server", "--web-port", "8000"]
+    }
+  ]
+}

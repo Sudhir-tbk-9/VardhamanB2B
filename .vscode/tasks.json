@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Serves http://localhost:8000 in front of flutter on 8001 so the
+      // payment gateway's return POST doesn't break the debug session.
+      "label": "payment proxy",
+      "type": "shell",
+      "command": "py",
+      "args": ["-u", "scripts/dev_payment_proxy.py", "8000", "8001"],
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^__never__$" },
+        "background": {
+          "beginsPattern": "^Open http",
+          "endsPattern": "^Open http"
+        }
+      }
+    }
+  ]
+}

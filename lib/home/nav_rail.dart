@@ -1,0 +1,201 @@
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get/get.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
+import 'package:vardhman_b2b/constants.dart';
+import 'package:vardhman_b2b/home/home_controller.dart';
+
+class NavRail extends StatelessWidget {
+  const NavRail({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final HomeController homeController = Get.find<HomeController>();
+
+    return Obx(
+      () {
+        final ordersNavSelectedIndex = homeController.rxNavRailIndex.value < 4
+            ? homeController.rxNavRailIndex.value
+            : null;
+
+        final paymentsNavSelectedIndex = homeController.rxNavRailIndex.value > 3
+            ? homeController.rxNavRailIndex.value - 4
+            : null;
+
+        return DefaultTextStyle(
+          style: TextStyle(
+            fontSize: 13,
+            color: VardhmanColors.darkGrey,
+            fontWeight: FontWeight.w500,
+          ),
+          child: ThemeBackdrop(
+            variant: ThemeVariants.current,
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                width: 120,
+                child: Column(
+                  children: <Widget>[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: Image.asset(
+                        'assets/vytl_icon_white.png',
+                        width: 60,
+                        height: 60,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 24,
+                    ),
+                    Container(
+                      height: 310,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: VardhmanColors.darkGrey,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        color: Colors.white,
+                      ),
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          const Text('ORDERS'),
+                          Divider(
+                            height: 8,
+                            thickness: 0.2,
+                            color: VardhmanColors.darkGrey,
+                          ),
+                          Flexible(
+                            child: NavigationRail(
+                              selectedIndex: ordersNavSelectedIndex,
+                              onDestinationSelected: (value) =>
+                                  homeController.rxNavRailIndex.value = value,
+                              groupAlignment: 0,
+                              labelType: NavigationRailLabelType.all,
+                              useIndicator: true,
+                              backgroundColor: Colors.white,
+                              indicatorColor: VardhmanColors.red,
+                              selectedIconTheme: const IconThemeData(
+                                color: Colors.white,
+                              ),
+                              selectedLabelTextStyle: TextStyle(
+                                color: VardhmanColors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              unselectedLabelTextStyle: TextStyle(
+                                color: VardhmanColors.darkGrey,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              unselectedIconTheme: IconThemeData(
+                                color: VardhmanColors.darkGrey,
+                              ),
+                              destinations: const [
+                                NavigationRailDestination(
+                                  icon: FaIcon(
+                                    FontAwesomeIcons.droplet,
+                                    size: 13,
+                                  ),
+                                  label: Text('Sampling'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: FaIcon(
+                                    FontAwesomeIcons.droplet,
+                                    size: 13,
+                                  ),
+                                  label: Text('Labdip'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.factory),
+                                  label: Text('DTM'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.shopping_bag_outlined),
+                                  label: Text('Bulk'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 24,
+                    ),
+                    Container(
+                      height: 190,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: VardhmanColors.darkGrey,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        color: Colors.white,
+                      ),
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          const Text(
+                            'INVOICES',
+                          ),
+                          Divider(
+                            height: 8,
+                            thickness: 0.2,
+                            color: VardhmanColors.darkGrey,
+                          ),
+                          Flexible(
+                            child: NavigationRail(
+                              selectedIndex: paymentsNavSelectedIndex,
+                              onDestinationSelected: (value) => homeController
+                                  .rxNavRailIndex.value = value + 4,
+                              groupAlignment: 0,
+                              labelType: NavigationRailLabelType.all,
+                              useIndicator: true,
+                              backgroundColor: Colors.white,
+                              indicatorColor: VardhmanColors.red,
+                              selectedIconTheme: const IconThemeData(
+                                color: Colors.white,
+                              ),
+                              selectedLabelTextStyle: TextStyle(
+                                color: VardhmanColors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              unselectedLabelTextStyle: TextStyle(
+                                color: VardhmanColors.darkGrey,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              unselectedIconTheme: IconThemeData(
+                                color: VardhmanColors.darkGrey,
+                              ),
+                              destinations: const [
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.currency_rupee_rounded),
+                                  label: Text('Open'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.menu_book_sharp),
+                                  label: Text('Paid'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

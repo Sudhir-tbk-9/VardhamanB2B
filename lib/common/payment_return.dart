@@ -1,0 +1,93 @@
+import 'dart:convert';
+import 'dart:developer';
+
+import 'package:universal_html/html.dart' as html;
+
+/// Leaving for the payment gateway (or any external link opened in the same
+/// tab) unloads the Flutter page, so the app boots from scratch when the user
+/// comes back. This marker, saved in the tab's sessionStorage just before
+/// leaving, lets the app log the user straight back in, reopen the tab they
+/// left from and, for a payment, check its status.
+const _paymentReturnKey = 'paymentReturn';
+
+/// A marker older than this is ignored: the user did not come back from the
+/// gateway, so the normal login (password) screen is shown.
+const _paymentReturnMaxAge = Duration(minutes: 30);
+
+/// [receiptNumber] is null when leaving for an external link rather than a
+/// payment: the tab is restored but no payment status is checked.
+Future<void> savePaymentReturn({
+  required int navRailIndex,
+  String? receiptNumber,
+}) async {
+  try {
+    html.window.sessionStorage[_paymentReturnKey] = jsonEncode({
+      'navRailIndex': navRailIndex,
+      if (receiptNumber != null) 'receiptNumber': receiptNumber,
+      'savedAt': DateTime.now().toIso8601String(),
+    });
+  } catch (e) {
+    log('savePaymentReturn error - $e');
+  }
+}
+
+/// The saved marker, or null when no recent payment is pending or
+/// sessionStorage is unavailable.
+Map<String, dynamic>? get _pendingMarker {
+  try {
+    final json = html.window.sessionStorage[_paymentReturnKey];
+
+    if (json == null) {
+      return null;
+    }
+
+    final marker = jsonDecode(json) as Map<String, dynamic>;
+
+    final savedAt = DateTime.parse(marker['savedAt'] as String);
+
+    if (DateTime.now().difference(savedAt) > _paymentReturnMaxAge) {
+      return null;
+    }
+
+    return marker;
+  } catch (e) {
+    log('pendingPaymentReturn error - $e');
+
+    return null;
+  }
+}
+
+/// Nav rail index to return to, or null when no recent payment is pending.
+int? get pendingPaymentReturn {
+  try {
+    return _pendingMarker?['navRailIndex'] as int?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Receipt number of the pending payment, or null when none is pending.
+String? get pendingPaymentReceiptNumber {
+  try {
+    return _pendingMarker?['receiptNumber'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Opens [url] in this tab and brings the user back to [navRailIndex],
+/// still logged in, when they return to the app (back button or a redirect
+/// to the app's URL).
+Future<void> leaveAppTo(String url, {required int navRailIndex}) async {
+  await savePaymentReturn(navRailIndex: navRailIndex);
+
+  html.window.location.assign(url);
+}
+
+Future<void> clearPaymentReturn() async {
+  try {
+    html.window.sessionStorage.remove(_paymentReturnKey);
+  } catch (e) {
+    log('clearPaymentReturn error - $e');
+  }
+}

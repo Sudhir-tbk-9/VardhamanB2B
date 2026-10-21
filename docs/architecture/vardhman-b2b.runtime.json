@@ -1,0 +1,374 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Vardhman B2B Portal — Client Runtime Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1270,
+      570
+    ],
+    "views": [
+      {
+        "id": "order-path",
+        "label": "Order placement path",
+        "focus": [
+          "order-entry",
+          "order-review",
+          "api-gateway",
+          "jde-erp"
+        ],
+        "note": "Draft lines are staged on device, reviewed, then written to JDE as one staging batch."
+      },
+      {
+        "id": "session-secrets",
+        "label": "Session and local secrets",
+        "focus": [
+          "login-controller",
+          "shared-preferences",
+          "drift-local-db"
+        ],
+        "note": "Token, OTP, and the user password are all owned by the client, not the server."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "app-shell",
+      "type": "frontend",
+      "label": "App Shell & Auth Gate",
+      "sublabel": "GetMaterialApp · Obx",
+      "pos": [
+        40,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "order-invoice-ui",
+      "type": "frontend",
+      "label": "Order & Invoice UI",
+      "sublabel": "6 rail modules",
+      "pos": [
+        246,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "order-entry",
+      "type": "backend",
+      "label": "Order Entry",
+      "sublabel": "Bulk · Labdip · DTM",
+      "pos": [
+        452,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "order-review",
+      "type": "backend",
+      "label": "Order Review",
+      "sublabel": "Catalog · Invoices",
+      "pos": [
+        658,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "api-gateway",
+      "type": "backend",
+      "label": "Api Dio Gateway",
+      "sublabel": "JSON · multipart",
+      "pos": [
+        864,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "jde-erp",
+      "type": "external",
+      "label": "JDE ERP Orchestrator",
+      "sublabel": "erp.vardhmanthreads.in",
+      "pos": [
+        1070,
+        255
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "drift-local-db",
+      "type": "database",
+      "label": "Drift Local DB",
+      "sublabel": "vytl · SQLite / WASM",
+      "pos": [
+        452,
+        50
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "airtel-whatsapp",
+      "type": "external",
+      "label": "Airtel WhatsApp",
+      "sublabel": "iqwhatsapp.airtel.in",
+      "pos": [
+        864,
+        50
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "login-controller",
+      "type": "security",
+      "label": "LoginController",
+      "sublabel": "token · OTP · password",
+      "pos": [
+        40,
+        460
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "shared-preferences",
+      "type": "database",
+      "label": "SharedPreferences",
+      "sublabel": "key–value · device",
+      "pos": [
+        246,
+        460
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "file-pdf-io",
+      "type": "backend",
+      "label": "File & PDF I/O",
+      "sublabel": "xlsx · pdf · picker",
+      "pos": [
+        452,
+        460
+      ],
+      "size": [
+        160,
+        58
+      ]
+    },
+    {
+      "id": "b2b-file-service",
+      "type": "external",
+      "label": "B2B File Service",
+      "sublabel": "b2b.amefird.in:8081",
+      "pos": [
+        1070,
+        460
+      ],
+      "size": [
+        160,
+        58
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Buyer device (untrusted)",
+      "wraps": [
+        "app-shell",
+        "order-invoice-ui",
+        "order-entry",
+        "order-review",
+        "api-gateway",
+        "drift-local-db",
+        "login-controller",
+        "shared-preferences",
+        "file-pdf-io"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Client-held secrets",
+      "wraps": [
+        "login-controller",
+        "shared-preferences"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Vardhman server-side",
+      "wraps": [
+        "jde-erp",
+        "b2b-file-service",
+        "airtel-whatsapp"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "shell-to-ui",
+      "from": "app-shell",
+      "to": "order-invoice-ui",
+      "label": "logged-in gate",
+      "labelAt": [
+        223,
+        225
+      ]
+    },
+    {
+      "id": "ui-to-entry",
+      "from": "order-invoice-ui",
+      "to": "order-entry",
+      "label": "GetX binding",
+      "labelAt": [
+        429,
+        225
+      ]
+    },
+    {
+      "id": "entry-to-review",
+      "from": "order-entry",
+      "to": "order-review",
+      "label": "submitOrder",
+      "labelAt": [
+        635,
+        225
+      ]
+    },
+    {
+      "id": "review-to-api",
+      "from": "order-review",
+      "to": "api-gateway",
+      "label": "staging batch",
+      "labelAt": [
+        841,
+        225
+      ]
+    },
+    {
+      "id": "api-to-erp",
+      "from": "api-gateway",
+      "to": "jde-erp",
+      "label": "HTTPS POST · JDE-AIS-Auth header",
+      "variant": "security",
+      "labelAt": [
+        1047,
+        225
+      ]
+    },
+    {
+      "id": "auth-gate",
+      "from": "login-controller",
+      "to": "app-shell",
+      "label": "rxLoginState",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        120,
+        386
+      ]
+    },
+    {
+      "id": "auth-secrets",
+      "from": "login-controller",
+      "to": "shared-preferences",
+      "label": "password · zone AC01",
+      "labelAt": [
+        223,
+        545
+      ]
+    },
+    {
+      "id": "entry-drafts",
+      "from": "order-entry",
+      "to": "drift-local-db",
+      "label": "draftTable.watch()",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        532,
+        181
+      ]
+    },
+    {
+      "id": "entry-files",
+      "from": "order-entry",
+      "to": "file-pdf-io",
+      "label": "xlsx in · pdf out",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        532,
+        386
+      ]
+    },
+    {
+      "id": "api-uploads",
+      "from": "api-gateway",
+      "to": "b2b-file-service",
+      "label": "PO / media upload",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "api-notify",
+      "from": "api-gateway",
+      "to": "airtel-whatsapp",
+      "label": "order notification",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Client-only application tier",
+      "items": [
+        "No server-side app tier: order, pricing, address and invoice logic all run in GetX controllers on the buyer device, which calls JDE directly.",
+        "DraftTable stages order lines in vytl and clears them only after a successful submit. One codebase targets Windows, Android, iOS and web."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Client-held credentials",
+      "items": [
+        "JDEMAPP password and two Basic-Auth headers are compiled into the binary (api.dart:34, :128, :244).",
+        "OTP is generated on-device and compared locally, not server-challenged (api.dart:171).",
+        "Password stored in plaintext in SharedPreferences, and interceptors log full bodies (login_controller.dart:247, api.dart:73)."
+      ]
+    }
+  ]
+}
