@@ -100,10 +100,16 @@ class LoginController extends GetxController {
 
   /// Logs how the app was opened when it comes back from the gateway: the
   /// return URL with any query parameters and the referring page.
+  /// The gateway's result when the app was opened by its return, read before
+  /// the query string is cleared from the address bar.
+  GatewayResult? _gatewayResult;
+
   void _logGatewayReturn() {
     final receiptNumber = pendingPaymentReceiptNumber;
 
     final url = Uri.base;
+
+    _gatewayResult = gatewayResultOf(url);
 
     if (receiptNumber == null && !url.hasQuery) {
       return;
@@ -126,6 +132,13 @@ class LoginController extends GetxController {
 
     // Logged above, so the gateway's query string can leave the address bar.
     clearGatewayQueryFromUrl();
+
+    // A failure with no pending receipt (marker expired, or another tab
+    // started the payment) is not checked after login: say so right away.
+    if (_gatewayResult?.isFailed == true &&
+        pendingPaymentReceiptNumber == null) {
+      _showPaymentFailed(null);
+    }
 
     final isReturning = pendingPaymentReturn != null;
 
@@ -442,9 +455,25 @@ class LoginController extends GetxController {
   }
 
   /// Back from the payment gateway: reads the gateway result for the receipt.
-  /// Only logged and shown for now, until the status format is known.
+  /// Only logged and shown for now, until the status format is known. When
+  /// the gateway itself reported a failure, that is shown instead.
   Future<void> _checkPaymentStatus(String receiptNumber) async {
+    final isFailed = _gatewayResult?.isFailed == true;
+
     try {
+      if (isFailed) {
+        _showPaymentFailed(receiptNumber);
+
+        // The invoice flow saved this payment before leaving; it was not
+        // made, so the Open tab should not show it as the last payment.
+        final invoicesController = Get.find<InvoicesController>();
+
+        if (invoicesController.rxLastPayment.value?['receiptNumber'] ==
+            receiptNumber) {
+          await invoicesController.dismissLastPayment();
+        }
+      }
+
       final status = await Api.getPaymentStatus(receiptNumber);
 
       log('Payment status for $receiptNumber: $status');
@@ -458,13 +487,15 @@ class LoginController extends GetxController {
       // toastification, not Get.showSnackbar: this runs while home replaces
       // the login view, before GetX's overlay exists ("No Overlay widget
       // found").
-      toastification.show(
-        autoCloseDuration: const Duration(seconds: 10),
-        primaryColor: VardhmanColors.green,
-        alignment: Alignment.bottomCenter,
-        title: Text('Payment status ($receiptNumber)'),
-        description: Text(status ?? 'No status returned'),
-      );
+      if (!isFailed) {
+        toastification.show(
+          autoCloseDuration: const Duration(seconds: 10),
+          primaryColor: VardhmanColors.green,
+          alignment: Alignment.bottomCenter,
+          title: Text('Payment status ($receiptNumber)'),
+          description: Text(status ?? 'No status returned'),
+        );
+      }
 
       Get.find<InvoicesController>().refreshInvoices();
     } catch (e, stack) {
@@ -478,6 +509,31 @@ class LoginController extends GetxController {
     } finally {
       await clearPaymentReturn();
     }
+  }
+
+  void _showPaymentFailed(String? receiptNumber) {
+    final errorMessage = _gatewayResult?.errorMessage;
+
+    logPayment(
+      'payment_failed_shown',
+      receiptNumber: receiptNumber,
+      data: errorMessage ?? 'No error message returned',
+    );
+
+    toastification.show(
+      autoCloseDuration: const Duration(seconds: 10),
+      primaryColor: VardhmanColors.red,
+      alignment: Alignment.bottomCenter,
+      title: Text(
+        receiptNumber == null
+            ? 'Payment not completed'
+            : 'Payment not completed ($receiptNumber)',
+      ),
+      description: Text(
+        '${errorMessage ?? 'The payment gateway reported an error.'} '
+        'Please try again.',
+      ),
+    );
   }
 
   Future<void> resetController<T extends GetxController>(

@@ -84,6 +84,40 @@ Future<void> leaveAppTo(String url, {required int navRailIndex}) async {
   html.window.location.assign(url);
 }
 
+/// What the gateway reported when it sent the user back.
+class GatewayResult {
+  const GatewayResult({
+    required this.isFailed,
+    this.errorMessage,
+  });
+
+  final bool isFailed;
+
+  /// The gateway's own text, e.g. "Payment Failed"; null when it sent none.
+  final String? errorMessage;
+}
+
+/// The gateway's result from the return URL's query parameters
+/// (`?errorStatus=0&collectResponseMessage=…` on success,
+/// `?errorStatus=1&errorMessage=Payment+Failed` on failure), or null when the
+/// app was not opened by a gateway return. Any errorStatus other than `0`
+/// counts as failed, so a cancel or an unknown code is never shown as paid.
+GatewayResult? gatewayResultOf(Uri url) {
+  final errorStatus = url.queryParameters['errorStatus']?.trim();
+
+  if (errorStatus == null) {
+    return null;
+  }
+
+  final errorMessage = url.queryParameters['errorMessage']?.trim();
+
+  return GatewayResult(
+    isFailed: errorStatus != '0',
+    errorMessage:
+        errorMessage == null || errorMessage.isEmpty ? null : errorMessage,
+  );
+}
+
 /// The gateway's return lands on the app with its response as query
 /// parameters (`?errorStatus=…&collectResponseMessage=…`). Once read, drop
 /// them from the address bar so it shows the plain app URL again. The history

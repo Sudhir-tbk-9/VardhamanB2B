@@ -12,6 +12,7 @@ user's place in the app.
 | Port changes between runs | Without `--web-port`, Flutter picks a random port, but the gateway's return / cancel URL is fixed at `http://localhost:8000/` (`lib/open/invoice_review_dialog.dart`). |
 | Return fails even on the right port | The gateway sends the user back with a **POST** (form fields `errorStatus`, `collectResponseMessage`, …). Flutter's dev server only answers GET. |
 | User lands on the login screen | The app reloads from scratch on return. While the saved session was being restored (JDE token refresh + session setup, ~20 s), the login form was shown. |
+| Red screen on return: `Library not defined: package:vardhman_b2b/…dart. Failed to initialize.` | A Dart file was **added** while `flutter run` was running. Hot reload / restart brought it into the open tab, but the full page load on return uses the module list from when the session started, which does not have it. Stop `flutter run` and start it again (a hot restart is not enough). Debug builds only; release builds cannot hit this. |
 
 ## The setup
 

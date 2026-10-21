@@ -214,6 +214,16 @@ in again (`rxLoginState` → `password`) and would land on **Sampling**
    decrypted text and shows it in a SnackBar. For now this is only to learn
    the format; invoice state is not changed from it. Then it refreshes the
    invoices and clears the marker, so a reload does not repeat the check.
+5. **Failed or cancelled payment.** The gateway comes back with
+   `?errorStatus=1&errorMessage=Payment+Failed` (success is `errorStatus=0`).
+   `gatewayResultOf` reads this before the query is cleared, and any status
+   other than `0` counts as failed. The user is still logged back in on the
+   Open tab, but sees a red "Payment not completed" toast with the gateway's
+   message instead of the green status, and the payment saved before leaving
+   (`rxLastPayment`, same receipt) is dropped so `PaymentKnockOffView` does
+   not show it. If no marker is pending, the red toast is shown on the login
+   screen. JDE is not told about the failure: the entry stays at
+   `updateInvoicePaymentRequest(sp: 'I')`.
 
 Every sessionStorage read and write is wrapped in try/catch. If storage is
 unavailable, the getters return `null` and the user gets the normal login
