@@ -151,61 +151,73 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              IconButton(
-                                tooltip: 'My Details',
-                                icon: const Icon(
-                                  Icons.account_circle_outlined,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {
-                                  _hideMenu();
-
-                                  Get.dialog(const MyDetailsDialog());
-                                },
-                              ),
+                              // Profile button and Welcome kept together on
+                              // the right, the button just before the name.
                               Flexible(
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  onEnter: (_) => setState(() {
-                                    _isHoveringOnName = true;
-                                  }),
-                                  onExit: (_) {
-                                    _hideContainerTimer = Timer(
-                                      const Duration(milliseconds: 500),
-                                      _hideMenu,
-                                    );
-                                  },
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      _hideContainerTimer?.cancel();
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'My Details',
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(
+                                        Icons.account_circle_outlined,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        _hideMenu();
 
-                                      setState(() {
-                                        _isHoveringOnName = !_isHoveringOnName;
-                                      });
-                                    },
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            'Welcome! ${userController.rxUserDetail.value.name}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                        Get.dialog(const MyDetailsDialog());
+                                      },
+                                    ),
+                                    Flexible(
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        onEnter: (_) => setState(() {
+                                          _isHoveringOnName = true;
+                                        }),
+                                        onExit: (_) {
+                                          _hideContainerTimer = Timer(
+                                            const Duration(milliseconds: 500),
+                                            _hideMenu,
+                                          );
+                                        },
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            _hideContainerTimer?.cancel();
+
+                                            setState(() {
+                                              _isHoveringOnName =
+                                                  !_isHoveringOnName;
+                                            });
+                                          },
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  'Welcome! ${userController.rxUserDetail.value.name}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              const Icon(
+                                                Icons.arrow_drop_down,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const Icon(
-                                          Icons.arrow_drop_down,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ),
                             ],
