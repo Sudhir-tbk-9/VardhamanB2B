@@ -25,6 +25,7 @@ import 'package:vardhman_b2b/labdip/labdip_view.dart';
 import 'package:vardhman_b2b/open/open_view.dart';
 import 'package:vardhman_b2b/paid/paid_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_view.dart';
+import 'package:vardhman_b2b/user/my_details_dialog.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
 class HomeScaffold extends StatefulWidget {
@@ -150,6 +151,18 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                 ),
                               ),
                               const SizedBox(width: 16),
+                              IconButton(
+                                tooltip: 'My Details',
+                                icon: const Icon(
+                                  Icons.account_circle_outlined,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  _hideMenu();
+
+                                  Get.dialog(const MyDetailsDialog());
+                                },
+                              ),
                               Flexible(
                                 child: MouseRegion(
                                   cursor: SystemMouseCursors.click,
