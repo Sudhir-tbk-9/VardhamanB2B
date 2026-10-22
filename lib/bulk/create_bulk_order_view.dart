@@ -136,7 +136,10 @@ class CreateBulkOrderView extends StatelessWidget {
                   vertical: 8,
                 ),
                 child: LayoutBuilder(
-                  builder: (context, constraints) {
+                  // Obx: the form is built here, outside the screen's Obx, so
+                  // fields enabled by other fields (Shade after Article, UOM
+                  // after Shade) would otherwise never update.
+                  builder: (context, constraints) => Obx(() {
                     final actions = AdaptiveRow(
                       narrowLayout: NarrowLayout.wrap,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -432,8 +435,14 @@ class CreateBulkOrderView extends StatelessWidget {
                                                 isRequired: true,
                                                 hasError: bulkEntryController
                                                     .uomHasError,
-                                                isEnabled: !bulkEntryController
-                                                    .rxUomLocked.value,
+                                                // Article -> Shade -> UOM: UOM follows
+                                                // from the shade (Sno 14).
+                                                isEnabled:
+                                                    !bulkEntryController.rxUomLocked.value &&
+                                                        (bulkEntryController.rxShade
+                                                                .isNotEmpty ||
+                                                            bulkEntryController.rxUom
+                                                                .isNotEmpty),
                                                 dropdownKey: bulkEntryController
                                                     .uomDropdownKey,
                                                 labelText: 'UOM',
@@ -650,7 +659,7 @@ class CreateBulkOrderView extends StatelessWidget {
                         ),
                       ],
                     );
-                  },
+                  }),
                 ),
               ),
             ),

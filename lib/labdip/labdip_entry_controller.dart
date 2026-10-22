@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
+import 'package:vardhman_b2b/common/shade_uom_lookup.dart';
 import 'package:vardhman_b2b/api/buyer_info.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/constants.dart';
@@ -199,6 +200,8 @@ class LabdipEntryController extends GetxController {
 
     rxArticle.listen(
       (_) {
+        _unlockUom();
+
         _selectIfOnlyOneOption(rxArticle.hashCode);
 
         _resetShade();
@@ -259,12 +262,20 @@ class LabdipEntryController extends GetxController {
 
     final article = rxArticle.value.trim();
 
-    final uom = rxUom.value.trim();
+    // A UOM derived from the shade must not narrow the shade list, or no
+    // shade of another UOM could be picked.
+    final uom = rxUomLocked.value ? '' : rxUom.value.trim();
 
     if (article.isNotEmpty) {
-      Api.fetchShades(article: article, uom: uom).then(
-        (shades) {
-          final validShades = shades
+      _shadeUomsFor(article).then(
+        (shadeUoms) {
+          if (rxArticle.value.trim() != article) {
+            return;
+          }
+
+          final validShades = shadeUoms.entries
+              .where((entry) => uom.isEmpty || entry.value.contains(uom))
+              .map((entry) => entry.key)
               .where(
                 (shade) => !skipShades.contains(shade),
               )
@@ -310,46 +321,133 @@ class LabdipEntryController extends GetxController {
   /// Shade typed before UOM; restored after the UOM change resets shades.
   String? _shadeToKeep;
 
-  /// Picks the UOM (K2) from the JDE item master for the entered Article (K1)
-  /// and Shade (K3) when exactly one catalog UOM carries that shade.
+  final _shadeUomLookup = ShadeUomLookup();
+
+  Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
+      _shadeUomLookup.forArticle(article, catalogController.industryItems);
+
+  /// True while the UOM (K2) was derived from Article (K1) + Shade (K3); the
+  /// UOM field is read-only meanwhile.
+  final rxUomLocked = false.obs;
+
+  /// UOMs that carry the entered shade, when the user must choose one.
+  final rxShadeUomChoices = <String>[].obs;
+
+  /// Shade the locked UOM was derived for.
+  String? _autoUomShade;
+
+  /// Key of the UOM field, used to open it when the user must choose a UOM.
+  final uomDropdownKey = GlobalKey<DropdownSearchState<String>>();
+
+  void _unlockUom() {
+    rxUomLocked.value = false;
+
+    rxShadeUomChoices.clear();
+
+    _autoUomShade = null;
+  }
+
+  /// Options for the UOM field: the shade's UOMs when several carry it,
+  /// otherwise the article's catalog UOMs.
+  List<String> get uomChoices => rxShadeUomChoices.isNotEmpty
+      ? rxShadeUomChoices.toList()
+      : uniqueFilteredUoms;
+
+  /// Sets the UOM (K2) for the entered Article (K1) and Shade (K3): the
+  /// article's UOMs in the item catalog (ORCH55_GetItemCatalogInfo) that carry
+  /// the shade in the JDE item master (F4101 SEG1/SEG2/SEG3, SRP1 IND/SPE).
+  /// One UOM: filled and locked. Several: offered as the only choices.
+  /// None: "UOM not found", field stays editable.
   Future<void> _autoSelectUom(String shade) async {
     final article = rxArticle.value.trim();
 
-    final uoms = (await Api.fetchUomsForShade(article: article, shade: shade))
-        .where(uniqueFilteredUoms.contains)
-        .toList();
+    final shadeUoms = await _shadeUomsFor(article);
+
+    var uoms = shadeUoms[shade] ?? <String>[];
+
+    if (uoms.isEmpty) {
+      // Shade typed, or its UOMs unknown (Article-only fallback): ask JDE
+      // for this shade directly before reporting "UOM not found".
+      uoms = (await Api.fetchUomsForShade(article: article, shade: shade))
+          .where(uniqueFilteredUoms.contains)
+          .toList();
+    }
 
     if (rxShade.value != shade ||
         rxArticle.value.trim() != article ||
-        rxUom.value.trim().isNotEmpty) {
+        (rxUom.value.trim().isNotEmpty && !rxUomLocked.value)) {
       return;
     }
 
     if (uoms.length == 1) {
-      _shadeToKeep = shade;
+      final uom = uoms.first;
 
-      rxUomWithDesc.value =
-          '${uoms.first} - ${orderReviewController.getUomDescription(uoms.first)}';
-    } else {
-      toastification.show(
-        autoCloseDuration: Duration(seconds: 3),
-        primaryColor: VardhmanColors.red,
-        title: Text(
-          uoms.isEmpty
-              ? 'Shade $shade not found for article $article'
-              : 'Shade $shade exists in UOMs ${uoms.join(', ')}. Please select UOM',
-        ),
-      );
+      rxShadeUomChoices.clear();
+
+      rxUomLocked.value = true;
+
+      _autoUomShade = shade;
+
+      if (rxUom.value.trim() != uom) {
+        _shadeToKeep = shade;
+
+        rxUomWithDesc.value =
+            '$uom - ${orderReviewController.getUomDescription(uom)}';
+      }
+
+      return;
     }
+
+    rxUomLocked.value = false;
+
+    _autoUomShade = null;
+
+    if (uoms.isEmpty) {
+      rxShadeUomChoices.clear();
+
+      toastification.show(
+        autoCloseDuration: Duration(seconds: 4),
+        primaryColor: VardhmanColors.red,
+        title: Text('UOM not found for article $article and shade $shade'),
+      );
+
+      return;
+    }
+
+    // Keep the shade when the chosen UOM resets the shade list.
+    _shadeToKeep = shade;
+
+    rxShadeUomChoices.assignAll(uoms);
+
+    toastification.show(
+      autoCloseDuration: Duration(seconds: 4),
+      primaryColor: VardhmanColors.orange,
+      title: Text(
+        'Shade $shade exists in UOMs ${uoms.join(', ')}. Please choose the UOM',
+      ),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => uomDropdownKey.currentState?.openDropDownSearch(),
+    );
   }
 
   void shadeListener(String newShade) {
     rxColor.value = '';
 
-    if (newShade.isNotEmpty && rxUom.value.trim().isEmpty) {
-      _autoSelectUom(newShade);
+    if (_shadeToKeep != null && newShade != _shadeToKeep) {
+      _shadeToKeep = null;
+    }
 
-      return;
+    if (newShade != _autoUomShade) {
+      rxShadeUomChoices.clear();
+    }
+
+    if (newShade.isEmpty) {
+      _unlockUom();
+    } else if (rxUom.value.trim().isEmpty ||
+        (rxUomLocked.value && newShade != _autoUomShade)) {
+      _autoSelectUom(newShade);
     }
   }
 

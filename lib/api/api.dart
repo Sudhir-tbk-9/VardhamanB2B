@@ -228,6 +228,14 @@ class Api {
     return false;
   }
 
+  /// Ship-To diagnostics in the browser console (debugPrint, not log(), which
+  /// never reaches it). Filter the console on `[SHIPTO]`.
+  static void logShipTo(String step, Object? data) {
+    debugPrint(
+      '[SHIPTO] $step: ${jsonEncode(data, toEncodable: (value) => '$value')}',
+    );
+  }
+
   static Future<bool> logout() async {
     try {
       final response = await _dio.post(
@@ -459,9 +467,73 @@ class Api {
       }
     } catch (e) {
       log('fetchShades error - $e');
+
+      debugPrint('[SHADE] fetchShades $article/$uom failed: $e');
     }
 
     return shades;
+  }
+
+  /// Shades of [article] with the UOMs carrying each, from one F4101 query
+  /// per catalog UOM in [uoms]: an Article-only query can return nothing for
+  /// a large article, while Article + UOM is the query that already works
+  /// for the Shade list once a UOM is picked.
+  static Future<Map<String, List<String>>> fetchShadeUoms({
+    required String article,
+    required List<String> uoms,
+    String shadeStartsWith = '',
+  }) async {
+    final shadesPerUom = await Future.wait(
+      uoms.map(
+        (uom) => fetchShades(
+          article: article,
+          uom: uom,
+          shadeStartsWith: shadeStartsWith,
+        ),
+      ),
+    );
+
+    final shadeUoms = <String, List<String>>{};
+
+    for (var i = 0; i < uoms.length; i++) {
+      for (final shade in shadesPerUom[i]) {
+        final key = '$shade'.trim();
+
+        if (key.isNotEmpty) {
+          (shadeUoms[key] ??= []).add(uoms[i]);
+        }
+      }
+    }
+
+    debugPrint(
+      '[SHADE] $article: ${shadeUoms.length} shades over UOMs '
+      '${[for (var i = 0; i < uoms.length; i++) '${uoms[i]}=${shadesPerUom[i].length}'].join(', ')}',
+    );
+
+    if (shadeUoms.isEmpty) {
+      // No catalog UOMs, or none returned shades: fall back to the
+      // Article-only query. Their UOMs stay unknown (empty), so the UOM is
+      // then looked up per shade.
+      final shades = await fetchShades(
+        article: article,
+        shadeStartsWith: shadeStartsWith,
+      );
+
+      for (final shade in shades) {
+        final key = '$shade'.trim();
+
+        if (key.isNotEmpty) {
+          shadeUoms[key] = [];
+        }
+      }
+
+      debugPrint(
+        '[SHADE] $article: ${shadeUoms.length} shades from the Article-only '
+        'query',
+      );
+    }
+
+    return shadeUoms;
   }
 
   /// UOMs (F4101.SEG2) under which [article] (SEG1) carries [shade] (SEG3).
@@ -882,6 +954,11 @@ class Api {
         },
       );
 
+      logShipTo('Sold-To address (ORCH550116) for $addressNumber', {
+        'status': response.statusCode,
+        'response': response.data,
+      });
+
       if (response.statusCode == 200) {
         final ac01 = response.data['ORCH550005_GetUDC_Repeating'][0]
             ['ORCH550005_GetUDC']['AC01'];
@@ -914,6 +991,8 @@ class Api {
       }
     } catch (e) {
       log('fetchBillingAddress error - $e');
+
+      logShipTo('Sold-To address (ORCH550116) failed', '$e');
     }
 
     return null;
@@ -933,6 +1012,11 @@ class Api {
           'Company': company,
         },
       );
+
+      logShipTo('Delivery addresses (ORCH550101K) for $soldToNumber/$company', {
+        'status': response.statusCode,
+        'response': response.data,
+      });
 
       if (response.statusCode == 200) {
         final deliveryAddressesData = response.data['DeliveryAddress'] ?? [];
@@ -959,6 +1043,8 @@ class Api {
       }
     } catch (e) {
       log('fetchDeliveryAddresses error - $e');
+
+      logShipTo('Delivery addresses (ORCH550101K) failed', '$e');
     }
 
     return deliveryAddresses;
@@ -2929,6 +3015,15 @@ class Api {
         data: payload,
       );
 
+      // JDE's answer for the chosen Ship-To: shows whether staging accepted
+      // it or needs configuration (e.g. Ship-To not linked to the Sold-To).
+      logShipTo('Bulk order $b2bOrderNumber submitted to ShipTo $shipTo', {
+        'soldTo': soldTo,
+        'branchPlant': branchPlant,
+        'status': response.statusCode,
+        'response': response.data,
+      });
+
       if (response.statusCode == 200) {
         return true;
       }
@@ -2937,6 +3032,8 @@ class Api {
         'Submit order error',
         error: e,
       );
+
+      logShipTo('Bulk order $b2bOrderNumber submit failed', '$e');
     }
 
     return false;

@@ -79,7 +79,10 @@ class CreateSamplingOrderView extends StatelessWidget {
                   vertical: 8,
                 ),
                 child: LayoutBuilder(
-                  builder: (context, constraints) {
+                  // Obx: the form is built here, outside the screen's Obx, so
+                  // fields enabled by other fields (Shade after Article, UOM
+                  // after Shade) would otherwise never update.
+                  builder: (context, constraints) => Obx(() {
                     // Same test as the AdaptiveRows below.
                     final isNarrow = constraints.maxWidth < Breakpoints.formRow;
 
@@ -316,13 +319,24 @@ class CreateSamplingOrderView extends StatelessWidget {
                                                 hasError:
                                                     samplingEntryController
                                                         .uomHasError,
+                                                // Article -> Shade -> UOM: UOM follows
+                                                // from the shade (Sno 14).
+                                                isEnabled:
+                                                    !samplingEntryController.rxUomLocked.value &&
+                                                        (samplingEntryController.rxShade
+                                                                .isNotEmpty ||
+                                                            samplingEntryController.rxUom
+                                                                .isNotEmpty),
+                                                dropdownKey:
+                                                    samplingEntryController
+                                                        .uomDropdownKey,
                                                 labelText: 'UOM',
                                                 rxString:
                                                     samplingEntryController
                                                         .rxUomWithDesc,
                                                 searchList:
                                                     samplingEntryController
-                                                        .uniqueFilteredUoms
+                                                        .uomChoices
                                                         .map(
                                                   (uom) {
                                                     return '$uom - ${orderReviewController.getUomDescription(uom)}';
@@ -593,7 +607,7 @@ class CreateSamplingOrderView extends StatelessWidget {
                         ],
                       ],
                     );
-                  },
+                  }),
                 ),
               ),
             ),

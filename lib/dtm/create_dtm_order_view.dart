@@ -80,7 +80,10 @@ class CreateDtmOrderView extends StatelessWidget {
                   vertical: 8,
                 ),
                 child: LayoutBuilder(
-                  builder: (context, constraints) {
+                  // Obx: the form is built here, outside the screen's Obx, so
+                  // fields enabled by other fields (Shade after Article, UOM
+                  // after Shade) would otherwise never update.
+                  builder: (context, constraints) => Obx(() {
                     final actions = AdaptiveRow(
                       narrowLayout: NarrowLayout.wrap,
                       mainAxisAlignment: MainAxisAlignment.start,
@@ -359,8 +362,14 @@ class CreateDtmOrderView extends StatelessWidget {
                                                 isRequired: true,
                                                 hasError: dtmEntryController
                                                     .uomHasError,
-                                                isEnabled: !dtmEntryController
-                                                    .rxUomLocked.value,
+                                                // Article -> Shade -> UOM: UOM follows
+                                                // from the shade (Sno 14).
+                                                isEnabled:
+                                                    !dtmEntryController.rxUomLocked.value &&
+                                                        (dtmEntryController.rxShade
+                                                                .isNotEmpty ||
+                                                            dtmEntryController.rxUom
+                                                                .isNotEmpty),
                                                 dropdownKey: dtmEntryController
                                                     .uomDropdownKey,
                                                 labelText: 'UOM',
@@ -544,7 +553,7 @@ class CreateDtmOrderView extends StatelessWidget {
                         ),
                       ],
                     );
-                  },
+                  }),
                 ),
               ),
             ),

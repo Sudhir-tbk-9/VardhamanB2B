@@ -79,7 +79,10 @@ class CreateLabdipOrderView extends StatelessWidget {
                   vertical: 8,
                 ),
                 child: LayoutBuilder(
-                  builder: (context, constraints) {
+                  // Obx: the form is built here, outside the screen's Obx, so
+                  // fields enabled by other fields (Shade after Article, UOM
+                  // after Shade) would otherwise never update.
+                  builder: (context, constraints) => Obx(() {
                     // Same test as the AdaptiveRows below.
                     final isNarrow = constraints.maxWidth < Breakpoints.formRow;
 
@@ -305,12 +308,22 @@ class CreateLabdipOrderView extends StatelessWidget {
                                                 isRequired: true,
                                                 hasError: labdipEntryController
                                                     .uomHasError,
+                                                // Article -> Shade -> UOM: UOM follows
+                                                // from the shade (Sno 14).
+                                                isEnabled:
+                                                    !labdipEntryController.rxUomLocked.value &&
+                                                        (labdipEntryController.rxShade
+                                                                .isNotEmpty ||
+                                                            labdipEntryController.rxUom
+                                                                .isNotEmpty),
+                                                dropdownKey: labdipEntryController
+                                                    .uomDropdownKey,
                                                 labelText: 'UOM',
                                                 rxString: labdipEntryController
                                                     .rxUomWithDesc,
                                                 searchList:
                                                     labdipEntryController
-                                                        .uniqueFilteredUoms
+                                                        .uomChoices
                                                         .map(
                                                   (uom) {
                                                     return '$uom - ${orderReviewController.getUomDescription(uom)}';
@@ -576,7 +589,7 @@ class CreateLabdipOrderView extends StatelessWidget {
                         ],
                       ],
                     );
-                  },
+                  }),
                 ),
               ),
             ),
