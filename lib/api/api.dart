@@ -32,8 +32,8 @@ import 'package:vardhman_b2b/sampling/sampling_controller.dart';
 class Api {
   static final _fileDio = Dio(
     BaseOptions(
-      baseUrl: 'https://localhost:8081',
-      // baseUrl: 'https://b2b.amefird.in:8081',
+      // baseUrl: 'https://localhost:8081',
+      baseUrl: 'https://b2b.amefird.in:8081',
       headers: {'Authorization': 'Basic dnl0bDpPQUlJSkRvaWpmQCM='},
       // sendTimeout: Duration(seconds: 60),
       // connectTimeout: Duration(seconds: 60),
