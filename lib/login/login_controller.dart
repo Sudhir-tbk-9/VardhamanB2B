@@ -127,7 +127,13 @@ class LoginController extends GetxController {
     );
   }
 
-  Future<void> _checkUser() async {
+  /// [canResume] is false after a deliberate logout, so a payment return
+  /// marker still in sessionStorage does not log the user straight back in.
+  Future<void> _checkUser({bool canResume = true}) async {
+    if (!canResume) {
+      await clearPaymentReturn();
+    }
+
     _logGatewayReturn();
 
     // Logged above, so the gateway's query string can leave the address bar.
@@ -555,7 +561,7 @@ class LoginController extends GetxController {
 
     rxConfirmPassword.value = '';
 
-    _checkUser();
+    _checkUser(canResume: false);
   }
 
   Future<void> forgotPassword() async {
