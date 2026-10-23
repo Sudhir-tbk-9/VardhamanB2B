@@ -30,8 +30,9 @@ enum LoginState {
   setPassword,
   password,
 
-  /// Back from the payment gateway or an external link: the saved session is
-  /// being restored, so a loader is shown instead of the login form.
+  /// Back from the payment gateway or an external link, or the page was
+  /// refreshed while logged in: the saved session is being restored, so a
+  /// loader is shown instead of the login form.
   resuming,
   loggedIn,
 }
@@ -98,6 +99,31 @@ class LoginController extends GetxController {
     }
   }
 
+  /// Set in the tab's sessionStorage once logged in and removed on logout.
+  /// It survives a page refresh but not closing the tab, so a refresh keeps
+  /// the user logged in while a new tab still asks for the password.
+  static const _sessionActiveKey = 'sessionActive';
+
+  bool get _hasActiveSession {
+    try {
+      return html.window.sessionStorage[_sessionActiveKey] == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _setSessionActive(bool isActive) {
+    try {
+      if (isActive) {
+        html.window.sessionStorage[_sessionActiveKey] = 'true';
+      } else {
+        html.window.sessionStorage.remove(_sessionActiveKey);
+      }
+    } catch (e) {
+      log('setSessionActive error - $e');
+    }
+  }
+
   /// Logs how the app was opened when it comes back from the gateway: the
   /// return URL with any query parameters and the referring page.
   /// The gateway's result when the app was opened by its return, read before
@@ -132,6 +158,8 @@ class LoginController extends GetxController {
   Future<void> _checkUser({bool canResume = true}) async {
     if (!canResume) {
       await clearPaymentReturn();
+
+      _setSessionActive(false);
     }
 
     _logGatewayReturn();
@@ -148,8 +176,12 @@ class LoginController extends GetxController {
 
     final isReturning = pendingPaymentReturn != null;
 
+    // Back from the gateway / an external link, or the page was refreshed
+    // while logged in: restore the session instead of asking for the password.
+    final canRestore = canResume && (isReturning || _hasActiveSession);
+
     rxLoginState.value =
-        isReturning ? LoginState.resuming : LoginState.loggedOut;
+        canRestore ? LoginState.resuming : LoginState.loggedOut;
 
     rxUserDetail.value = await _database.managers.userDetails.getSingleOrNull();
 
@@ -174,19 +206,22 @@ class LoginController extends GetxController {
 
       if (_password == null) {
         rxLoginState.value = LoginState.loggedOut;
-      } else if (isTokenRefreshed && isReturning) {
-        // Back from the payment gateway / external link: resume the session
-        // on the tab it was left from instead of asking for the password.
+      } else if (isTokenRefreshed && canRestore) {
+        // Back from the payment gateway / external link, or a refresh:
+        // resume the session on the tab it was left from instead of asking
+        // for the password.
         await _logIn(rxUserDetail.value!);
 
         if (rxLoginState.value != LoginState.loggedIn) {
           rxLoginState.value = LoginState.password;
 
-          logPayment(
-            'session_restore_failed',
-            receiptNumber: pendingPaymentReceiptNumber,
-            data: 'Login failed, password screen shown',
-          );
+          if (isReturning) {
+            logPayment(
+              'session_restore_failed',
+              receiptNumber: pendingPaymentReceiptNumber,
+              data: 'Login failed, password screen shown',
+            );
+          }
         }
       } else {
         rxLoginState.value = LoginState.password;
@@ -448,6 +483,8 @@ class LoginController extends GetxController {
     );
 
     rxLoginState.value = LoginState.loggedIn;
+
+    _setSessionActive(true);
 
     toastification.show(
       autoCloseDuration: Duration(seconds: 3),
