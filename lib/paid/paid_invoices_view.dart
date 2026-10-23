@@ -8,6 +8,8 @@ import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/paid/paid_invoices_list.dart';
+import 'package:vardhman_b2b/common/min_width_scroll.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
 
 class PaidInvoicesView extends StatelessWidget {
   const PaidInvoicesView({super.key});
@@ -66,10 +68,13 @@ class PaidInvoicesView extends StatelessWidget {
                       : Column(
                           children: [
                             Expanded(
-                              child: SingleChildScrollView(
-                                child: PaidInvoicesList(
-                                  invoicesDetails:
-                                      invoicesController.paidInvoices,
+                              child: MinWidthScroll(
+                                minWidth: PaidInvoicesList.minWidth,
+                                child: SingleChildScrollView(
+                                  child: PaidInvoicesList(
+                                    invoicesDetails:
+                                        invoicesController.paidInvoices,
+                                  ),
                                 ),
                               ),
                             ),
@@ -83,7 +88,11 @@ class PaidInvoicesView extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                 ),
-                child: Row(
+                // Filters wrap onto more lines on a narrow pane instead of
+                // squeezing each field.
+                child: AdaptiveRow(
+                  narrowLayout: NarrowLayout.wrap,
+                  breakpoint: 560,
                   children: <Widget>[
                     Flexible(
                       child: TextField(

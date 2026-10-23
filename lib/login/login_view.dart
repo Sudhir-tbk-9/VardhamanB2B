@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
@@ -17,383 +18,462 @@ class LoginView extends StatelessWidget {
     final loginController = Get.find<LoginController>();
     FocusScope.of(context).requestFocus(_focusNode);
 
+    // Phone sized: smaller header, and the page scrolls (see below).
+    final isCompact = context.isCompact;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Obx(
-        () => SafeArea(
-          child: Stack(
-            fit: StackFit.expand,
+        () {
+          // Built in here: they read the observables this Obx tracks.
+          // Sized from the controller, which loads after the screen shows.
+          final video = RepaintBoundary(
+            child: ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: loginController.videoPlayerController,
+              builder: (context, video, child) => FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: video.size.width,
+                  height: video.size.height,
+                  child: child,
+                ),
+              ),
+              child: VideoPlayer(loginController.videoPlayerController),
+            ),
+          );
+
+          final header = Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Sized from the controller, which loads after the screen shows.
-              RepaintBoundary(
-                child: ValueListenableBuilder<VideoPlayerValue>(
-                  valueListenable: loginController.videoPlayerController,
-                  builder: (context, video, child) => FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: video.size.width,
-                      height: video.size.height,
-                      child: child,
-                    ),
-                  ),
-                  child: VideoPlayer(loginController.videoPlayerController),
-                ),
+              Container(
+                width: double.infinity,
+                color: Colors.white,
+                height: 100,
               ),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      color: Colors.white,
-                      height: 100,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  if (!isCompact)
+                    const SizedBox(
+                      width: 140,
                     ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        const SizedBox(
-                          width: 140,
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(top: 20),
-                          child: Image.asset(
-                            'assets/digital-nws.png',
-                            height: 60,
-                          ),
-                        ),
-                        Image.asset(
-                          'assets/50_years.png',
-                          height: 140,
-                          width: 140,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.center,
-                child: Container(
-                  // margin: EdgeInsets.all(16),
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  // padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                    color: Colors.black26,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const SizedBox(
-                        height: 16,
-                      ),
-                      const Text(
-                        'DIGITAL WORLD',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 16,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: const Text(
-                          'Welcome to our Portal which is for Buyers looking to place & track their Orders with ease, comfort and convenience, with a few clicks.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 16,
-                      ),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.zero,
-                            bottom: Radius.circular(16),
-                          ),
-                        ),
-                        child: Column(
-                          children: <Widget>[
-                            // TextField(
-                            //   controller:
-                            //       loginController.userIdTextEditingController,
-                            //   decoration: InputDecoration(
-                            //     labelText: 'User ID',
-                            //     border: OutlineInputBorder(),
-                            //   ),
-                            // ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 150,
-                                  child: NewOrderTextField(
-                                    focusNode: _focusNode,
-                                    inputFormatters: [UpperCaseTextFormatter()],
-                                    isEnabled:
-                                        loginController.rxLoginState.value ==
-                                            LoginState.loggedOut,
-                                    labelText: 'User ID',
-                                    rxString: loginController.rxUserId,
-                                  ),
-                                ),
-                                if (loginController.rxLoginState.value ==
-                                    LoginState.password) ...[
-                                  SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 150,
-                                    child: NewOrderTextField(
-                                      obscureText: true,
-                                      labelText: 'Password',
-                                      rxString: loginController.rxPassword,
-                                    ),
-                                  ),
-                                ],
-                                if (loginController.rxLoginState.value ==
-                                    LoginState.otp) ...[
-                                  SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 150,
-                                    child: NewOrderTextField(
-                                      labelText: 'OTP',
-                                      rxString: loginController.rxOtp,
-                                    ),
-                                  ),
-                                ],
-                                if (loginController.rxLoginState.value ==
-                                    LoginState.setPassword) ...[
-                                  SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 150,
-                                    child: NewOrderTextField(
-                                      obscureText: true,
-                                      labelText: 'New Password',
-                                      rxString: loginController.rxPassword,
-                                    ),
-                                  ),
-                                  SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 150,
-                                    child: NewOrderTextField(
-                                      obscureText: true,
-                                      labelText: 'Confirm Password',
-                                      isEnabled:
-                                          loginController.rxPassword.isNotEmpty,
-                                      rxString:
-                                          loginController.rxConfirmPassword,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 32,
-                            ),
-                            if (loginController.rxLoginState.value ==
-                                LoginState.loggedOut)
-                              PrimaryButton(
-                                iconData: Icons.login_outlined,
-                                text: 'Send OTP',
-                                onPressed:
-                                    loginController.rxUserId.value.isEmpty
-                                        ? null
-                                        : loginController.validateUser,
-                              ),
-                            if (loginController.rxLoginState.value ==
-                                LoginState.password)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SecondaryButton(
-                                    text: 'Change User/Password',
-                                    wait: false,
-                                    onPressed: loginController.forgotPassword,
-                                  ),
-                                  SizedBox(width: 32),
-                                  PrimaryButton(
-                                    iconData: Icons.login_outlined,
-                                    text: 'Login',
-                                    onPressed:
-                                        loginController.rxPassword.value.isEmpty
-                                            ? null
-                                            : loginController.validatePassword,
-                                  ),
-                                ],
-                              ),
-                            if (loginController.rxLoginState.value ==
-                                LoginState.otp)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SecondaryButton(
-                                    text: 'Cancel',
-                                    wait: false,
-                                    onPressed: () async {
-                                      loginController.rxLoginState.value =
-                                          LoginState.loggedOut;
-                                      loginController.rxUserId.value = '';
-                                      loginController.rxOtp.value = '';
-                                    },
-                                  ),
-                                  SizedBox(width: 32),
-                                  PrimaryButton(
-                                    iconData: Icons.login_outlined,
-                                    text: 'Verify OTP',
-                                    onPressed:
-                                        loginController.rxOtp.value.isEmpty
-                                            ? null
-                                            : loginController.validateOtp,
-                                  ),
-                                ],
-                              ),
-                            if (loginController.rxLoginState.value ==
-                                LoginState.setPassword)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SecondaryButton(
-                                    text: 'Cancel',
-                                    wait: false,
-                                    onPressed: () async {
-                                      loginController.rxLoginState.value =
-                                          LoginState.loggedOut;
-                                      loginController.rxUserId.value = '';
-                                      loginController.rxOtp.value = '';
-                                    },
-                                  ),
-                                  SizedBox(width: 32),
-                                  PrimaryButton(
-                                    iconData: Icons.login_outlined,
-                                    text: 'Set Password',
-                                    onPressed: loginController.rxPassword.value
-                                                .trim()
-                                                .isEmpty ||
-                                            loginController
-                                                    .rxConfirmPassword.value !=
-                                                loginController.rxPassword.value
-                                        ? null
-                                        : loginController.setPassword,
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  padding: EdgeInsets.all(16),
-                  color: Colors.black,
-                  child: DefaultTextStyle(
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Flexible(
-                          flex: 1,
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                Icons.location_on,
-                                color: VardhmanColors.red,
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: const Text(
-                                  'Vardhman Yarns & Threads Ltd, Central Marketing Office, 1st Floor, Palm Court Sector 16, M.G.Road Gurugram - 122001',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Flexible(
-                          flex: 1,
-                          child: SizedBox(
-                            width: 20,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.phone,
-                                    color: VardhmanColors.red,
-                                  ),
-                                  SizedBox(width: 8),
-                                  const Text(
-                                    '+91 124-4981600 , +91 124-4981601',
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.email,
-                                    color: VardhmanColors.red,
-                                  ),
-                                  SizedBox(width: 8),
-                                  const Text(
-                                    'info@vardhmanthreads.in',
-                                  ),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                        Flexible(
-                          flex: 1,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              Text(
-                                'Designed and Developed by\nAUSM INFOTECH Pvt. Ltd.',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  Container(
+                    margin: EdgeInsets.only(top: 20),
+                    child: Image.asset(
+                      'assets/digital-nws.png',
+                      height: isCompact ? 40 : 60,
                     ),
                   ),
-                ),
+                  Image.asset(
+                    'assets/50_years.png',
+                    height: isCompact ? 90 : 140,
+                    width: isCompact ? 90 : 140,
+                  ),
+                ],
               ),
             ],
-          ),
-        ),
+          );
+
+          final card = Container(
+            // margin: EdgeInsets.all(16),
+            constraints: const BoxConstraints(maxWidth: 600),
+            // padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16.0),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 5),
+                ),
+              ],
+              color: Colors.black26,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const SizedBox(
+                  height: 16,
+                ),
+                const Text(
+                  'DIGITAL WORLD',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(
+                  height: 16,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: const Text(
+                    'Welcome to our Portal which is for Buyers looking to place & track their Orders with ease, comfort and convenience, with a few clicks.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  height: 16,
+                ),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(isCompact ? 16 : 32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.zero,
+                      bottom: Radius.circular(16),
+                    ),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      // TextField(
+                      //   controller:
+                      //       loginController.userIdTextEditingController,
+                      //   decoration: InputDecoration(
+                      //     labelText: 'User ID',
+                      //     border: OutlineInputBorder(),
+                      //   ),
+                      // ),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        runSpacing: 16,
+                        children: [
+                          SizedBox(
+                            width: 150,
+                            child: NewOrderTextField(
+                              focusNode: _focusNode,
+                              inputFormatters: [UpperCaseTextFormatter()],
+                              isEnabled: loginController.rxLoginState.value ==
+                                  LoginState.loggedOut,
+                              labelText: 'User ID',
+                              rxString: loginController.rxUserId,
+                            ),
+                          ),
+                          if (loginController.rxLoginState.value ==
+                              LoginState.password) ...[
+                            SizedBox(width: 16),
+                            SizedBox(
+                              width: 150,
+                              child: NewOrderTextField(
+                                obscureText: true,
+                                labelText: 'Password',
+                                rxString: loginController.rxPassword,
+                              ),
+                            ),
+                          ],
+                          if (loginController.rxLoginState.value ==
+                              LoginState.otp) ...[
+                            SizedBox(width: 16),
+                            SizedBox(
+                              width: 150,
+                              child: NewOrderTextField(
+                                labelText: 'OTP',
+                                rxString: loginController.rxOtp,
+                              ),
+                            ),
+                          ],
+                          if (loginController.rxLoginState.value ==
+                              LoginState.setPassword) ...[
+                            SizedBox(width: 16),
+                            SizedBox(
+                              width: 150,
+                              child: NewOrderTextField(
+                                obscureText: true,
+                                labelText: 'New Password',
+                                rxString: loginController.rxPassword,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            SizedBox(
+                              width: 150,
+                              child: NewOrderTextField(
+                                obscureText: true,
+                                labelText: 'Confirm Password',
+                                isEnabled:
+                                    loginController.rxPassword.isNotEmpty,
+                                rxString: loginController.rxConfirmPassword,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(
+                        height: 32,
+                      ),
+                      if (loginController.rxLoginState.value ==
+                          LoginState.loggedOut)
+                        PrimaryButton(
+                          iconData: Icons.login_outlined,
+                          text: 'Send OTP',
+                          onPressed: loginController.rxUserId.value.isEmpty
+                              ? null
+                              : loginController.validateUser,
+                        ),
+                      if (loginController.rxLoginState.value ==
+                          LoginState.password)
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          runSpacing: 12,
+                          children: [
+                            SecondaryButton(
+                              text: 'Change User/Password',
+                              wait: false,
+                              onPressed: loginController.forgotPassword,
+                            ),
+                            SizedBox(width: 32),
+                            PrimaryButton(
+                              iconData: Icons.login_outlined,
+                              text: 'Login',
+                              onPressed:
+                                  loginController.rxPassword.value.isEmpty
+                                      ? null
+                                      : loginController.validatePassword,
+                            ),
+                          ],
+                        ),
+                      if (loginController.rxLoginState.value == LoginState.otp)
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          runSpacing: 12,
+                          children: [
+                            SecondaryButton(
+                              text: 'Cancel',
+                              wait: false,
+                              onPressed: () async {
+                                loginController.rxLoginState.value =
+                                    LoginState.loggedOut;
+                                loginController.rxUserId.value = '';
+                                loginController.rxOtp.value = '';
+                              },
+                            ),
+                            SizedBox(width: 32),
+                            PrimaryButton(
+                              iconData: Icons.login_outlined,
+                              text: 'Verify OTP',
+                              onPressed: loginController.rxOtp.value.isEmpty
+                                  ? null
+                                  : loginController.validateOtp,
+                            ),
+                          ],
+                        ),
+                      if (loginController.rxLoginState.value ==
+                          LoginState.setPassword)
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          runSpacing: 12,
+                          children: [
+                            SecondaryButton(
+                              text: 'Cancel',
+                              wait: false,
+                              onPressed: () async {
+                                loginController.rxLoginState.value =
+                                    LoginState.loggedOut;
+                                loginController.rxUserId.value = '';
+                                loginController.rxOtp.value = '';
+                              },
+                            ),
+                            SizedBox(width: 32),
+                            PrimaryButton(
+                              iconData: Icons.login_outlined,
+                              text: 'Set Password',
+                              onPressed: loginController.rxPassword.value
+                                          .trim()
+                                          .isEmpty ||
+                                      loginController.rxConfirmPassword.value !=
+                                          loginController.rxPassword.value
+                                  ? null
+                                  : loginController.setPassword,
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          final footer = Container(
+            padding: EdgeInsets.all(16),
+            color: Colors.black,
+            child: DefaultTextStyle(
+              style: TextStyle(
+                color: Colors.white,
+              ),
+              child: Flex(
+                direction: isCompact ? Axis.vertical : Axis.horizontal,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: isCompact
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
+                spacing: isCompact ? 8 : 0,
+                children: <Widget>[
+                  _FooterBlock(
+                    isTight: false,
+                    isCompact: isCompact,
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.location_on,
+                          color: VardhmanColors.red,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: const Text(
+                            'Vardhman Yarns & Threads Ltd, Central Marketing Office, 1st Floor, Palm Court Sector 16, M.G.Road Gurugram - 122001',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isCompact)
+                    Flexible(
+                      flex: 1,
+                      child: SizedBox(
+                        width: 20,
+                      ),
+                    ),
+                  _FooterBlock(
+                    isTight: true,
+                    isCompact: isCompact,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.phone,
+                              color: VardhmanColors.red,
+                            ),
+                            SizedBox(width: 8),
+                            // Flexible: wraps instead of overflowing on a
+                            // narrow window.
+                            const Flexible(
+                              child: Text(
+                                '+91 124-4981600 , +91 124-4981601',
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: <Widget>[
+                            Icon(
+                              Icons.email,
+                              color: VardhmanColors.red,
+                            ),
+                            SizedBox(width: 8),
+                            const Flexible(
+                              child: Text(
+                                'info@vardhmanthreads.in',
+                              ),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                  _FooterBlock(
+                    isTight: false,
+                    isCompact: isCompact,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            'Designed and Developed by\nAUSM INFOTECH Pvt. Ltd.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
+          return SafeArea(
+            child: isCompact
+                // Phone: header, card and footer scroll as one column over the
+                // video, so they never overlap.
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      video,
+                      LayoutBuilder(
+                        builder: (context, constraints) =>
+                            SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                header,
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: card,
+                                ),
+                                footer,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      video,
+                      Align(alignment: Alignment.topCenter, child: header),
+                      Align(alignment: Alignment.center, child: card),
+                      Align(alignment: Alignment.bottomCenter, child: footer),
+                    ],
+                  ),
+          );
+        },
       ),
     );
+  }
+}
+
+/// One block of the login footer: a share of the row on a larger window
+/// ([Expanded] when [isTight], else [Flexible]), a plain child on a phone,
+/// where the blocks are stacked.
+class _FooterBlock extends StatelessWidget {
+  const _FooterBlock({
+    required this.isTight,
+    required this.isCompact,
+    required this.child,
+  });
+
+  final bool isTight, isCompact;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isCompact) {
+      return child;
+    }
+
+    return isTight ? Expanded(child: child) : Flexible(child: child);
   }
 }

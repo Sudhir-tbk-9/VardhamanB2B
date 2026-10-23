@@ -14,6 +14,8 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/sampling/sampling_entry_controller.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
+import 'package:vardhman_b2b/common/breakpoints.dart';
 
 class CreateSamplingOrderView extends StatelessWidget {
   const CreateSamplingOrderView({super.key});
@@ -50,7 +52,7 @@ class CreateSamplingOrderView extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const ShipToSelector(),
+                const Flexible(child: ShipToSelector()),
               ],
             ),
             trailing: DefaultTextStyle(
@@ -65,449 +67,549 @@ class CreateSamplingOrderView extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            color: VardhmanColors.dividerGrey.withAlpha(128),
-            padding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Spacer(),
-                Expanded(
-                  flex: 10,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(
-                            flex: 4,
-                            child: Column(
-                              children: <Widget>[
-                                CatalogSearchField(
-                                  isRequired: true,
-                                  labelText: 'Merchandiser',
-                                  rxString:
-                                      samplingEntryController.rxMerchandiser,
-                                  searchList:
-                                      samplingEntryController.rxMerchandisers,
-                                  shouldEnforceList: false,
-                                  hasError: samplingEntryController
-                                      .merchandiserHasError,
-                                  inputFormatters: [capitalFormatter],
+          // Flexible + scroll: on a short or narrow window the form
+          // scrolls and the lines table below keeps at least half the
+          // height.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Container(
+                color: VardhmanColors.dividerGrey.withAlpha(128),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: LayoutBuilder(
+                  // Obx: the form is built here, outside the screen's Obx, so
+                  // fields enabled by other fields (Shade after Article, UOM
+                  // after Shade) would otherwise never update.
+                  builder: (context, constraints) => Obx(() {
+                    // Same test as the AdaptiveRows below.
+                    final isNarrow = constraints.maxWidth < Breakpoints.formRow;
+
+                    final actions = AdaptiveRow(
+                      narrowLayout: NarrowLayout.wrap,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            text: '*',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: ' required field',
+                                style: TextStyle(
+                                  color: VardhmanColors.darkGrey,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        hasError: samplingEntryController
-                                            .buyerNameHasError,
-                                        labelText: 'Buyer',
-                                        isRequired: true,
-                                        rxString:
-                                            samplingEntryController.rxBuyerName,
-                                        searchList:
-                                            samplingEntryController.buyerNames,
-                                      ),
-                                    ),
-                                    if (samplingEntryController
-                                        .isOtherBuyer) ...[
-                                      SizedBox(
-                                        width: 8,
-                                      ),
-                                      Expanded(
-                                        child: NewOrderTextField(
-                                          inputFormatters: [capitalFormatter],
-                                          hasError: samplingEntryController
-                                              .otherBuyerNameHasError,
-                                          labelText: 'Name',
+                              )
+                            ],
+                          ),
+                        ),
+                        Spacer(),
+                        SecondaryButton(
+                          wait: false,
+                          text: 'Clear Inputs',
+                          onPressed: !samplingEntryController.canClearInputs
+                              ? null
+                              : () async {
+                                  samplingEntryController.clearAllInputs();
+
+                                  samplingEntryController
+                                      .rxSelectedSamplingOrderLines
+                                      .clear();
+                                },
+                        ),
+                        Spacer(),
+                        PrimaryButton(
+                          text: 'Add Line',
+                          onPressed: samplingEntryController
+                                  .rxSelectedSamplingOrderLines.isNotEmpty
+                              ? null
+                              : () async {
+                                  samplingEntryController.addLapdipOrderLine();
+                                },
+                        ),
+                        Spacer(),
+                        PrimaryButton(
+                          text: 'Update',
+                          onPressed: samplingEntryController
+                                      .rxSelectedSamplingOrderLines.length ==
+                                  1
+                              ? () async {
+                                  samplingEntryController
+                                      .updateLapdipOrderLine();
+                                }
+                              : null,
+                        ),
+                        Spacer(),
+                        PrimaryButton(
+                          text: 'Delete',
+                          onPressed: samplingEntryController
+                                  .rxSelectedSamplingOrderLines.isEmpty
+                              ? null
+                              : () async {
+                                  samplingEntryController.deleteSelectedLines();
+                                },
+                        ),
+                        Spacer(),
+                      ],
+                    );
+
+                    return AdaptiveRow(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Spacer(),
+                        Expanded(
+                          flex: 10,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              AdaptiveRow(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Expanded(
+                                    flex: 4,
+                                    child: Column(
+                                      children: <Widget>[
+                                        CatalogSearchField(
                                           isRequired: true,
+                                          labelText: 'Merchandiser',
                                           rxString: samplingEntryController
-                                              .rxOtherBuyerName,
+                                              .rxMerchandiser,
+                                          searchList: samplingEntryController
+                                              .rxMerchandisers,
+                                          shouldEnforceList: false,
+                                          hasError: samplingEntryController
+                                              .merchandiserHasError,
+                                          inputFormatters: [capitalFormatter],
                                         ),
-                                      ),
-                                    ]
-                                  ],
-                                ),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        isSearchboxEnabled: false,
-                                        hasError: samplingEntryController
-                                            .firstLightSourceHasError,
-                                        isRequired: true,
-                                        isEnabled: samplingEntryController
-                                            .isLightSource1Enabled,
-                                        labelText: 'Light Source 1',
-                                        rxString: samplingEntryController
-                                            .rxFirstLightSource,
-                                        searchList: samplingEntryController
-                                            .firstLightSources,
-                                      ),
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                hasError:
+                                                    samplingEntryController
+                                                        .buyerNameHasError,
+                                                labelText: 'Buyer',
+                                                isRequired: true,
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxBuyerName,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .buyerNames,
+                                              ),
+                                            ),
+                                            if (samplingEntryController
+                                                .isOtherBuyer) ...[
+                                              SizedBox(
+                                                width: 8,
+                                              ),
+                                              Expanded(
+                                                child: NewOrderTextField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  hasError:
+                                                      samplingEntryController
+                                                          .otherBuyerNameHasError,
+                                                  labelText: 'Name',
+                                                  isRequired: true,
+                                                  rxString:
+                                                      samplingEntryController
+                                                          .rxOtherBuyerName,
+                                                ),
+                                              ),
+                                            ]
+                                          ],
+                                        ),
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                isSearchboxEnabled: false,
+                                                hasError: samplingEntryController
+                                                    .firstLightSourceHasError,
+                                                isRequired: true,
+                                                isEnabled:
+                                                    samplingEntryController
+                                                        .isLightSource1Enabled,
+                                                labelText: 'Light Source 1',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxFirstLightSource,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .firstLightSources,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 8,
+                                            ),
+                                            Expanded(
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                isSearchboxEnabled: false,
+                                                isEnabled:
+                                                    samplingEntryController
+                                                        .isLightSource2Enabled,
+                                                labelText: 'Light Source 2',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxSecondLightSource,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .secondLightSources,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    SizedBox(
-                                      width: 8,
-                                    ),
-                                    Expanded(
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        isSearchboxEnabled: false,
-                                        isEnabled: samplingEntryController
-                                            .isLightSource2Enabled,
-                                        labelText: 'Light Source 2',
-                                        rxString: samplingEntryController
-                                            .rxSecondLightSource,
-                                        searchList: samplingEntryController
-                                            .secondLightSources,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          Spacer(),
-                          Expanded(
-                            flex: 4,
-                            child: Column(
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      flex: 2,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        hasError: samplingEntryController
-                                            .articleHasError,
-                                        labelText: 'Article',
-                                        isRequired: true,
-                                        rxString:
-                                            samplingEntryController.rxArticle,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredArticles,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 3,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        isRequired: true,
-                                        hasError:
-                                            samplingEntryController.uomHasError,
-                                        labelText: 'UOM',
-                                        rxString: samplingEntryController
-                                            .rxUomWithDesc,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredUoms
-                                            .map(
-                                          (uom) {
-                                            return '$uom - ${orderReviewController.getUomDescription(uom)}';
-                                          },
-                                        ).toList(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      flex: 2,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        isEnabled: false,
-                                        labelText: 'Ticket',
-                                        rxString:
-                                            samplingEntryController.rxTicket,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredTickets,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 3,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        labelText: 'Brand',
-                                        rxString:
-                                            samplingEntryController.rxBrand,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredBrands,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      flex: 2,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        labelText: 'Tex',
-                                        rxString: samplingEntryController.rxTex,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredTexs,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 3,
-                                      child: CatalogSearchField(
-                                        inputFormatters: [capitalFormatter],
-                                        labelText: 'Substrate',
-                                        rxString:
-                                            samplingEntryController.rxSubstrate,
-                                        searchList: samplingEntryController
-                                            .uniqueFilteredSubstrates,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        height: 24,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: TextSpan(
-                              text: '*',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              children: [
-                                TextSpan(
-                                  text: ' required field',
-                                  style: TextStyle(
-                                    color: VardhmanColors.darkGrey,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
                                   ),
-                                )
-                              ],
-                            ),
-                          ),
-                          Spacer(),
-                          SecondaryButton(
-                            wait: false,
-                            text: 'Clear Inputs',
-                            onPressed: !samplingEntryController.canClearInputs
-                                ? null
-                                : () async {
-                                    samplingEntryController.clearAllInputs();
-
-                                    samplingEntryController
-                                        .rxSelectedSamplingOrderLines
-                                        .clear();
-                                  },
-                          ),
-                          Spacer(),
-                          PrimaryButton(
-                            text: 'Add Line',
-                            onPressed: samplingEntryController
-                                    .rxSelectedSamplingOrderLines.isNotEmpty
-                                ? null
-                                : () async {
-                                    samplingEntryController
-                                        .addLapdipOrderLine();
-                                  },
-                          ),
-                          Spacer(),
-                          PrimaryButton(
-                            text: 'Update',
-                            onPressed: samplingEntryController
-                                        .rxSelectedSamplingOrderLines.length ==
-                                    1
-                                ? () async {
-                                    samplingEntryController
-                                        .updateLapdipOrderLine();
-                                  }
-                                : null,
-                          ),
-                          Spacer(),
-                          PrimaryButton(
-                            text: 'Delete',
-                            onPressed: samplingEntryController
-                                    .rxSelectedSamplingOrderLines.isEmpty
-                                ? null
-                                : () async {
-                                    samplingEntryController
-                                        .deleteSelectedLines();
-                                  },
-                          ),
-                          Spacer(),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Spacer(),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: CatalogSearchField(
-                              inputFormatters: [capitalFormatter],
-                              hasError: samplingEntryController.shadeHasError,
-                              labelText: 'Shade',
-                              isRequired: true,
-                              isEnabled:
-                                  samplingEntryController.rxArticle.isNotEmpty,
-                              rxString: samplingEntryController.rxShade,
-                              dropdownKey:
-                                  samplingEntryController.shadeDropdownKey,
-                              searchList: samplingEntryController.rxShades,
-                              shouldEnforceList: false,
-                              invalidList: samplingEntryController.skipShades,
-                            ),
-                          ),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Expanded(
-                            child: NewOrderTextField(
-                              inputFormatters: [capitalFormatter],
-                              hasError: samplingEntryController.colorHasError,
-                              labelText: 'Color Name',
-                              rxString: samplingEntryController.rxColor,
-                              isRequired: samplingEntryController.isSwatchShade,
-                              isEnabled: samplingEntryController.isSwatchShade,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: NewOrderTextField(
-                              labelText: 'L',
-                              rxString: samplingEntryController.rxL,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'^-?\d*\.?\d*'),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Expanded(
-                            child: NewOrderTextField(
-                              labelText: 'A',
-                              hasError: samplingEntryController.rxAHasError,
-                              isEnabled: samplingEntryController.rxL.isNotEmpty,
-                              isRequired:
-                                  samplingEntryController.rxL.isNotEmpty,
-                              rxString: samplingEntryController.rxA,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'^-?\d*\.?\d*'),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Expanded(
-                            child: NewOrderTextField(
-                              labelText: 'B',
-                              hasError: samplingEntryController.rxBHasError,
-                              isEnabled: samplingEntryController.rxA.isNotEmpty,
-                              isRequired:
-                                  samplingEntryController.rxA.isNotEmpty,
-                              rxString: samplingEntryController.rxB,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'^-?\d*\.?\d*'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: NewOrderTextField(
-                              isEnabled: false,
-                              labelText: 'File Upload (QTX/XML Files Only)',
-                              rxString: samplingEntryController.rxFileName,
-                              hintText: 'no file chosen',
-                              trailingWidget: samplingEntryController
-                                      .rxFileName.isEmpty
-                                  ? SecondaryButton(
-                                      wait: false,
-                                      text: 'Choose File',
-                                      onPressed: () async {
-                                        final FilePickerResult?
-                                            filePickerResult =
-                                            await FilePicker.platform.pickFiles(
-                                          type: FileType.custom,
-                                          allowedExtensions: ['qtx', 'xml'],
-                                          withData: true,
-                                          readSequential: true,
-                                        );
-
-                                        if (filePickerResult != null) {
-                                          final file =
-                                              filePickerResult.files.single;
-
-                                          samplingEntryController
-                                              .rxFileName.value = file.name;
-
-                                          samplingEntryController
-                                              .rxFileBytes.value = file.bytes;
-                                        }
-                                      },
-                                    )
-                                  : SecondaryButton(
-                                      wait: false,
-                                      iconData: Icons.clear,
-                                      text: '',
-                                      onPressed: () async {
-                                        samplingEntryController
-                                            .rxFileName.value = '';
-
-                                        samplingEntryController
-                                            .rxFileBytes.value = null;
-                                      },
+                                  Spacer(),
+                                  Expanded(
+                                    flex: 4,
+                                    child: Column(
+                                      children: <Widget>[
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              flex: 2,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                hasError:
+                                                    samplingEntryController
+                                                        .articleHasError,
+                                                labelText: 'Article',
+                                                isRequired: true,
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxArticle,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uniqueFilteredArticles,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              flex: 3,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                isRequired: true,
+                                                hasError:
+                                                    samplingEntryController
+                                                        .uomHasError,
+                                                // Article -> Shade -> UOM: UOM follows
+                                                // from the shade (Sno 14).
+                                                isEnabled:
+                                                    !samplingEntryController.rxUomLocked.value &&
+                                                        (samplingEntryController.rxShade
+                                                                .isNotEmpty ||
+                                                            samplingEntryController.rxUom
+                                                                .isNotEmpty),
+                                                dropdownKey:
+                                                    samplingEntryController
+                                                        .uomDropdownKey,
+                                                labelText: 'UOM',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxUomWithDesc,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uomChoices
+                                                        .map(
+                                                  (uom) {
+                                                    return '$uom - ${orderReviewController.getUomDescription(uom)}';
+                                                  },
+                                                ).toList(),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              flex: 2,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                isEnabled: false,
+                                                labelText: 'Ticket',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxTicket,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uniqueFilteredTickets,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              flex: 3,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                labelText: 'Brand',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxBrand,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uniqueFilteredBrands,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              flex: 2,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                labelText: 'Tex',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxTex,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uniqueFilteredTexs,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              flex: 3,
+                                              child: CatalogSearchField(
+                                                inputFormatters: [
+                                                  capitalFormatter
+                                                ],
+                                                labelText: 'Substrate',
+                                                rxString:
+                                                    samplingEntryController
+                                                        .rxSubstrate,
+                                                searchList:
+                                                    samplingEntryController
+                                                        .uniqueFilteredSubstrates,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                            ),
+                                  ),
+                                ],
+                              ),
+                              if (!isNarrow) ...[
+                                SizedBox(
+                                  height: 24,
+                                ),
+                                actions,
+                              ],
+                            ],
                           ),
+                        ),
+                        Spacer(),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            children: <Widget>[
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: CatalogSearchField(
+                                      inputFormatters: [capitalFormatter],
+                                      hasError:
+                                          samplingEntryController.shadeHasError,
+                                      labelText: 'Shade',
+                                      isRequired: true,
+                                      isEnabled: samplingEntryController
+                                          .rxArticle.isNotEmpty,
+                                      rxString: samplingEntryController.rxShade,
+                                      dropdownKey: samplingEntryController
+                                          .shadeDropdownKey,
+                                      searchList:
+                                          samplingEntryController.rxShades,
+                                      shouldEnforceList: false,
+                                      invalidList:
+                                          samplingEntryController.skipShades,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 8,
+                                  ),
+                                  Expanded(
+                                    child: NewOrderTextField(
+                                      inputFormatters: [capitalFormatter],
+                                      hasError:
+                                          samplingEntryController.colorHasError,
+                                      labelText: 'Color Name',
+                                      rxString: samplingEntryController.rxColor,
+                                      isRequired:
+                                          samplingEntryController.isSwatchShade,
+                                      isEnabled:
+                                          samplingEntryController.isSwatchShade,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: NewOrderTextField(
+                                      labelText: 'L',
+                                      rxString: samplingEntryController.rxL,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'^-?\d*\.?\d*'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 8,
+                                  ),
+                                  Expanded(
+                                    child: NewOrderTextField(
+                                      labelText: 'A',
+                                      hasError:
+                                          samplingEntryController.rxAHasError,
+                                      isEnabled: samplingEntryController
+                                          .rxL.isNotEmpty,
+                                      isRequired: samplingEntryController
+                                          .rxL.isNotEmpty,
+                                      rxString: samplingEntryController.rxA,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'^-?\d*\.?\d*'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 8,
+                                  ),
+                                  Expanded(
+                                    child: NewOrderTextField(
+                                      labelText: 'B',
+                                      hasError:
+                                          samplingEntryController.rxBHasError,
+                                      isEnabled: samplingEntryController
+                                          .rxA.isNotEmpty,
+                                      isRequired: samplingEntryController
+                                          .rxA.isNotEmpty,
+                                      rxString: samplingEntryController.rxB,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'^-?\d*\.?\d*'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: NewOrderTextField(
+                                      isEnabled: false,
+                                      labelText:
+                                          'File Upload (QTX/XML Files Only)',
+                                      rxString:
+                                          samplingEntryController.rxFileName,
+                                      hintText: 'no file chosen',
+                                      trailingWidget: samplingEntryController
+                                              .rxFileName.isEmpty
+                                          ? SecondaryButton(
+                                              wait: false,
+                                              text: 'Choose File',
+                                              onPressed: () async {
+                                                final FilePickerResult?
+                                                    filePickerResult =
+                                                    await FilePicker.platform
+                                                        .pickFiles(
+                                                  type: FileType.custom,
+                                                  allowedExtensions: [
+                                                    'qtx',
+                                                    'xml'
+                                                  ],
+                                                  withData: true,
+                                                  readSequential: true,
+                                                );
+
+                                                if (filePickerResult != null) {
+                                                  final file = filePickerResult
+                                                      .files.single;
+
+                                                  samplingEntryController
+                                                      .rxFileName
+                                                      .value = file.name;
+
+                                                  samplingEntryController
+                                                      .rxFileBytes
+                                                      .value = file.bytes;
+                                                }
+                                              },
+                                            )
+                                          : SecondaryButton(
+                                              wait: false,
+                                              iconData: Icons.clear,
+                                              text: '',
+                                              onPressed: () async {
+                                                samplingEntryController
+                                                    .rxFileName.value = '';
+
+                                                samplingEntryController
+                                                    .rxFileBytes.value = null;
+                                              },
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              NewOrderTextField(
+                                labelText: 'Remark',
+                                inputFormatters: [capitalFormatter],
+                                rxString: samplingEntryController.rxRemark,
+                                hintText:
+                                    'Mention Request Type, End Use....etc',
+                              ),
+                            ],
+                          ),
+                        ),
+                        Spacer(),
+                        if (isNarrow) ...[
+                          const SizedBox(height: 16),
+                          actions,
                         ],
-                      ),
-                      NewOrderTextField(
-                        labelText: 'Remark',
-                        inputFormatters: [capitalFormatter],
-                        rxString: samplingEntryController.rxRemark,
-                        hintText: 'Mention Request Type, End Use....etc',
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  }),
                 ),
-                Spacer(),
-              ],
+              ),
             ),
           ),
           Expanded(

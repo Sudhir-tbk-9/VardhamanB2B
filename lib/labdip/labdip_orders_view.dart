@@ -16,6 +16,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/labdip/create_labdip_order_view.dart';
 import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/labdip/labdip_entry_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class LabdipOrdersView extends StatelessWidget {
   const LabdipOrdersView({
@@ -69,11 +70,7 @@ class LabdipOrdersView extends StatelessWidget {
                   );
 
                   Get.dialog(
-                    const Dialog(
-                      insetPadding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 24,
-                      ),
+                    const AdaptiveDialog(
                       clipBehavior: Clip.hardEdge,
                       child: CreateLabdipOrderView(),
                     ),
@@ -168,11 +165,7 @@ class LabdipOrdersView extends StatelessWidget {
                                   );
 
                                   Get.dialog(
-                                    const Dialog(
-                                      insetPadding: EdgeInsets.symmetric(
-                                        horizontal: 40,
-                                        vertical: 24,
-                                      ),
+                                    const AdaptiveDialog(
                                       clipBehavior: Clip.hardEdge,
                                       child: CreateLabdipOrderView(),
                                     ),

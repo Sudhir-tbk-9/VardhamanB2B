@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
+import 'package:vardhman_b2b/common/shade_uom_lookup.dart';
 import 'package:vardhman_b2b/api/buyer_info.dart';
 import 'package:vardhman_b2b/api/item_catalog_info.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
@@ -252,8 +253,17 @@ class DtmEntryController extends GetxController {
     final uom = rxUomLocked.value ? '' : rxUom.value.trim();
 
     if (article.isNotEmpty) {
-      Api.fetchShades(article: article, uom: uom, shadeStartsWith: 'SWT').then(
-        (shades) {
+      _shadeUomsFor(article).then(
+        (shadeUoms) {
+          if (rxArticle.value.trim() != article) {
+            return;
+          }
+
+          final shades = shadeUoms.entries
+              .where((entry) => uom.isEmpty || entry.value.contains(uom))
+              .map((entry) => entry.key)
+              .toList();
+
           shades.sort(
             (a, b) {
               if (a.startsWith('SWT') && b.startsWith('SWT')) {
@@ -275,6 +285,11 @@ class DtmEntryController extends GetxController {
       );
     }
   }
+
+  final _shadeUomLookup = ShadeUomLookup(shadeStartsWith: 'SWT');
+
+  Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
+      _shadeUomLookup.forArticle(article, catalogController.industryItems);
 
   /// Key of the Shade field, used to return the cursor there after a line
   /// is added.
@@ -316,17 +331,25 @@ class DtmEntryController extends GetxController {
       ? rxShadeUomChoices.toList()
       : uniqueFilteredUoms;
 
-  /// Sets the UOM (K2) for the entered Article (K1) and Shade (K3) from the
-  /// JDE item master (F4101 SEG1/SEG2/SEG3, SRP1 IND/SPE), limited to the
-  /// article's UOMs in the item catalog (ORCH55_GetItemCatalogInfo).
+  /// Sets the UOM (K2) for the entered Article (K1) and Shade (K3): the
+  /// article's UOMs in the item catalog (ORCH55_GetItemCatalogInfo) that carry
+  /// the shade in the JDE item master (F4101 SEG1/SEG2/SEG3, SRP1 IND/SPE).
   /// One UOM: filled and locked. Several: offered as the only choices.
   /// None: "UOM not found", field stays editable.
   Future<void> _autoSelectUom(String shade) async {
     final article = rxArticle.value.trim();
 
-    final uoms = (await Api.fetchUomsForShade(article: article, shade: shade))
-        .where(uniqueFilteredUoms.contains)
-        .toList();
+    final shadeUoms = await _shadeUomsFor(article);
+
+    var uoms = shadeUoms[shade] ?? <String>[];
+
+    if (uoms.isEmpty) {
+      // Shade typed, or its UOMs unknown (Article-only fallback): ask JDE
+      // for this shade directly before reporting "UOM not found".
+      uoms = (await Api.fetchUomsForShade(article: article, shade: shade))
+          .where(uniqueFilteredUoms.contains)
+          .toList();
+    }
 
     if (rxShade.value != shade ||
         rxArticle.value.trim() != article ||

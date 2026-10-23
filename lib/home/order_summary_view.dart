@@ -50,54 +50,56 @@ class OrderSummaryView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: 300,
-                              child: NewOrderDateField(
-                                labelText: 'From Date',
-                                rxDate: orderSummaryController
-                                    .rxOrderSummaryFromDate,
-                                firstDate: orderSummaryController
-                                    .rxOrderSummaryFromDate.value
-                                    ?.subtract(
-                                  Duration(days: 60),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      // Wrap: on a phone the two dates go one under the other.
+                      Wrap(
+                        runSpacing: 8,
+                        children: <Widget>[
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: 300,
+                                child: NewOrderDateField(
+                                  labelText: 'From Date',
+                                  rxDate: orderSummaryController
+                                      .rxOrderSummaryFromDate,
+                                  firstDate: orderSummaryController
+                                      .rxOrderSummaryFromDate.value
+                                      ?.subtract(
+                                    Duration(days: 60),
+                                  ),
                                 ),
-                              ),
-                            )
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: 300,
-                              child: NewOrderDateField(
-                                labelText: 'Through Date',
-                                rxDate: orderSummaryController
-                                    .rxOrderSummaryThroughDate,
-                                firstDate: orderSummaryController
-                                    .rxOrderSummaryThroughDate.value
-                                    ?.subtract(
-                                  Duration(days: 60),
+                              )
+                            ],
+                          ),
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: 300,
+                                child: NewOrderDateField(
+                                  labelText: 'Through Date',
+                                  rxDate: orderSummaryController
+                                      .rxOrderSummaryThroughDate,
+                                  firstDate: orderSummaryController
+                                      .rxOrderSummaryThroughDate.value
+                                      ?.subtract(
+                                    Duration(days: 60),
+                                  ),
                                 ),
-                              ),
-                            )
-                          ],
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      height: 24,
-                    ),
-                  ],
+                              )
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 24,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

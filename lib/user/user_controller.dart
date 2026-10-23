@@ -48,7 +48,20 @@ class UserController extends GetxController {
       ...deliveryAddresses,
     ]);
 
-    if (rxDeliveryAddresses.isNotEmpty) {
+    Api.logShipTo(
+        'Ship-To choices for ${rxCustomerDetail.value.soldToNumber}', {
+      'soldToAddressFound': billingAddress != null,
+      'deliveryAddressCount': deliveryAddresses.length,
+      'choices': rxDeliveryAddresses
+          .map((address) =>
+              '${address.deliveryAddressNumber} ${address.alphaName.trim()}')
+          .toList(),
+    });
+
+    if (rxDeliveryAddresses.isEmpty) {
+      // No stale Ship-To from a previous Sold-To.
+      rxDeliveryAddress.value = null;
+    } else {
       String selectedAddressKey =
           sharedPrefsSelectedAddressKey(rxCustomerDetail.value);
 
@@ -106,6 +119,9 @@ class UserController extends GetxController {
         sharedPrefsSelectedCustomerKey(rxUserDetail.value),
         customerSoldToNumber,
       );
+
+      // Ship-To choices belong to the Sold-To.
+      await refreshDeliveryAddresses();
     }
   }
 

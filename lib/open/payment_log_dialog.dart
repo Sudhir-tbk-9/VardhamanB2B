@@ -9,6 +9,7 @@ import 'package:vardhman_b2b/common/payment_log.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 /// Shows the payment log (see payment_log.dart), newest first, grouped by
 /// receipt number, with each entry's payload or response.
@@ -57,7 +58,7 @@ class _PaymentLogDialogState extends State<PaymentLogDialog> {
   Widget build(BuildContext context) {
     final shownEntries = _shownEntries;
 
-    return Dialog(
+    return AdaptiveDialog(
       child: Container(
         width: 900,
         constraints: BoxConstraints(

@@ -16,6 +16,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/sampling/create_sampling_order_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_controller.dart';
 import 'package:vardhman_b2b/sampling/sampling_entry_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class SamplingOrdersView extends StatelessWidget {
   const SamplingOrdersView({
@@ -70,11 +71,7 @@ class SamplingOrdersView extends StatelessWidget {
                   );
 
                   Get.dialog(
-                    const Dialog(
-                      insetPadding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 24,
-                      ),
+                    const AdaptiveDialog(
                       clipBehavior: Clip.hardEdge,
                       child: CreateSamplingOrderView(),
                     ),
@@ -169,11 +166,7 @@ class SamplingOrdersView extends StatelessWidget {
                                   );
 
                                   Get.dialog(
-                                    const Dialog(
-                                      insetPadding: EdgeInsets.symmetric(
-                                        horizontal: 40,
-                                        vertical: 24,
-                                      ),
+                                    const AdaptiveDialog(
                                       clipBehavior: Clip.hardEdge,
                                       child: CreateSamplingOrderView(),
                                     ),

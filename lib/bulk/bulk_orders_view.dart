@@ -16,6 +16,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/bulk/create_bulk_order_view.dart';
 import 'package:vardhman_b2b/bulk/bulk_controller.dart';
 import 'package:vardhman_b2b/bulk/bulk_entry_controller.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class BulkOrdersView extends StatelessWidget {
   const BulkOrdersView({
@@ -65,11 +66,7 @@ class BulkOrdersView extends StatelessWidget {
                   );
 
                   Get.dialog(
-                    const Dialog(
-                      insetPadding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 24,
-                      ),
+                    const AdaptiveDialog(
                       clipBehavior: Clip.hardEdge,
                       child: CreateBulkOrderView(),
                     ),
@@ -173,11 +170,7 @@ class BulkOrdersView extends StatelessWidget {
                                   );
 
                                   Get.dialog(
-                                    const Dialog(
-                                      insetPadding: EdgeInsets.symmetric(
-                                        horizontal: 40,
-                                        vertical: 24,
-                                      ),
+                                    const AdaptiveDialog(
                                       clipBehavior: Clip.hardEdge,
                                       child: CreateBulkOrderView(),
                                     ),

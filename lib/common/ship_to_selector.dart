@@ -40,35 +40,39 @@ class ShipToSelector extends StatelessWidget {
               'Ship To: ',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: DropdownButton<UserAddress>(
-                isExpanded: true,
-                isDense: true,
-                value: addresses.contains(selected) ? selected : null,
-                hint: Text(
-                  'No Ship-To address found',
-                  style: TextStyle(fontSize: 13, color: VardhmanColors.red),
-                ),
-                items: addresses
-                    .map(
-                      (address) => DropdownMenuItem<UserAddress>(
-                        value: address,
-                        child: Text(
-                          _label(address),
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13),
+            // Flexible: narrows (ellipsizing the address) when the header
+            // has less room than 360. Callers place this in a Flexible.
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: DropdownButton<UserAddress>(
+                  isExpanded: true,
+                  isDense: true,
+                  value: addresses.contains(selected) ? selected : null,
+                  hint: Text(
+                    'No Ship-To address found',
+                    style: TextStyle(fontSize: 13, color: VardhmanColors.red),
+                  ),
+                  items: addresses
+                      .map(
+                        (address) => DropdownMenuItem<UserAddress>(
+                          value: address,
+                          child: Text(
+                            _label(address),
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: addresses.length < 2
-                    ? null
-                    : (address) {
-                        if (address != null) {
-                          userController.selectDeliveryAddress(address);
-                        }
-                      },
+                      )
+                      .toList(),
+                  onChanged: addresses.length < 2
+                      ? null
+                      : (address) {
+                          if (address != null) {
+                            userController.selectDeliveryAddress(address);
+                          }
+                        },
+                ),
               ),
             ),
           ],

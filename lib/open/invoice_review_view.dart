@@ -12,6 +12,7 @@ import 'package:vardhman_b2b/open/invoice_review_dialog.dart';
 import 'package:vardhman_b2b/open/open_invoices_list.dart';
 import 'package:vardhman_b2b/open/payment_knock_off_view.dart';
 import 'package:vardhman_b2b/open/payment_log_dialog.dart';
+import 'package:vardhman_b2b/common/min_width_scroll.dart';
 
 class InvoiceReviewView extends StatelessWidget {
   const InvoiceReviewView({super.key});
@@ -117,22 +118,25 @@ class InvoiceReviewView extends StatelessWidget {
               Expanded(
                 child: invoicesController.rxSelectedInvoiceInfos.isEmpty
                     ? const PaymentKnockOffView()
-                    : Column(
-                        children: [
-                          const OpenInvoicesList(
-                            invoicesDetails: [],
-                          ),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: OpenInvoicesList(
-                                showHeader: false,
-                                canSelect: false,
-                                invoicesDetails:
-                                    invoicesController.rxSelectedInvoiceInfos,
+                    : MinWidthScroll(
+                        minWidth: OpenInvoicesList.minWidth,
+                        child: Column(
+                          children: [
+                            const OpenInvoicesList(
+                              invoicesDetails: [],
+                            ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                child: OpenInvoicesList(
+                                  showHeader: false,
+                                  canSelect: false,
+                                  invoicesDetails:
+                                      invoicesController.rxSelectedInvoiceInfos,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
               ),
             ],

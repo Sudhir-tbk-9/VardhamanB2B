@@ -11,8 +11,11 @@ import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
+import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
+import 'package:vardhman_b2b/home/lazy_indexed_stack.dart';
 import 'package:vardhman_b2b/home/nav_rail.dart';
 import 'package:vardhman_b2b/bulk/bulk_view.dart';
 import 'package:vardhman_b2b/dtm/dtm_view.dart';
@@ -22,18 +25,50 @@ import 'package:vardhman_b2b/labdip/labdip_view.dart';
 import 'package:vardhman_b2b/open/open_view.dart';
 import 'package:vardhman_b2b/paid/paid_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_view.dart';
+import 'package:vardhman_b2b/user/my_details_dialog.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
 class HomeScaffold extends StatefulWidget {
-  const HomeScaffold({super.key});
+  const HomeScaffold({
+    super.key,
+    required this.tabIndex,
+  });
+
+  /// Nav rail index of the tab shown, taken from the URL (see appRouter).
+  final int tabIndex;
 
   @override
   State<HomeScaffold> createState() => _HomeScaffoldState();
 }
 
 class _HomeScaffoldState extends State<HomeScaffold> {
+  /// Whether the account menu under the user's name is open. It opens on
+  /// hover (mouse) or tap (touch, where there is no hover).
   bool _isHoveringOnName = false;
   Timer? _hideContainerTimer;
+
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _syncNavRailIndex();
+  }
+
+  @override
+  void didUpdateWidget(HomeScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    _syncNavRailIndex();
+  }
+
+  /// The URL decides the tab; rxNavRailIndex mirrors it for code that reads
+  /// the current tab, such as the payment dialogs saving where to come back
+  /// to.
+  void _syncNavRailIndex() {
+    Get.find<HomeController>().rxNavRailIndex.value = widget.tabIndex;
+  }
 
   void _hideMenu() {
     _hideContainerTimer?.cancel();
@@ -55,13 +90,27 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     final HomeController homeController = Get.find();
     final UserController userController = Get.find(tag: 'userController');
 
+    // Phone sized: the nav rail moves into a drawer opened from the header.
+    final isCompact = context.isCompact;
+
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: isCompact
+          ? Drawer(
+              width: 120,
+              shape: const RoundedRectangleBorder(),
+              child: NavRail(
+                selectedIndex: widget.tabIndex,
+                onSelected: () => _scaffoldKey.currentState?.closeDrawer(),
+              ),
+            )
+          : null,
       body: Obx(
         () => Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const NavRail(),
+            if (!isCompact) NavRail(selectedIndex: widget.tabIndex),
             Expanded(
               child: Stack(
                 children: [
@@ -77,26 +126,23 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Vardhman B2B Portal v2.0',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                              if (isCompact)
+                                IconButton(
+                                  tooltip: 'Menu',
+                                  icon: const Icon(
+                                    Icons.menu,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () =>
+                                      _scaffoldKey.currentState?.openDrawer(),
                                 ),
-                              ),
-                              MouseRegion(
-                                onEnter: (_) => setState(() {
-                                  _isHoveringOnName = true;
-                                }),
-                                onExit: (_) {
-                                  _hideContainerTimer = Timer(
-                                    const Duration(milliseconds: 500),
-                                    _hideMenu,
-                                  );
-                                },
+                              Flexible(
                                 child: Text(
-                                  'Welcome! ${userController.rxUserDetail.value.name}',
+                                  isCompact
+                                      ? 'Vardhman B2B'
+                                      : 'Vardhman B2B Portal v2.0',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
@@ -104,29 +150,102 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 16),
+                              // Profile button and Welcome kept together on
+                              // the right, the button just before the name.
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'My Details',
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(
+                                        Icons.account_circle_outlined,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        _hideMenu();
+
+                                        Get.dialog(const MyDetailsDialog());
+                                      },
+                                    ),
+                                    Flexible(
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        onEnter: (_) => setState(() {
+                                          _isHoveringOnName = true;
+                                        }),
+                                        onExit: (_) {
+                                          _hideContainerTimer = Timer(
+                                            const Duration(milliseconds: 500),
+                                            _hideMenu,
+                                          );
+                                        },
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            _hideContainerTimer?.cancel();
+
+                                            setState(() {
+                                              _isHoveringOnName =
+                                                  !_isHoveringOnName;
+                                            });
+                                          },
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  'Welcome! ${userController.rxUserDetail.value.name}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              const Icon(
+                                                Icons.arrow_drop_down,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                       Expanded(
-                        child: homeController.rxNavRailIndex.value == 0
-                            ? const SamplingView()
-                            : homeController.rxNavRailIndex.value == 1
-                                ? const LabdipView()
-                                : homeController.rxNavRailIndex.value == 2
-                                    ? const DtmView()
-                                    : homeController.rxNavRailIndex.value == 3
-                                        ? const BulkView()
-                                        : homeController.rxNavRailIndex.value ==
-                                                4
-                                            ? const OpenView()
-                                            : const PaidView(),
+                        // Order matches the nav rail indexes: 0–3 orders,
+                        // 4–5 payments (see NavRail).
+                        child: LazyIndexedStack(
+                          index: widget.tabIndex,
+                          children: const <Widget>[
+                            SamplingView(),
+                            LabdipView(),
+                            DtmView(),
+                            BulkView(),
+                            OpenView(),
+                            PaidView(),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                   if (_isHoveringOnName) // Only show on LabdipView
                     Positioned(
                       top: 36,
+                      // Full width on a phone, where 380–480 may not fit.
+                      left: isCompact ? 0 : null,
                       right: 0,
                       child: MouseRegion(
                         onEnter: (_) {
@@ -142,20 +261,25 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                         },
                         child: _isHoveringOnName
                             ? Container(
-                                width: userController.rxUserDetail.value.role !=
-                                        'CUSTOMER'
-                                    ? 480
-                                    : 380,
+                                width: isCompact
+                                    ? null
+                                    : userController.rxUserDetail.value.role !=
+                                            'CUSTOMER'
+                                        ? 480
+                                        : 380,
                                 padding: EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.only(
                                       bottomLeft: Radius.circular(24)),
                                   color: VardhmanColors.darkGrey,
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                // Wrap: on a phone the buttons go onto a
+                                // second line instead of overflowing.
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
                                     userController.rxUserDetail.value.role !=
                                             'CUSTOMER'
@@ -172,12 +296,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                                 OrderSummaryController(),
                                               );
                                               Get.dialog(
-                                                const Dialog(
-                                                  insetPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal: 40,
-                                                    vertical: 24,
-                                                  ),
+                                                const AdaptiveDialog(
                                                   clipBehavior: Clip.hardEdge,
                                                   child: SizedBox(
                                                     width: 1000,
@@ -197,7 +316,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                                     .value.soldToNumber);
                                         homeController.rxEmail.value = email;
                                         Get.dialog(
-                                          Dialog(
+                                          AdaptiveDialog(
                                             insetPadding: EdgeInsets.all(80),
                                             clipBehavior: Clip.antiAlias,
                                             child: SizedBox(

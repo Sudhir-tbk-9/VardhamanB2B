@@ -13,6 +13,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 
 class AdvancePaymentDialog extends StatelessWidget {
   const AdvancePaymentDialog({
@@ -27,7 +28,7 @@ class AdvancePaymentDialog extends StatelessWidget {
       tag: 'userController',
     );
 
-    return Dialog(
+    return AdaptiveDialog(
       child: Obx(
         () => Container(
           padding: const EdgeInsets.all(16),

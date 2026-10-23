@@ -14,6 +14,8 @@ import 'package:vardhman_b2b/open/advance_payment_dialog.dart';
 import 'package:vardhman_b2b/open/due_invoices_view.dart';
 import 'package:vardhman_b2b/open/overdue_invoices_view.dart';
 import 'package:vardhman_b2b/open/processing_invoices_view.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
+import 'package:vardhman_b2b/common/breakpoints.dart';
 
 class OpenInvoicesView extends StatelessWidget {
   const OpenInvoicesView({super.key});
@@ -37,8 +39,13 @@ class OpenInvoicesView extends StatelessWidget {
                   text: 'Refresh',
                   onPressed: invoicesController.refreshInvoices,
                 ),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                // Wrap, not Row: on a narrow window the two totals move to
+                // separate lines instead of overflowing.
+                title: Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 4,
                   children: <Widget>[
                     RupeeText(
                       label: 'Net Overdue',
@@ -65,6 +72,11 @@ class OpenInvoicesView extends StatelessWidget {
                         color: Colors.white,
                         child: TabBar(
                           controller: invoicesController.tabController,
+                          // Scrollable on a phone, so 'Payment Processing'
+                          // keeps its full label.
+                          isScrollable: context.isCompact,
+                          tabAlignment:
+                              context.isCompact ? TabAlignment.start : null,
                           tabs: [
                             Tab(
                               text: 'Overdue',
@@ -155,7 +167,11 @@ class OpenInvoicesView extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                 ),
-                child: Row(
+                // Filters wrap onto more lines on a narrow pane instead of
+                // squeezing each field.
+                child: AdaptiveRow(
+                  narrowLayout: NarrowLayout.wrap,
+                  breakpoint: 560,
                   children: <Widget>[
                     Flexible(
                       child: TextField(
