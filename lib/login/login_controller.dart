@@ -509,12 +509,8 @@ class LoginController extends GetxController {
 
         // The invoice flow saved this payment before leaving; it was not
         // made, so the Open tab should not show it as the last payment.
-        final invoicesController = Get.find<InvoicesController>();
-
-        if (invoicesController.rxLastPayment.value?['receiptNumber'] ==
-            receiptNumber) {
-          await invoicesController.dismissLastPayment();
-        }
+        await Get.find<InvoicesController>()
+            .dismissLastPayment(receiptNumber: receiptNumber);
       }
 
       final status = await Api.getPaymentStatus(receiptNumber);

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:universal_html/html.dart' as html;
+import 'package:vardhman_b2b/common/app_url.dart';
 
 /// Leaving for the payment gateway (or any external link opened in the same
 /// tab) unloads the Flutter page, so the app boots from scratch when the user
@@ -103,6 +104,15 @@ class GatewayResult {
 /// app was not opened by a gateway return. Any errorStatus other than `0`
 /// counts as failed, so a cancel or an unknown code is never shown as paid.
 GatewayResult? gatewayResultOf(Uri url) {
+  // Back through the cancel-url (see appCancelUrl): the gateway itself
+  // sends no result for a cancel.
+  if (url.queryParameters[gatewayCancelParameter] == '1') {
+    return const GatewayResult(
+      isFailed: true,
+      errorMessage: 'Payment cancelled.',
+    );
+  }
+
   final errorStatus = url.queryParameters['errorStatus']?.trim();
 
   if (errorStatus == null) {
