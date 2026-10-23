@@ -14,6 +14,8 @@ class App extends StatelessWidget {
 
     return ToastificationWrapper(
       child: GetMaterialApp.router(
+        // Shown as the browser tab title; without it the tab shows the URL.
+        title: 'Vardhman B2B Portal',
         routerDelegate: appRouter.routerDelegate,
         routeInformationParser: appRouter.routeInformationParser,
         routeInformationProvider: appRouter.routeInformationProvider,

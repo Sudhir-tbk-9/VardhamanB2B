@@ -24,6 +24,10 @@ const homeTabPaths = <String>[
 
 const _loginPath = '/login';
 
+/// The home tab the user was sent to `/login` from, opened once they are
+/// logged in.
+String? _tabAfterLogin;
+
 /// Nav rail index for [path], or null when it is not a home tab.
 int? homeTabIndexOf(String path) {
   final index = homeTabPaths.indexOf(path);
@@ -79,23 +83,30 @@ String? _redirect(BuildContext context, GoRouterState state) {
       return null;
     }
 
-    // Remember the tab so it opens once the user has logged in again.
-    return Uri(
-      path: _loginPath,
-      queryParameters: homeTabIndexOf(path) == null ? null : {'from': path},
-    ).toString();
+    // Remember the tab so it opens once the user has logged in again. Kept
+    // in memory rather than as a query parameter so the address bar shows a
+    // plain `/login`.
+    if (homeTabIndexOf(path) != null) {
+      _tabAfterLogin = path;
+    }
+
+    return _loginPath;
   }
 
   if (homeTabIndexOf(path) != null) {
+    _tabAfterLogin = null;
+
     return null;
   }
 
   // Logged in on /login, the bare app URL (e.g. the gateway's return) or an
-  // unknown path: go to the tab from the URL, else the one the session was
-  // restored to (payment return marker), else Sampling.
-  final from = state.uri.queryParameters['from'];
+  // unknown path: go to the tab asked for before login, else the one the
+  // session was restored to (payment return marker), else Sampling.
+  final from = _tabAfterLogin;
 
-  if (from != null && homeTabIndexOf(from) != null) {
+  if (from != null) {
+    _tabAfterLogin = null;
+
     return from;
   }
 
