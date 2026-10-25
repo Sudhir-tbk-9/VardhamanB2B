@@ -5,8 +5,21 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Decorative layer drawn over the accent gradient (nav rail, top bar and the
-/// theme preview tiles).
-enum ThemePattern { none, weave, stars, waves }
+/// theme preview tiles). Mostly fabric and thread motifs.
+enum ThemePattern {
+  none,
+  weave,
+  stars,
+  waves,
+  twill,
+  stitch,
+  jacquard,
+  pinstripe,
+  herringbone,
+  knit,
+  tartan,
+  crossStitch,
+}
 
 /// One colour scheme the user can pick. [primary] is the brand colour
 /// (buttons, selection), [accent] the dark tone for headers and text,
@@ -30,6 +43,9 @@ class AppThemeVariant {
   final ThemePattern pattern;
   final String? backgroundImage;
 
+  /// Colour [pattern] is drawn in, translucent.
+  final Color patternColor;
+
   const AppThemeVariant({
     required this.id,
     required this.name,
@@ -44,6 +60,7 @@ class AppThemeVariant {
     required this.accentGradient,
     this.pattern = ThemePattern.none,
     this.backgroundImage,
+    this.patternColor = Colors.white,
   });
 
   bool get hasBackdrop =>
@@ -117,6 +134,7 @@ class ThemeVariants {
       error: Color(0xFFC62828),
       primaryGradient: [Color(0xFF283593), Color(0xFF3F51B5)],
       accentGradient: [Color(0xFF141E30), Color(0xFF243B55)],
+      pattern: ThemePattern.twill,
     ),
     AppThemeVariant(
       id: 'ocean_teal',
@@ -130,6 +148,7 @@ class ThemeVariants {
       error: Color(0xFFD32F2F),
       primaryGradient: [Color(0xFF00897B), Color(0xFF26C6DA)],
       accentGradient: [Color(0xFF1F2D33), Color(0xFF134E4A)],
+      pattern: ThemePattern.stitch,
     ),
     AppThemeVariant(
       id: 'royal_purple',
@@ -143,6 +162,7 @@ class ThemeVariants {
       error: Color(0xFFD32F2F),
       primaryGradient: [Color(0xFF6A1B9A), Color(0xFFAB47BC)],
       accentGradient: [Color(0xFF2D2438), Color(0xFF4A2C5E)],
+      pattern: ThemePattern.jacquard,
     ),
     AppThemeVariant(
       id: 'charcoal_gold',
@@ -156,6 +176,8 @@ class ThemeVariants {
       error: Color(0xFFC62828),
       primaryGradient: [Color(0xFF9C6B0E), Color(0xFFD4A537)],
       accentGradient: [Color(0xFF1A1A1A), Color(0xFF3A3226)],
+      pattern: ThemePattern.pinstripe,
+      patternColor: Color(0xFFD4A537),
     ),
     AppThemeVariant(
       id: 'forest_green',
@@ -169,6 +191,7 @@ class ThemeVariants {
       error: Color(0xFFC62828),
       primaryGradient: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
       accentGradient: [Color(0xFF14261A), Color(0xFF2C4A32)],
+      pattern: ThemePattern.herringbone,
     ),
     AppThemeVariant(
       id: 'sunset_blaze',
@@ -182,6 +205,7 @@ class ThemeVariants {
       error: Color(0xFFC62828),
       primaryGradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
       accentGradient: [Color(0xFF2B1B2E), Color(0xFF5A1E44)],
+      pattern: ThemePattern.knit,
     ),
     AppThemeVariant(
       id: 'ocean_aurora',
@@ -199,6 +223,7 @@ class ThemeVariants {
         Color(0xFF203A43),
         Color(0xFF2C5364),
       ],
+      pattern: ThemePattern.tartan,
     ),
     AppThemeVariant(
       id: 'royal_twilight',
@@ -216,8 +241,9 @@ class ThemeVariants {
         Color(0xFF302B63),
         Color(0xFF24243E),
       ],
+      pattern: ThemePattern.crossStitch,
     ),
-    // Patterned / image themes.
+    // The first themes with a pattern; the ones above got theirs later.
     AppThemeVariant(
       id: 'silk_weave',
       name: 'Silk Weave',
@@ -428,7 +454,10 @@ class ThemeBackdrop extends StatelessWidget {
           child: CustomPaint(
             painter: variant.pattern == ThemePattern.none
                 ? null
-                : ThemePatternPainter(variant.pattern),
+                : ThemePatternPainter(
+                    variant.pattern,
+                    color: variant.patternColor,
+                  ),
             child: child,
           ),
         ),
@@ -437,11 +466,13 @@ class ThemeBackdrop extends StatelessWidget {
   }
 }
 
-/// Draws [pattern] in translucent white.
+/// Draws [pattern] in translucent [color].
 class ThemePatternPainter extends CustomPainter {
   final ThemePattern pattern;
 
-  ThemePatternPainter(this.pattern);
+  final Color color;
+
+  ThemePatternPainter(this.pattern, {this.color = Colors.white});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -454,6 +485,22 @@ class ThemePatternPainter extends CustomPainter {
         _paintStars(canvas, size);
       case ThemePattern.waves:
         _paintWaves(canvas, size);
+      case ThemePattern.twill:
+        _paintTwill(canvas, size);
+      case ThemePattern.stitch:
+        _paintStitch(canvas, size);
+      case ThemePattern.jacquard:
+        _paintJacquard(canvas, size);
+      case ThemePattern.pinstripe:
+        _paintPinstripe(canvas, size);
+      case ThemePattern.herringbone:
+        _paintHerringbone(canvas, size);
+      case ThemePattern.knit:
+        _paintKnit(canvas, size);
+      case ThemePattern.tartan:
+        _paintTartan(canvas, size);
+      case ThemePattern.crossStitch:
+        _paintCrossStitch(canvas, size);
       case ThemePattern.none:
         break;
     }
@@ -464,11 +511,11 @@ class ThemePatternPainter extends CustomPainter {
     const gap = 12.0;
 
     final warp = Paint()
-      ..color = Colors.white.withAlpha(28)
+      ..color = color.withAlpha(28)
       ..strokeWidth = 3;
 
     final weft = Paint()
-      ..color = Colors.white.withAlpha(16)
+      ..color = color.withAlpha(16)
       ..strokeWidth = 1.5;
 
     final span = size.width + size.height;
@@ -495,7 +542,7 @@ class ThemePatternPainter extends CustomPainter {
 
       final radius = 0.4 + random.nextDouble() * 1.2;
 
-      paint.color = Colors.white.withAlpha(40 + random.nextInt(120));
+      paint.color = color.withAlpha(40 + random.nextInt(120));
 
       if (i % 23 == 0) {
         final r = radius * 4;
@@ -519,7 +566,7 @@ class ThemePatternPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
-      ..color = Colors.white.withAlpha(30);
+      ..color = color.withAlpha(30);
 
     const gap = 14.0;
 
@@ -534,7 +581,207 @@ class ThemePatternPainter extends CustomPainter {
     }
   }
 
+  /// Steep diagonal ribs, every third one stronger, like denim.
+  void _paintTwill(Canvas canvas, Size size) {
+    const gap = 5.0;
+
+    final fine = Paint()
+      ..color = color.withAlpha(14)
+      ..strokeWidth = 1.2;
+
+    final rib = Paint()
+      ..color = color.withAlpha(32)
+      ..strokeWidth = 1.6;
+
+    final rise = size.height / 2;
+
+    var i = 0;
+
+    for (var x = -rise; x < size.width; x += gap, i++) {
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + rise, 0),
+        i % 3 == 0 ? rib : fine,
+      );
+    }
+  }
+
+  /// Rows of running stitches, offset row to row like quilted seams.
+  void _paintStitch(Canvas canvas, Size size) {
+    const rowGap = 14.0;
+    const dash = 6.0;
+    const space = 5.0;
+
+    final paint = Paint()
+      ..color = color.withAlpha(44)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+
+    var row = 0;
+
+    for (var y = rowGap / 2; y < size.height; y += rowGap, row++) {
+      final shift = row.isEven ? 0.0 : (dash + space) / 2;
+
+      for (var x = -shift; x < size.width; x += dash + space) {
+        canvas.drawLine(Offset(x, y), Offset(x + dash, y), paint);
+      }
+    }
+  }
+
+  /// Diamond lattice with a dot in each diamond, like a jacquard brocade.
+  void _paintJacquard(Canvas canvas, Size size) {
+    const width = 20.0;
+    const height = 14.0;
+
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color.withAlpha(26);
+
+    final dot = Paint()..color = color.withAlpha(48);
+
+    var row = 0;
+
+    for (var y = 0.0; y < size.height + height; y += height / 2, row++) {
+      final shift = row.isEven ? 0.0 : width / 2;
+
+      for (var x = -shift; x < size.width + width; x += width) {
+        final diamond = Path()
+          ..moveTo(x, y - height / 2)
+          ..lineTo(x + width / 2, y)
+          ..lineTo(x, y + height / 2)
+          ..lineTo(x - width / 2, y)
+          ..close();
+
+        canvas.drawPath(diamond, line);
+        canvas.drawCircle(Offset(x, y), 1.2, dot);
+      }
+    }
+  }
+
+  /// Thin evenly spaced stripes, like suiting cloth.
+  void _paintPinstripe(Canvas canvas, Size size) {
+    const gap = 10.0;
+
+    final paint = Paint()
+      ..color = color.withAlpha(48)
+      ..strokeWidth = 1;
+
+    for (var x = gap / 2; x < size.width; x += gap) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  /// Columns of short diagonals, alternating direction, like tweed.
+  void _paintHerringbone(Canvas canvas, Size size) {
+    const column = 12.0;
+    const step = 6.0;
+
+    final paint = Paint()
+      ..color = color.withAlpha(28)
+      ..strokeWidth = 1.4;
+
+    var c = 0;
+
+    for (var x = 0.0; x < size.width; x += column, c++) {
+      final rising = c.isEven;
+
+      for (var y = -column; y < size.height + column; y += step) {
+        canvas.drawLine(
+          Offset(x, rising ? y + column : y),
+          Offset(x + column, rising ? y : y + column),
+          paint,
+        );
+      }
+    }
+  }
+
+  /// Rows of nested V loops, like the face of knitted cloth.
+  void _paintKnit(Canvas canvas, Size size) {
+    const width = 12.0;
+    const height = 9.0;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeJoin = StrokeJoin.round
+      ..color = color.withAlpha(36);
+
+    for (var y = -height; y < size.height; y += height * 0.8) {
+      final path = Path()..moveTo(0, y);
+
+      for (var x = 0.0; x < size.width; x += width) {
+        path
+          ..lineTo(x + width / 2, y + height)
+          ..lineTo(x + width, y);
+      }
+
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  /// Wide and thin bands crossing both ways, like a tartan plaid.
+  void _paintTartan(Canvas canvas, Size size) {
+    const repeat = 36.0;
+
+    final band = Paint()
+      ..color = color.withAlpha(14)
+      ..strokeWidth = 10;
+
+    final line = Paint()
+      ..color = color.withAlpha(32)
+      ..strokeWidth = 1.5;
+
+    for (var x = repeat / 4; x < size.width + repeat; x += repeat) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), band);
+      canvas.drawLine(
+        Offset(x + repeat / 2, 0),
+        Offset(x + repeat / 2, size.height),
+        line,
+      );
+    }
+
+    for (var y = repeat / 4; y < size.height + repeat; y += repeat) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), band);
+      canvas.drawLine(
+        Offset(0, y + repeat / 2),
+        Offset(size.width, y + repeat / 2),
+        line,
+      );
+    }
+  }
+
+  /// Small X stitches on a staggered grid, like cross-stitch embroidery.
+  void _paintCrossStitch(Canvas canvas, Size size) {
+    const gap = 12.0;
+    const arm = 2.5;
+
+    final paint = Paint()
+      ..color = color.withAlpha(44)
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    var row = 0;
+
+    for (var y = gap / 2; y < size.height; y += gap, row++) {
+      final shift = row.isEven ? 0.0 : gap / 2;
+
+      for (var x = gap / 2 - shift; x < size.width; x += gap) {
+        canvas.drawLine(
+          Offset(x - arm, y - arm),
+          Offset(x + arm, y + arm),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(x + arm, y - arm),
+          Offset(x - arm, y + arm),
+          paint,
+        );
+      }
+    }
+  }
+
   @override
   bool shouldRepaint(ThemePatternPainter oldDelegate) =>
-      oldDelegate.pattern != pattern;
+      oldDelegate.pattern != pattern || oldDelegate.color != color;
 }
