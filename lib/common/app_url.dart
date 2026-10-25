@@ -4,7 +4,8 @@
 const gatewayCancelParameter = 'gatewayCancel';
 
 /// URL the app is being served from (scheme, host, port and base path, no
-/// route or query), e.g. `http://localhost:8000/` locally or
+/// route or query: the last path segment, e.g. `open` in `/vytldev/open`, is
+/// the tab and is dropped), e.g. `http://localhost:8000/` locally or
 /// `https://b2b.amefird.in/vytldev/` when deployed. Used as the payment
 /// gateway's return URL so the user always comes back to the same app
 /// instance, whatever host or port it runs on.
