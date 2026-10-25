@@ -9,14 +9,48 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/login/login_controller.dart';
 import 'package:video_player/video_player.dart';
 
+/// Whether an Enter in a field is running its button's action, so a second
+/// Enter (or a held key) does not run it again meanwhile.
+bool _isSubmitting = false;
+
+/// Runs [action] for Enter in a field, as the field's button would. [action]
+/// is null while that button is disabled.
+Future<void> _submit(Future<void> Function()? action) async {
+  if (action == null || _isSubmitting) {
+    return;
+  }
+
+  _isSubmitting = true;
+
+  try {
+    await action();
+  } finally {
+    _isSubmitting = false;
+  }
+}
+
 class LoginView extends StatelessWidget {
   LoginView({super.key});
-  final FocusNode _focusNode = FocusNode();
+  final FocusNode _userIdFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _otpFocusNode = FocusNode();
+  final FocusNode _newPasswordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
 
   @override
   Widget build(BuildContext context) {
     final loginController = Get.find<LoginController>();
-    FocusScope.of(context).requestFocus(_focusNode);
+
+    // Rebuilt on every login step (see _LoginGate), so the step's field gets
+    // the cursor and the user can type and press Enter straight away.
+    FocusScope.of(context).requestFocus(
+      switch (loginController.rxLoginState.value) {
+        LoginState.password => _passwordFocusNode,
+        LoginState.otp => _otpFocusNode,
+        LoginState.setPassword => _newPasswordFocusNode,
+        _ => _userIdFocusNode,
+      },
+    );
 
     // Phone sized: smaller header, and the page scrolls (see below).
     final isCompact = context.isCompact;
@@ -74,6 +108,26 @@ class LoginView extends StatelessWidget {
               ),
             ],
           );
+
+          // Each button's action, null while the button is disabled. Enter in
+          // the step's field runs the same one.
+          final sendOtp = loginController.rxUserId.value.isEmpty
+              ? null
+              : loginController.validateUser;
+
+          final logIn = loginController.rxPassword.value.isEmpty
+              ? null
+              : loginController.validatePassword;
+
+          final verifyOtp = loginController.rxOtp.value.isEmpty
+              ? null
+              : loginController.validateOtp;
+
+          final setPassword = loginController.rxPassword.value.trim().isEmpty ||
+                  loginController.rxConfirmPassword.value !=
+                      loginController.rxPassword.value
+              ? null
+              : loginController.setPassword;
 
           final card = Container(
             // margin: EdgeInsets.all(16),
@@ -151,12 +205,13 @@ class LoginView extends StatelessWidget {
                           SizedBox(
                             width: 150,
                             child: NewOrderTextField(
-                              focusNode: _focusNode,
+                              focusNode: _userIdFocusNode,
                               inputFormatters: [UpperCaseTextFormatter()],
                               isEnabled: loginController.rxLoginState.value ==
                                   LoginState.loggedOut,
                               labelText: 'User ID',
                               rxString: loginController.rxUserId,
+                              onSubmitted: () => _submit(sendOtp),
                             ),
                           ),
                           if (loginController.rxLoginState.value ==
@@ -165,9 +220,11 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _passwordFocusNode,
                                 obscureText: true,
                                 labelText: 'Password',
                                 rxString: loginController.rxPassword,
+                                onSubmitted: () => _submit(logIn),
                               ),
                             ),
                           ],
@@ -177,8 +234,10 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _otpFocusNode,
                                 labelText: 'OTP',
                                 rxString: loginController.rxOtp,
+                                onSubmitted: () => _submit(verifyOtp),
                               ),
                             ),
                           ],
@@ -188,20 +247,30 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _newPasswordFocusNode,
                                 obscureText: true,
                                 labelText: 'New Password',
                                 rxString: loginController.rxPassword,
+                                // On to Confirm Password, which is enabled
+                                // once a new password is typed.
+                                onSubmitted: () {
+                                  if (loginController.rxPassword.isNotEmpty) {
+                                    _confirmPasswordFocusNode.requestFocus();
+                                  }
+                                },
                               ),
                             ),
                             SizedBox(width: 16),
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _confirmPasswordFocusNode,
                                 obscureText: true,
                                 labelText: 'Confirm Password',
                                 isEnabled:
                                     loginController.rxPassword.isNotEmpty,
                                 rxString: loginController.rxConfirmPassword,
+                                onSubmitted: () => _submit(setPassword),
                               ),
                             ),
                           ],
@@ -215,9 +284,7 @@ class LoginView extends StatelessWidget {
                         PrimaryButton(
                           iconData: Icons.login_outlined,
                           text: 'Send OTP',
-                          onPressed: loginController.rxUserId.value.isEmpty
-                              ? null
-                              : loginController.validateUser,
+                          onPressed: sendOtp,
                         ),
                       if (loginController.rxLoginState.value ==
                           LoginState.password)
@@ -235,10 +302,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Login',
-                              onPressed:
-                                  loginController.rxPassword.value.isEmpty
-                                      ? null
-                                      : loginController.validatePassword,
+                              onPressed: logIn,
                             ),
                           ],
                         ),
@@ -262,9 +326,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Verify OTP',
-                              onPressed: loginController.rxOtp.value.isEmpty
-                                  ? null
-                                  : loginController.validateOtp,
+                              onPressed: verifyOtp,
                             ),
                           ],
                         ),
@@ -289,13 +351,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Set Password',
-                              onPressed: loginController.rxPassword.value
-                                          .trim()
-                                          .isEmpty ||
-                                      loginController.rxConfirmPassword.value !=
-                                          loginController.rxPassword.value
-                                  ? null
-                                  : loginController.setPassword,
+                              onPressed: setPassword,
                             ),
                           ],
                         ),
