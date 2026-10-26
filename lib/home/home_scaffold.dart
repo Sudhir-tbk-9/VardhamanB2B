@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
@@ -28,6 +26,9 @@ import 'package:vardhman_b2b/sampling/sampling_view.dart';
 import 'package:vardhman_b2b/user/my_details_dialog.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
+/// Entries of the account menu behind the header's three-dot button.
+enum _AccountMenuItem { orderSummary, statusReport, theme, myDetails, logout }
+
 class HomeScaffold extends StatefulWidget {
   const HomeScaffold({
     super.key,
@@ -42,11 +43,6 @@ class HomeScaffold extends StatefulWidget {
 }
 
 class _HomeScaffoldState extends State<HomeScaffold> {
-  /// Whether the account menu under the user's name is open. It opens on
-  /// hover (mouse) or tap (touch, where there is no hover).
-  bool _isHoveringOnName = false;
-  Timer? _hideContainerTimer;
-
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -70,24 +66,163 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     Get.find<HomeController>().rxNavRailIndex.value = widget.tabIndex;
   }
 
-  void _hideMenu() {
-    _hideContainerTimer?.cancel();
+  Future<void> _onAccountMenuSelected(_AccountMenuItem item) async {
+    final UserController userController = Get.find(tag: 'userController');
 
-    if (mounted && _isHoveringOnName) {
-      setState(() => _isHoveringOnName = false);
+    switch (item) {
+      case _AccountMenuItem.orderSummary:
+        _openOrderSummary();
+      case _AccountMenuItem.statusReport:
+        await _openStatusReport(userController);
+      case _AccountMenuItem.theme:
+        Get.dialog(const ThemeSwitcherDialog());
+      case _AccountMenuItem.myDetails:
+        Get.dialog(const MyDetailsDialog());
+      case _AccountMenuItem.logout:
+        await userController.logOut();
     }
   }
 
-  @override
-  void dispose() {
-    _hideContainerTimer?.cancel();
+  void _openOrderSummary() {
+    if (Get.isRegistered<OrderSummaryController>()) {
+      Get.delete<OrderSummaryController>();
+    }
 
-    super.dispose();
+    Get.put(
+      OrderSummaryController(),
+    );
+    Get.dialog(
+      const AdaptiveDialog(
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: 1000,
+          child: OrderSummaryView(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openStatusReport(UserController userController) async {
+    final HomeController homeController = Get.find();
+
+    var email = await Api.fetchReportEmailAddress(
+        userController.rxUserDetail.value.soldToNumber);
+    homeController.rxEmail.value = email;
+    Get.dialog(
+      AdaptiveDialog(
+        insetPadding: EdgeInsets.all(80),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 560,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              HeaderView(
+                elevation: 4,
+                leading: SecondaryButton(
+                  wait: false,
+                  iconData: Icons.arrow_back_ios_new,
+                  text: 'Back',
+                  onPressed: () async {
+                    Get.back();
+                  },
+                ),
+                title: Text(
+                  'Request Status Report',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                trailing: DefaultTextStyle(
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  child: Obx(
+                    () => PrimaryButton(
+                      text: 'Submit',
+                      onPressed: homeController.rxEmail.isEmpty ||
+                              !RegExp(
+                                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                              ).hasMatch(
+                                homeController.rxEmail.value,
+                              )
+                          ? null
+                          : () async {
+                              Api.submitStatusReport(
+                                email: homeController.rxEmail.value,
+                                fromDate: homeController.rxFromDate.value!,
+                                soldToNumber: userController
+                                    .rxUserDetail.value.soldToNumber,
+                              );
+
+                              Get.back();
+
+                              toastification.show(
+                                autoCloseDuration: Duration(seconds: 3),
+                                primaryColor: VardhmanColors.green,
+                                title: Text('Request Submitted!'),
+                              );
+                            },
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    NewOrderTextField(
+                        labelText: 'Email', rxString: homeController.rxEmail),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    NewOrderDateField(
+                      labelText: 'From',
+                      rxDate: homeController.rxFromDate,
+                      firstDate: homeController.rxFromDate.value?.subtract(
+                        Duration(days: 60),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<_AccountMenuItem> _accountMenuEntry(
+    _AccountMenuItem value,
+    IconData icon,
+    String text, {
+    Color? color,
+  }) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color ?? VardhmanColors.darkGrey),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: TextStyle(
+              color: color ?? VardhmanColors.darkGrey,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final HomeController homeController = Get.find();
     final UserController userController = Get.find(tag: 'userController');
 
     // Phone sized: the nav rail moves into a drawer opened from the header.
@@ -112,351 +247,128 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           children: <Widget>[
             if (!isCompact) NavRail(selectedIndex: widget.tabIndex),
             Expanded(
-              child: Stack(
-                children: [
-                  Column(
-                    children: <Widget>[
-                      ThemeBackdrop(
-                        variant: ThemeVariants.current,
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        child: Container(
-                          height: 50,
-                          padding: EdgeInsets.only(right: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              if (isCompact)
-                                IconButton(
+              child: Column(
+                children: <Widget>[
+                  ThemeBackdrop(
+                    variant: ThemeVariants.current,
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    child: Container(
+                      height: 50,
+                      padding: EdgeInsets.only(right: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (isCompact)
+                            IconButton(
+                              tooltip: 'Menu',
+                              icon: const Icon(
+                                Icons.menu,
+                                color: Colors.white,
+                              ),
+                              onPressed: () =>
+                                  _scaffoldKey.currentState?.openDrawer(),
+                            ),
+                          Flexible(
+                            child: Text(
+                              isCompact
+                                  ? 'Vardhman B2B'
+                                  : 'Vardhman B2B Portal v2.0',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Welcome and the account menu kept together on
+                          // the right. The menu opens on click only.
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Welcome! ${userController.rxUserDetail.value.name}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                PopupMenuButton<_AccountMenuItem>(
                                   tooltip: 'Menu',
                                   icon: const Icon(
-                                    Icons.menu,
+                                    Icons.more_vert,
                                     color: Colors.white,
                                   ),
-                                  onPressed: () =>
-                                      _scaffoldKey.currentState?.openDrawer(),
-                                ),
-                              Flexible(
-                                child: Text(
-                                  isCompact
-                                      ? 'Vardhman B2B'
-                                      : 'Vardhman B2B Portal v2.0',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                                  position: PopupMenuPosition.under,
+                                  color: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Profile button and Welcome kept together on
-                              // the right, the button just before the name.
-                              Flexible(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      tooltip: 'My Details',
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(
-                                        Icons.account_circle_outlined,
-                                        color: Colors.white,
+                                  onSelected: _onAccountMenuSelected,
+                                  itemBuilder: (context) => [
+                                    if (userController
+                                            .rxUserDetail.value.role !=
+                                        'CUSTOMER')
+                                      _accountMenuEntry(
+                                        _AccountMenuItem.orderSummary,
+                                        Icons.summarize_outlined,
+                                        'Order Summary',
                                       ),
-                                      onPressed: () {
-                                        _hideMenu();
-
-                                        Get.dialog(const MyDetailsDialog());
-                                      },
+                                    _accountMenuEntry(
+                                      _AccountMenuItem.statusReport,
+                                      Icons.assignment_outlined,
+                                      'Status Report',
                                     ),
-                                    Flexible(
-                                      child: MouseRegion(
-                                        cursor: SystemMouseCursors.click,
-                                        onEnter: (_) => setState(() {
-                                          _isHoveringOnName = true;
-                                        }),
-                                        onExit: (_) {
-                                          _hideContainerTimer = Timer(
-                                            const Duration(milliseconds: 500),
-                                            _hideMenu,
-                                          );
-                                        },
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            _hideContainerTimer?.cancel();
-
-                                            setState(() {
-                                              _isHoveringOnName =
-                                                  !_isHoveringOnName;
-                                            });
-                                          },
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  'Welcome! ${userController.rxUserDetail.value.name}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                              const Icon(
-                                                Icons.arrow_drop_down,
-                                                color: Colors.white,
-                                                size: 20,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                    _accountMenuEntry(
+                                      _AccountMenuItem.theme,
+                                      Icons.palette_outlined,
+                                      'Theme',
+                                    ),
+                                    _accountMenuEntry(
+                                      _AccountMenuItem.myDetails,
+                                      Icons.account_circle_outlined,
+                                      'My Details',
+                                    ),
+                                    const PopupMenuDivider(),
+                                    _accountMenuEntry(
+                                      _AccountMenuItem.logout,
+                                      Icons.logout,
+                                      'Logout',
+                                      color: VardhmanColors.red,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      Expanded(
-                        // Order matches the nav rail indexes: 0–3 orders,
-                        // 4–5 payments (see NavRail).
-                        child: LazyIndexedStack(
-                          index: widget.tabIndex,
-                          children: const <Widget>[
-                            SamplingView(),
-                            LabdipView(),
-                            DtmView(),
-                            BulkView(),
-                            OpenView(),
-                            PaidView(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_isHoveringOnName) // Only show on LabdipView
-                    Positioned(
-                      top: 36,
-                      // Full width on a phone, where 380–480 may not fit.
-                      left: isCompact ? 0 : null,
-                      right: 0,
-                      child: MouseRegion(
-                        onEnter: (_) {
-                          if (_hideContainerTimer?.isActive ?? false) {
-                            _hideContainerTimer?.cancel();
-                          }
-                        },
-                        onExit: (_) {
-                          _hideContainerTimer = Timer(
-                            const Duration(milliseconds: 500),
-                            _hideMenu,
-                          );
-                        },
-                        child: _isHoveringOnName
-                            ? Container(
-                                width: isCompact
-                                    ? null
-                                    : userController.rxUserDetail.value.role !=
-                                            'CUSTOMER'
-                                        ? 480
-                                        : 380,
-                                padding: EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.only(
-                                      bottomLeft: Radius.circular(24)),
-                                  color: VardhmanColors.darkGrey,
-                                ),
-                                // Wrap: on a phone the buttons go onto a
-                                // second line instead of overflowing.
-                                child: Wrap(
-                                  alignment: WrapAlignment.spaceBetween,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    userController.rxUserDetail.value.role !=
-                                            'CUSTOMER'
-                                        ? SecondaryButton(
-                                            text: 'Order Summary',
-                                            onPressed: () async {
-                                              if (Get.isRegistered<
-                                                  OrderSummaryController>()) {
-                                                Get.delete<
-                                                    OrderSummaryController>();
-                                              }
-
-                                              Get.put(
-                                                OrderSummaryController(),
-                                              );
-                                              Get.dialog(
-                                                const AdaptiveDialog(
-                                                  clipBehavior: Clip.hardEdge,
-                                                  child: SizedBox(
-                                                    width: 1000,
-                                                    child: OrderSummaryView(),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          )
-                                        : SizedBox(),
-                                    SecondaryButton(
-                                      text: 'Status Report',
-                                      onPressed: () async {
-                                        var email =
-                                            await Api.fetchReportEmailAddress(
-                                                userController.rxUserDetail
-                                                    .value.soldToNumber);
-                                        homeController.rxEmail.value = email;
-                                        Get.dialog(
-                                          AdaptiveDialog(
-                                            insetPadding: EdgeInsets.all(80),
-                                            clipBehavior: Clip.antiAlias,
-                                            child: SizedBox(
-                                              width: 560,
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: <Widget>[
-                                                  HeaderView(
-                                                    elevation: 4,
-                                                    leading: SecondaryButton(
-                                                      wait: false,
-                                                      iconData: Icons
-                                                          .arrow_back_ios_new,
-                                                      text: 'Back',
-                                                      onPressed: () async {
-                                                        Get.back();
-                                                      },
-                                                    ),
-                                                    title: Text(
-                                                      'Request Status Report',
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                    trailing: DefaultTextStyle(
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                      child: Obx(
-                                                        () => PrimaryButton(
-                                                          text: 'Submit',
-                                                          onPressed: homeController
-                                                                      .rxEmail
-                                                                      .isEmpty ||
-                                                                  !RegExp(
-                                                                    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                                                                  ).hasMatch(
-                                                                    homeController
-                                                                        .rxEmail
-                                                                        .value,
-                                                                  )
-                                                              ? null
-                                                              : () async {
-                                                                  Api.submitStatusReport(
-                                                                    email: homeController
-                                                                        .rxEmail
-                                                                        .value,
-                                                                    fromDate: homeController
-                                                                        .rxFromDate
-                                                                        .value!,
-                                                                    soldToNumber: userController
-                                                                        .rxUserDetail
-                                                                        .value
-                                                                        .soldToNumber,
-                                                                  );
-
-                                                                  Get.back();
-
-                                                                  toastification
-                                                                      .show(
-                                                                    autoCloseDuration:
-                                                                        Duration(
-                                                                            seconds:
-                                                                                3),
-                                                                    primaryColor:
-                                                                        VardhmanColors
-                                                                            .green,
-                                                                    title: Text(
-                                                                        'Request Submitted!'),
-                                                                  );
-                                                                },
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            16.0),
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: <Widget>[
-                                                        NewOrderTextField(
-                                                            labelText: 'Email',
-                                                            rxString:
-                                                                homeController
-                                                                    .rxEmail),
-                                                        SizedBox(
-                                                          height: 16,
-                                                        ),
-                                                        NewOrderDateField(
-                                                          labelText: 'From',
-                                                          rxDate: homeController
-                                                              .rxFromDate,
-                                                          firstDate:
-                                                              homeController
-                                                                  .rxFromDate
-                                                                  .value
-                                                                  ?.subtract(
-                                                            Duration(days: 60),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    SecondaryButton(
-                                      wait: false,
-                                      iconData: Icons.palette_outlined,
-                                      text: 'Theme',
-                                      onPressed: () async {
-                                        _hideMenu();
-
-                                        Get.dialog(const ThemeSwitcherDialog());
-                                      },
-                                    ),
-                                    PrimaryButton(
-                                      text: 'Logout',
-                                      onPressed: () async {
-                                        await userController.logOut();
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : null,
+                        ],
                       ),
                     ),
+                  ),
+                  Expanded(
+                    // Order matches the nav rail indexes: 0–3 orders,
+                    // 4–5 payments (see NavRail).
+                    child: LazyIndexedStack(
+                      index: widget.tabIndex,
+                      children: const <Widget>[
+                        SamplingView(),
+                        LabdipView(),
+                        DtmView(),
+                        BulkView(),
+                        OpenView(),
+                        PaidView(),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
