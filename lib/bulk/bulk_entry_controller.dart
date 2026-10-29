@@ -539,12 +539,14 @@ class BulkEntryController extends GetxController {
   }
 
   /// ORCH554074_GetUnitPrice for [itemNumber] at the selected Ship-To.
-  Future<double?> _fetchUnitPrice(String itemNumber) => Api.fetchUnitPrice(
+  Future<double?> _fetchUnitPrice(String itemNumber, {String? logLabel}) =>
+      Api.fetchUnitPrice(
         soldToNumber: _userController.rxUserDetail.value.soldToNumber,
         shipToNumber: _userController.shipToNumber,
         itemNumber: itemNumber,
         businessUnit: _userController.branchPlant,
         effectiveDate: DateTime.now(),
+        logLabel: logLabel,
       );
 
   Worker? _shipToWorker;
@@ -1381,12 +1383,38 @@ class BulkEntryController extends GetxController {
       }
     }
 
-    if (rowsToCheck.isEmpty) {
-      return;
+    debugPrint(
+      '[BULK IMPORT] Validating ${importRows.length} rows, '
+      '${rowsToCheck.length} need JDE checks',
+    );
+
+    if (rowsToCheck.isNotEmpty) {
+      await _checkImportRowsInJde(rowsToCheck);
     }
 
+    // One line per row, so a rejected row can be matched to the JDE calls
+    // above (debugPrint, so release builds log too).
+    for (final row in importRows) {
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} ${row.line.itemNumber}: '
+        '${row.error ?? 'OK, unit price ${row.unitPrice}'}',
+      );
+    }
+
+    final invalidCount = importRows.where((row) => !row.isValid).length;
+
+    debugPrint(
+      '[BULK IMPORT] ${importRows.length - invalidCount} valid, '
+      '$invalidCount with errors',
+    );
+  }
+
+  /// Item master (F4101) and unit price checks for [rowsToCheck]. Each call
+  /// is logged in full with a `[BULK IMPORT]` tag.
+  Future<void> _checkImportRowsInJde(List<ExcelImportRow> rowsToCheck) async {
     final validItemNumbers = await Api.validateItemNumbers(
       rowsToCheck.map((row) => row.line.itemNumber).toSet().toList(),
+      logLabel: '[BULK IMPORT] Item master check (F4101)',
     );
 
     final rowsToPrice = <ExcelImportRow>[];
@@ -1405,7 +1433,10 @@ class BulkEntryController extends GetxController {
       await Future.wait(
         rowsToPrice.skip(i).take(batchSize).map(
           (row) async {
-            final unitPrice = await _fetchUnitPrice(row.line.itemNumber);
+            final unitPrice = await _fetchUnitPrice(
+              row.line.itemNumber,
+              logLabel: '[BULK IMPORT] Unit price, row ${row.rowNumber}',
+            );
 
             if (unitPrice == null || unitPrice <= 0) {
               row.error = 'Price not available in JDE';

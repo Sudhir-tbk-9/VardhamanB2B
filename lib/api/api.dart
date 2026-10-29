@@ -92,6 +92,7 @@ class Api {
       InterceptorsWrapper(
         onRequest: (requestOptions, handler) {
           ApiActivity.started();
+          _logOrderRequest(requestOptions);
           if (kDebugMode) {
             log(
               'REQUEST => [${requestOptions.method}] ${requestOptions.path} BODY: ${_logPreview(requestOptions.data)}',
@@ -101,6 +102,7 @@ class Api {
         },
         onResponse: (response, handler) async {
           ApiActivity.finished();
+          _logOrderResponse(response.requestOptions, response: response);
           if (kDebugMode) {
             log(
               'RESPONSE => [${response.statusCode}] ${response.requestOptions.path} => ${_logPreview(response.data)}',
@@ -142,10 +144,140 @@ class Api {
         },
         onError: (error, handler) {
           ApiActivity.finished();
+          _logOrderResponse(
+            error.requestOptions,
+            response: error.response,
+            error: error,
+          );
           handler.next(error);
         },
       ),
     );
+
+  /// Tag and label for calls logged in full: a caller's own
+  /// `extra['logLabel']` (e.g. the Bulk import checks), else the
+  /// `[ORDER]` label, else null for a call that is not logged.
+  static String? _callLogLabel(RequestOptions options) {
+    final logLabel = options.extra['logLabel'];
+
+    if (logLabel is String) {
+      return logLabel;
+    }
+
+    final orderLabel = _orderCallLabel(options);
+
+    return orderLabel == null ? null : '[ORDER] $orderLabel';
+  }
+
+  /// What an order-related call is, for the `[ORDER]` log, or null for any
+  /// other call. Every order type (Labdip, Sampling, both Rematch flows, DTM
+  /// and Bulk) is placed through ORCH55CreateStagingData and told apart by
+  /// the lines' DocumentType.
+  static String? _orderCallLabel(RequestOptions options) {
+    final path = options.path;
+    final data = options.data;
+
+    if (path.endsWith('/ORCH55CreateStagingData')) {
+      final lines = data is Map ? data['Detail'] : null;
+      final documentType =
+          lines is List && lines.isNotEmpty && lines.first is Map
+              ? lines.first['DocumentType']
+              : null;
+
+      return switch (documentType) {
+        'LD' => 'Labdip order',
+        'SA' => 'Sampling order',
+        'DT' => 'DTM order',
+        'BK' => 'Bulk order',
+        _ => 'Order',
+      };
+    }
+
+    if (path.endsWith('/ORCH55_SendSMSNotification')) {
+      return 'Order SMS';
+    }
+
+    if (path == '/v2/file/upload') {
+      return 'Order attachment';
+    }
+
+    if (path == '/v2/bsfnservice' &&
+        data is Map &&
+        data['name'] == 'X0010GetNextNumber') {
+      return 'Order number';
+    }
+
+    return null;
+  }
+
+  /// Pretty JSON for the full call log. Multipart bodies list their fields
+  /// and file sizes.
+  static String _orderLogJson(Object? data) {
+    return JsonEncoder.withIndent('  ', (value) => '$value').convert(
+      data is FormData
+          ? {
+              for (final field in data.fields) field.key: field.value,
+              for (final file in data.files)
+                file.key: '<${file.value.filename ?? 'file'}, '
+                    '${file.value.length} bytes>',
+            }
+          : data,
+    );
+  }
+
+  /// Logs a tagged call's URL, headers and full payload to the browser
+  /// console (debugPrint, so release builds log too). Auth tokens are cut
+  /// short.
+  static void _logOrderRequest(RequestOptions options) {
+    final label = _callLogLabel(options);
+
+    if (label == null) {
+      return;
+    }
+
+    options.extra['orderLogStart'] = DateTime.now();
+
+    final headers = {
+      for (final MapEntry(:key, :value) in options.headers.entries)
+        key: key == 'JDE-AIS-Auth' || key == 'Authorization'
+            ? '${'$value'.substring(0, math.min(12, '$value'.length))}…'
+            : value,
+    };
+
+    debugPrint(
+      '$label → ${options.method} ${options.uri}\n'
+      'HEADERS: ${_orderLogJson(headers)}\n'
+      'PAYLOAD: ${_orderLogJson(options.data)}',
+    );
+  }
+
+  /// Logs a tagged call's status, time taken and full response, or the
+  /// error when no response came back.
+  static void _logOrderResponse(
+    RequestOptions options, {
+    Response? response,
+    DioException? error,
+  }) {
+    final label = _callLogLabel(options);
+
+    if (label == null) {
+      return;
+    }
+
+    final start = options.extra['orderLogStart'];
+    final took = start is DateTime
+        ? ' in ${DateTime.now().difference(start).inMilliseconds} ms'
+        : '';
+    final errorLine = error == null
+        ? ''
+        : 'ERROR: ${error.type.name} ${error.message ?? error.error}\n';
+
+    debugPrint(
+      '$label ← ${response?.statusCode ?? 'no response'}$took '
+      '${options.method} ${options.uri}\n'
+      '${errorLine}RESPONSE: ${_orderLogJson(response?.data)}',
+    );
+  }
 
   /// Short description of a request / response body for the debug log.
   /// Stringifying a full JDE rowset (thousands of rows) on every call stalls
@@ -317,7 +449,8 @@ class Api {
         '/orchestrator/ORCH55_SendSMSNotification',
         data: {
           "OrderNumber": orderNumber,
-          "Mobilenumber": mobileNumber,
+          "Mobilenumber": "9582412528",
+          // "Mobilenumber": mobileNumber,
         },
       );
     } catch (e) {
@@ -507,7 +640,10 @@ class Api {
 
     debugPrint(
       '[SHADE] $article: ${shadeUoms.length} shades over UOMs '
-      '${[for (var i = 0; i < uoms.length; i++) '${uoms[i]}=${shadesPerUom[i].length}'].join(', ')}',
+      '${[
+        for (var i = 0; i < uoms.length; i++)
+          '${uoms[i]}=${shadesPerUom[i].length}'
+      ].join(', ')}',
     );
 
     if (shadeUoms.isEmpty) {
@@ -621,6 +757,7 @@ class Api {
     required String itemNumber,
     required String businessUnit,
     required DateTime effectiveDate,
+    String? logLabel,
   }) async {
     try {
       final response = await _dio.post(
@@ -633,6 +770,7 @@ class Api {
           "Price_Effective": DateFormat('MM/dd/yyyy').format(effectiveDate),
           "P4074_Version": "VYTL2001"
         },
+        options: Options(extra: {if (logLabel != null) 'logLabel': logLabel}),
       );
 
       if (response.statusCode == 200) {
@@ -948,7 +1086,9 @@ class Api {
     final sharedPrefs = getx.Get.find<SharedPreferences>();
     try {
       final response = await _dio.post(
-        '/orchestrator/ORCH550116_Get_SoldTo_Address',
+        // The JDE orchestration name really ends in a narrow no-break space
+        // (U+202F); without it JDE answers "Endpoint not defined".
+        '/orchestrator/ORCH550116_Get_SoldTo_Address\u202F',
         data: {
           'Address Number Input': addressNumber,
         },
@@ -967,7 +1107,7 @@ class Api {
 
         final branchUserDetailsCompanion = await fetchUserData(ac01);
 
-        final soldToData = response.data['Get_SoldTo_Address '][0];
+        final soldToData = response.data['Get_SoldTo_Address\u202F'][0];
 
         return UserAddress(
           alphaName: soldToData['Alpha Name'],
@@ -1416,33 +1556,38 @@ class Api {
 
       if (response.statusCode == 200) {
         for (var orderStatus in response.data["GetOrderStatus"]) {
-          final OrderHeaderLine orderHeaderLine = OrderHeaderLine(
-            orderNumber: orderStatus['OrderNumber'],
-            orderType: orderStatus['OrTy'],
-            orderCompany: orderStatus['OrderCo'],
-            orderDate: DateFormat('MM/dd/yyyy').parse(
-              orderStatus['OrderDate'],
-            ),
-            orderReference: orderStatus['OrderReference'],
-            holdCode: orderStatus['HoldCode'],
-            shipTo: orderStatus['ShipTo'],
-            quantityOrdered: orderStatus['QuantityOrdered'],
-            quantityShipped: orderStatus['QuantityShipped'],
-            quantityCancelled: orderStatus['QuantityCanceled'],
-            orderStatus: orderStatus['OrderStatus'],
-            orderAmount:
-                double.tryParse(orderStatus['OrderAmount'].toString()) ?? 0.0,
-            isDTM: (orderStatus['DTMOrderYN'].toString().trim() == 'Y' ||
-                orderStatus['DTMOrderYN'].toString().trim() == '1' ||
-                orderStatus['DTMOrderYN'].toString().trim() == '2' ||
-                orderStatus['DTMOrderYN'].toString().trim() == '3'),
-            canIndent: orderStatus['InderntOrderYN'].toString().trim() == 'Y',
-            quantityBackOrdered: orderStatus['QuantityBackOrder'],
-            poNumber: orderStatus['CustomerPO'],
-            merchandiser: orderStatus['MerchandiserName'],
-          );
+          // One malformed row must not drop every order after it.
+          try {
+            final OrderHeaderLine orderHeaderLine = OrderHeaderLine(
+              orderNumber: orderStatus['OrderNumber'],
+              orderType: orderStatus['OrTy'],
+              orderCompany: orderStatus['OrderCo'],
+              orderDate: DateFormat('MM/dd/yyyy').parse(
+                orderStatus['OrderDate'],
+              ),
+              orderReference: orderStatus['OrderReference'],
+              holdCode: orderStatus['HoldCode'],
+              shipTo: orderStatus['ShipTo'],
+              quantityOrdered: orderStatus['QuantityOrdered'],
+              quantityShipped: orderStatus['QuantityShipped'],
+              quantityCancelled: orderStatus['QuantityCanceled'],
+              orderStatus: orderStatus['OrderStatus'],
+              orderAmount:
+                  double.tryParse(orderStatus['OrderAmount'].toString()) ?? 0.0,
+              isDTM: (orderStatus['DTMOrderYN'].toString().trim() == 'Y' ||
+                  orderStatus['DTMOrderYN'].toString().trim() == '1' ||
+                  orderStatus['DTMOrderYN'].toString().trim() == '2' ||
+                  orderStatus['DTMOrderYN'].toString().trim() == '3'),
+              canIndent: orderStatus['InderntOrderYN'].toString().trim() == 'Y',
+              quantityBackOrdered: orderStatus['QuantityBackOrder'],
+              poNumber: orderStatus['CustomerPO'],
+              merchandiser: orderStatus['MerchandiserName'],
+            );
 
-          orderHeaderLines.add(orderHeaderLine);
+            orderHeaderLines.add(orderHeaderLine);
+          } catch (e) {
+            log('fetchOrders skipped ${orderStatus['OrderNumber']} - $e');
+          }
         }
       }
     } catch (e) {
@@ -1526,7 +1671,9 @@ class Api {
   }
 
   static Future<List<String>> validateItemNumbers(
-      List<String> itemNumbers) async {
+    List<String> itemNumbers, {
+    String? logLabel,
+  }) async {
     final validItemNumbers = <String>[];
 
     try {
@@ -1579,6 +1726,7 @@ class Api {
             ]
           }
         },
+        options: Options(extra: {if (logLabel != null) 'logLabel': logLabel}),
       );
 
       if (response.statusCode == 200) {
