@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 
 /// An [IndexedStack] that builds each child the first time it is selected and
 /// then keeps it alive, so switching back to a tab does not rebuild its views
@@ -40,7 +41,12 @@ class _LazyIndexedStackState extends State<LazyIndexedStack> {
           _visited.contains(i)
               ? TickerMode(
                   enabled: i == widget.index,
-                  child: widget.children[i],
+                  // A theme switch only rebuilds the shown tab; the others
+                  // catch up when selected.
+                  child: ThemeRebuildWhenShown(
+                    isShown: i == widget.index,
+                    child: widget.children[i],
+                  ),
                 )
               : const SizedBox.shrink(),
       ],

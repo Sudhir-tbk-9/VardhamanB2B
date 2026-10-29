@@ -296,6 +296,10 @@ class ThemeVariants {
   /// Variant in use; read by [VardhmanColors] so existing widgets follow it.
   static AppThemeVariant current = vardhmanRed;
 
+  /// Bumped on every theme switch, so a hidden tab skipped by the switch can
+  /// tell it is out of date when it is shown (see [ThemeRebuildWhenShown]).
+  static int generation = 0;
+
   static AppThemeVariant byId(String? id) =>
       all.firstWhereOrNull((variant) => variant.id == id) ?? vardhmanRed;
 
@@ -381,6 +385,12 @@ class ThemeController extends GetxController {
 
   ThemeController() {
     ThemeVariants.current = rxVariant.value;
+
+    // Build every variant's ThemeData once the first screen is up, so the
+    // first switch to a theme does not pay for it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future(() => ThemeVariants.all.forEach(ThemeVariants.themeData));
+    });
   }
 
   ThemeData get themeData => ThemeVariants.themeData(rxVariant.value);
@@ -392,22 +402,73 @@ class ThemeController extends GetxController {
 
     ThemeVariants.current = variant;
 
+    ThemeVariants.generation++;
+
     rxVariant.value = variant;
 
     // Widgets that read VardhmanColors directly only pick up the new colours
     // on rebuild. Mark every element dirty for one rebuild; unlike
     // Get.forceAppUpdate (a hot-reload style reassemble) this does not also
-    // force every render object to re-layout.
-    void markNeedsBuild(Element element) {
-      element.markNeedsBuild();
-
-      element.visitChildren(markNeedsBuild);
-    }
-
-    WidgetsBinding.instance.rootElement?.visitChildren(markNeedsBuild);
+    // force every render object to re-layout. Hidden tabs are skipped and
+    // rebuild when shown, so the switch only pays for what is on screen.
+    WidgetsBinding.instance.rootElement?.visitChildren(_markSubtreeNeedsBuild);
 
     // Saving does not need to hold up the switch.
     _sharedPrefs.setString(_prefsKey, variant.id);
+  }
+}
+
+/// Marks [element] and everything below it for rebuild, except subtrees a
+/// hidden [ThemeRebuildWhenShown] holds back.
+void _markSubtreeNeedsBuild(Element element) {
+  final widget = element.widget;
+
+  if (widget is ThemeRebuildWhenShown && !widget.isShown) {
+    return;
+  }
+
+  element.markNeedsBuild();
+
+  element.visitChildren(_markSubtreeNeedsBuild);
+}
+
+/// Wraps a subtree that stays built while hidden, such as a kept-alive tab.
+/// A theme switch skips it while [isShown] is false; it rebuilds in the new
+/// colours when it is shown again.
+class ThemeRebuildWhenShown extends StatefulWidget {
+  final bool isShown;
+
+  final Widget child;
+
+  const ThemeRebuildWhenShown({
+    super.key,
+    required this.isShown,
+    required this.child,
+  });
+
+  @override
+  State<ThemeRebuildWhenShown> createState() => _ThemeRebuildWhenShownState();
+}
+
+class _ThemeRebuildWhenShownState extends State<ThemeRebuildWhenShown> {
+  int _generation = ThemeVariants.generation;
+
+  @override
+  void didUpdateWidget(ThemeRebuildWhenShown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isShown && _generation != ThemeVariants.generation) {
+      (context as Element).visitChildren(_markSubtreeNeedsBuild);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isShown) {
+      _generation = ThemeVariants.generation;
+    }
+
+    return widget.child;
   }
 }
 

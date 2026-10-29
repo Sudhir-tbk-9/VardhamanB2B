@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
@@ -17,45 +15,28 @@ class ThemeSwitcherDialog extends StatefulWidget {
 class _ThemeSwitcherDialogState extends State<ThemeSwitcherDialog> {
   final _themeController = Get.find<ThemeController>();
 
-  late String _selectedId = _themeController.rxVariant.value.id;
+  late final String _selectedId = _themeController.rxVariant.value.id;
 
   bool _isClosing = false;
 
-  Future<void> _choose(AppThemeVariant variant) async {
+  void _choose(AppThemeVariant variant) {
     if (_isClosing) {
       return;
     }
 
-    setState(() {
-      _selectedId = variant.id;
-      _isClosing = true;
-    });
+    _isClosing = true;
 
-    final animation = ModalRoute.of(context)?.animation;
+    final route = ModalRoute.of(context);
 
-    final themeController = _themeController;
-
-    Get.back();
-
-    // Switching rebuilds the whole app for a frame; doing that while the
-    // dialog animates out made the close stutter, so wait for it to finish.
-    if (animation != null && animation.status != AnimationStatus.dismissed) {
-      final closed = Completer<void>();
-
-      void onStatus(AnimationStatus status) {
-        if (status == AnimationStatus.dismissed) {
-          animation.removeStatusListener(onStatus);
-
-          closed.complete();
-        }
-      }
-
-      animation.addStatusListener(onStatus);
-
-      await closed.future;
+    // Removed without its closing animation and switched in the same frame:
+    // the new theme shows on the very next frame. (Animating the dialog out
+    // while the app rebuilds made the close stutter, and waiting for the
+    // animation first made the switch feel slow.)
+    if (route != null && route.isActive) {
+      Navigator.of(context).removeRoute(route);
     }
 
-    themeController.select(variant);
+    _themeController.select(variant);
   }
 
   @override

@@ -196,24 +196,125 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     );
   }
 
+  /// Top of the account menu: the user on the current theme's backdrop. Not
+  /// selectable.
+  PopupMenuItem<_AccountMenuItem> _accountMenuHeader(
+    UserController userController,
+  ) {
+    final variant = ThemeVariants.current;
+
+    final user = userController.rxUserDetail.value;
+
+    final initials = user.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .take(2)
+        .map((word) => word[0].toUpperCase())
+        .join();
+
+    return PopupMenuItem(
+      enabled: false,
+      padding: EdgeInsets.zero,
+      child: ThemeBackdrop(
+        variant: variant,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: variant.primaryFill(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: Colors.white.withAlpha(160)),
+                ),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user.companyName.isEmpty
+                          ? user.soldToNumber
+                          : '${user.companyName} · ${user.soldToNumber}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(200),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// One account menu option: its icon in a chip tinted with the theme's
+  /// primary colour, or with [color] (Logout).
   PopupMenuItem<_AccountMenuItem> _accountMenuEntry(
     _AccountMenuItem value,
     IconData icon,
     String text, {
     Color? color,
   }) {
+    final tint = color ?? VardhmanColors.red;
+
     return PopupMenuItem(
       value: value,
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: color ?? VardhmanColors.darkGrey),
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tint.withAlpha(26),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: tint),
+          ),
           const SizedBox(width: 12),
           Text(
             text,
             style: TextStyle(
               color: color ?? VardhmanColors.darkGrey,
               fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -310,11 +411,25 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                   ),
                                   position: PopupMenuPosition.under,
                                   color: Colors.white,
+                                  surfaceTintColor: Colors.transparent,
+                                  elevation: 8,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  // The header strip runs to the menu's edges.
+                                  clipBehavior: Clip.antiAlias,
+                                  menuPadding: const EdgeInsets.only(bottom: 6),
+                                  constraints:
+                                      const BoxConstraints(minWidth: 260),
+                                  popUpAnimationStyle: const AnimationStyle(
+                                    duration: Duration(milliseconds: 150),
+                                    reverseDuration:
+                                        Duration(milliseconds: 100),
                                   ),
                                   onSelected: _onAccountMenuSelected,
                                   itemBuilder: (context) => [
+                                    _accountMenuHeader(userController),
+                                    const PopupMenuDivider(height: 6),
                                     if (userController
                                             .rxUserDetail.value.role !=
                                         'CUSTOMER')
