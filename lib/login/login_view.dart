@@ -22,35 +22,93 @@ Future<void> _submit(Future<void> Function()? action) async {
 
   _isSubmitting = true;
 
+  final loginController = Get.find<LoginController>();
+
+  final loginState = loginController.rxLoginState.value;
+
+  // Let go of the keyboard first, as clicking the button does. The next step
+  // can disable this field (User ID during OTP), and on the web a field
+  // disabled while it has the keyboard leaves its browser input read-only:
+  // back on User ID after Cancel, nothing typed reached it.
+  final focusNode = FocusManager.instance.primaryFocus;
+
+  focusNode?.unfocus();
+
   try {
     await action();
   } finally {
     _isSubmitting = false;
+
+    // Still on the same step (wrong OTP, unknown user): back to the field.
+    // A new step puts the cursor in its own field.
+    if (loginController.rxLoginState.value == loginState) {
+      focusNode?.requestFocus();
+    }
   }
 }
 
-class LoginView extends StatelessWidget {
-  LoginView({super.key});
+class LoginView extends StatefulWidget {
+  const LoginView({super.key});
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  // Kept for the whole login flow: the router builds a new LoginView on
+  // every step, and focus nodes made afresh each time (while the old field
+  // still held focus) left User ID untypeable on the web after going back
+  // from the OTP step.
   final FocusNode _userIdFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
   final FocusNode _otpFocusNode = FocusNode();
   final FocusNode _newPasswordFocusNode = FocusNode();
   final FocusNode _confirmPasswordFocusNode = FocusNode();
 
-  @override
-  Widget build(BuildContext context) {
-    final loginController = Get.find<LoginController>();
+  /// The step whose field was last given the cursor.
+  LoginState? _focusedLoginState;
 
-    // Rebuilt on every login step (see _LoginGate), so the step's field gets
-    // the cursor and the user can type and press Enter straight away.
-    FocusScope.of(context).requestFocus(
-      switch (loginController.rxLoginState.value) {
+  @override
+  void dispose() {
+    _userIdFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _otpFocusNode.dispose();
+    _newPasswordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
+
+    super.dispose();
+  }
+
+  /// Gives [loginState]'s field the cursor when the step changes, so the user
+  /// can type and press Enter straight away. Done after the frame, once the
+  /// field is built and enabled for the step (User ID is disabled during
+  /// the others).
+  void _focusFieldOf(LoginState loginState) {
+    if (loginState == _focusedLoginState) {
+      return;
+    }
+
+    _focusedLoginState = loginState;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final focusNode = switch (loginState) {
         LoginState.password => _passwordFocusNode,
         LoginState.otp => _otpFocusNode,
         LoginState.setPassword => _newPasswordFocusNode,
         _ => _userIdFocusNode,
-      },
-    );
+      };
+
+      focusNode.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loginController = Get.find<LoginController>();
 
     // Phone sized: smaller header, and the page scrolls (see below).
     final isCompact = context.isCompact;
@@ -59,6 +117,8 @@ class LoginView extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Obx(
         () {
+          _focusFieldOf(loginController.rxLoginState.value);
+
           // Built in here: they read the observables this Obx tracks.
           // Sized from the controller, which loads after the screen shows.
           final video = RepaintBoundary(
