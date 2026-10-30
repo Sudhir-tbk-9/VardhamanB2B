@@ -7,74 +7,50 @@ import 'package:vardhman_b2b/api/order_detail_line.dart';
 import 'package:vardhman_b2b/api/order_header_line.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/orders/order_list_filters.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class SamplingController extends GetxController {
+class SamplingController extends GetxController with OrderListFilters {
+  @override
   final OrdersController ordersController = Get.find<OrdersController>();
 
+  @override
   final rxEarliestOrderDate = oldestDateTime.obs;
 
+  @override
   final rxOrderFromDate = oldestDateTime.obs;
 
+  @override
   final rxOrderToDate = DateTime.now().obs;
 
+  @override
   final rxOrderNumberInput = ''.obs;
 
+  @override
   final rxMerchandiserInput = ''.obs;
 
+  @override
   final rxShadeInput = ''.obs;
 
+  @override
   final rxBuyerInput = ''.obs;
 
   /// Orders having a line matching the shade / buyer inputs, or null when
   /// neither is entered.
+  @override
   final rxLineSearchMatches = Rxn<Set<int>>();
 
   @override
   void onInit() {
     super.onInit();
 
-    debounce(rxShadeInput, (_) => _searchByLine(),
-        time: const Duration(milliseconds: 600));
-
-    debounce(rxBuyerInput, (_) => _searchByLine(),
-        time: const Duration(milliseconds: 600));
-
-    everAll([rxOrderFromDate, rxOrderToDate], (_) => _searchByLine());
+    initOrderListFilters();
   }
 
-  Future<void> _searchByLine() async {
-    final shade = rxShadeInput.value;
-
-    final buyer = rxBuyerInput.value;
-
-    if (shade.trim().isEmpty && buyer.trim().isEmpty) {
-      rxLineSearchMatches.value = null;
-
-      return;
-    }
-
-    final matches = await ordersController.findOrdersByLine(
-      orderHeaderLines: samplingOrders
-          .where(
-            (orderHeaderLine) =>
-                orderHeaderLine.orderDate.isAfter(
-                  rxOrderFromDate.value.subtract(const Duration(days: 1)),
-                ) &&
-                orderHeaderLine.orderDate.isBefore(
-                  rxOrderToDate.value.add(const Duration(days: 1)),
-                ),
-          )
-          .toList(),
-      shade: shade,
-      buyer: buyer,
-    );
-
-    if (shade == rxShadeInput.value && buyer == rxBuyerInput.value) {
-      rxLineSearchMatches.value = matches;
-    }
-  }
+  @override
+  bool isListOrder(OrderHeaderLine orderHeaderLine) =>
+      orderHeaderLine.orderType == 'SA' && orderHeaderLine.isDTM == true;
 
   final rejectionReasons = [
     'Late Delivery',
@@ -133,11 +109,16 @@ class SamplingController extends GetxController {
 
     ordersController.rxOrderHeaderLines.listenAndPump(
       (orderHeaderLines) {
+        assignListOrders(orderHeaderLines);
+
         rxEarliestOrderDate.value =
             samplingOrders.lastOrNull?.orderDate ?? oldestDateTime;
 
         rxOrderFromDate.value =
             samplingOrders.lastOrNull?.orderDate ?? oldestDateTime;
+
+        // A quick range such as This Month outlasts a reload.
+        reapplyDateRange();
 
         refreshSamplingFeedbacks();
       },
@@ -338,36 +319,9 @@ class SamplingController extends GetxController {
         .toList();
   }
 
-  List<OrderHeaderLine> get samplingOrders => ordersController
-      .rxOrderHeaderLines
-      .where((orderHeaderLine) =>
-          orderHeaderLine.orderType == 'SA' && orderHeaderLine.isDTM == true)
-      .toList();
+  List<OrderHeaderLine> get samplingOrders => rxOrders;
 
-  List<OrderHeaderLine> get filteredSamplingOrders => samplingOrders
-      .where(
-        (orderHeaderLine) =>
-            (orderHeaderLine.orderReference
-                    .trim()
-                    .contains(rxOrderNumberInput.value) ||
-                orderHeaderLine.orderNumber
-                    .toString()
-                    .contains(rxOrderNumberInput.value)) &&
-            orderHeaderLine.orderDate.isAfter(
-              rxOrderFromDate.value.subtract(
-                const Duration(days: 1),
-              ),
-            ) &&
-            orderHeaderLine.orderDate.isBefore(
-              rxOrderToDate.value.add(
-                const Duration(days: 1),
-              ),
-            ) &&
-            orderHeaderLine.merchandiser.contains(rxMerchandiserInput.value) &&
-            (rxLineSearchMatches.value?.contains(orderHeaderLine.orderNumber) ??
-                true),
-      )
-      .toList();
+  List<OrderHeaderLine> get filteredSamplingOrders => rxFilteredOrders;
 
   bool get hasDefaultValues =>
       areDatesEqual(
@@ -382,6 +336,8 @@ class SamplingController extends GetxController {
 
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
+
+    rxDateRange.value = null;
 
     rxOrderToDate.value = DateTime.now();
 

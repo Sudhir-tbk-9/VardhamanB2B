@@ -1,4 +1,6 @@
 import 'package:data_table_2/data_table_2.dart';
+import 'package:vardhman_b2b/common/date_range_chips.dart';
+import 'package:vardhman_b2b/common/paged_orders_table.dart';
 import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -29,7 +31,7 @@ class LabdipOrdersView extends StatelessWidget {
 
     return Obx(
       () {
-        // Filter once per build; the getter re-filters on every call.
+        // Kept up to date by the controller as orders and filters change.
         final filteredOrders = labdipController.filteredLabdipOrders;
 
         final feedbackOrderNumbers = labdipController.rxLabdipFeedbacks
@@ -98,31 +100,8 @@ class LabdipOrdersView extends StatelessWidget {
                       decoration: const BoxDecoration(
                         color: Colors.white,
                       ),
-                      child: DataTable2(
+                      child: PagedOrdersTable(
                         minWidth: 450,
-                        isHorizontalScrollBarVisible: true,
-                        isVerticalScrollBarVisible: true,
-                        columnSpacing: 16,
-                        horizontalMargin: 16,
-                        headingRowHeight: 40,
-                        dataRowHeight: 40,
-                        headingRowColor: WidgetStatePropertyAll(Colors.grey),
-                        headingTextStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        dataTextStyle: TextStyle(
-                          fontSize: 13,
-                          color: VardhmanColors.darkGrey,
-                        ),
-                        border: TableBorder.symmetric(
-                          inside: BorderSide(
-                            width: 0.1,
-                            color: VardhmanColors.darkGrey,
-                          ),
-                        ),
-                        showCheckboxColumn: false,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
@@ -140,187 +119,206 @@ class LabdipOrdersView extends StatelessWidget {
                             headingRowAlignment: MainAxisAlignment.center,
                           ),
                         ],
-                        rows: [
-                          ...labdipController.rxDraftOrders.indexed.map(
-                            ((int, DraftTableData) entry) {
-                              final (index, draftTableData) = entry;
+                        rowCount: () =>
+                            labdipController.rxDraftOrders.length +
+                            filteredOrders.length,
+                        // Called only for the rows of the page on screen.
+                        rowBuilder: (int rowIndex) {
+                          DataRow draftRow((int, DraftTableData) entry) {
+                            final (index, draftTableData) = entry;
 
-                              return DataRow(
-                                color: WidgetStatePropertyAll(
-                                  index.isEven
-                                      ? Colors.white
-                                      : VardhmanColors.dividerGrey
-                                          .withAlpha(128),
+                            return DataRow(
+                              color: WidgetStatePropertyAll(
+                                index.isEven
+                                    ? Colors.white
+                                    : VardhmanColors.dividerGrey
+                                        .withAlpha(128),
+                              ),
+                              onSelectChanged: (value) {
+                                if (Get.isRegistered<
+                                    LabdipEntryController>()) {
+                                  Get.delete<LabdipEntryController>();
+                                }
+
+                                Get.put(
+                                  LabdipEntryController(
+                                    orderNumber: draftTableData.orderNumber,
+                                  ),
+                                );
+
+                                Get.dialog(
+                                  const AdaptiveDialog(
+                                    clipBehavior: Clip.hardEdge,
+                                    child: CreateLabdipOrderView(),
+                                  ),
+                                );
+                              },
+                              cells: [
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: <Widget>[
+                                        Text(
+                                          'Draft',
+                                          textAlign: TextAlign.end,
+                                        ),
+                                        SizedBox(
+                                          width: 16,
+                                        ),
+                                        Text(
+                                          draftTableData.orderNumber
+                                              .toString(),
+                                          textAlign: TextAlign.end,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                onSelectChanged: (value) {
-                                  if (Get.isRegistered<
-                                      LabdipEntryController>()) {
-                                    Get.delete<LabdipEntryController>();
-                                  }
-
-                                  Get.put(
-                                    LabdipEntryController(
-                                      orderNumber: draftTableData.orderNumber,
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      DateFormat('d MMM yy HH:mm').format(
+                                        draftTableData.lastUpdated,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  );
-
-                                  Get.dialog(
-                                    const AdaptiveDialog(
-                                      clipBehavior: Clip.hardEdge,
-                                      child: CreateLabdipOrderView(),
+                                  ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      draftTableData.merchandiser,
+                                      textAlign: TextAlign.center,
                                     ),
-                                  );
-                                },
-                                cells: [
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.centerRight,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          DataRow orderRow((int, OrderHeaderLine) entry) {
+                            final (filteredIndex, orderHeaderLine) = entry;
+
+                            final index =
+                                filteredIndex + labdipController.rxDraftOrders.length;
+
+                            final isSelected = labdipController
+                                    .rxSelectedOrderHeaderLine.value ==
+                                orderHeaderLine;
+
+                            final hasFeedback = feedbackOrderNumbers
+                                .contains(orderHeaderLine.orderNumber);
+
+                            final textStyle = TextStyle(
+                              fontSize: 13,
+                              color: isSelected
+                                  ? Colors.white
+                                  : hasFeedback
+                                      ? VardhmanColors.red
+                                      : VardhmanColors.darkGrey,
+                            );
+
+                            return DataRow(
+                              color: WidgetStatePropertyAll(
+                                isSelected
+                                    ? VardhmanColors.red
+                                    : index.isEven
+                                        ? Colors.white
+                                        : VardhmanColors.dividerGrey
+                                            .withAlpha(128),
+                              ),
+                              selected: orderHeaderLine ==
+                                  labdipController
+                                      .rxSelectedOrderHeaderLine.value,
+                              onSelectChanged: (value) {
+                                if (value == true &&
+                                    labdipController.rxSelectedOrderHeaderLine
+                                            .value !=
+                                        orderHeaderLine) {
+                                  labdipController
+                                      .selectOrder(orderHeaderLine);
+                                }
+                              },
+                              cells: [
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: DefaultTextStyle(
+                                      style: textStyle,
                                       child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: <Widget>[
                                           Text(
-                                            'Draft',
-                                            textAlign: TextAlign.end,
-                                          ),
-                                          SizedBox(
-                                            width: 16,
-                                          ),
-                                          Text(
-                                            draftTableData.orderNumber
+                                            orderHeaderLine.orderNumber
                                                 .toString(),
                                             textAlign: TextAlign.end,
                                           ),
+                                          if (orderHeaderLine.orderReference
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                            SizedBox(
+                                              width: 16,
+                                            ),
+                                            Text(
+                                              orderHeaderLine.orderReference,
+                                              textAlign: TextAlign.end,
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        DateFormat('d MMM yy HH:mm').format(
-                                          draftTableData.lastUpdated,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        draftTableData.merchandiser,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          ...filteredOrders.indexed.map(
-                            ((int, OrderHeaderLine) entry) {
-                              final (filteredIndex, orderHeaderLine) = entry;
-
-                              final index =
-                                  filteredIndex + labdipController.rxDraftOrders.length;
-
-                              final isSelected = labdipController
-                                      .rxSelectedOrderHeaderLine.value ==
-                                  orderHeaderLine;
-
-                              final hasFeedback = feedbackOrderNumbers
-                                  .contains(orderHeaderLine.orderNumber);
-
-                              final textStyle = TextStyle(
-                                fontSize: 13,
-                                color: isSelected
-                                    ? Colors.white
-                                    : hasFeedback
-                                        ? VardhmanColors.red
-                                        : VardhmanColors.darkGrey,
-                              );
-
-                              return DataRow(
-                                color: WidgetStatePropertyAll(
-                                  isSelected
-                                      ? VardhmanColors.red
-                                      : index.isEven
-                                          ? Colors.white
-                                          : VardhmanColors.dividerGrey
-                                              .withAlpha(128),
                                 ),
-                                selected: orderHeaderLine ==
-                                    labdipController
-                                        .rxSelectedOrderHeaderLine.value,
-                                onSelectChanged: (value) {
-                                  if (value == true &&
-                                      labdipController.rxSelectedOrderHeaderLine
-                                              .value !=
-                                          orderHeaderLine) {
-                                    labdipController
-                                        .selectOrder(orderHeaderLine);
-                                  }
-                                },
-                                cells: [
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: DefaultTextStyle(
-                                        style: textStyle,
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: <Widget>[
-                                            Text(
-                                              orderHeaderLine.orderNumber
-                                                  .toString(),
-                                              textAlign: TextAlign.end,
-                                            ),
-                                            if (orderHeaderLine.orderReference
-                                                .trim()
-                                                .isNotEmpty) ...[
-                                              SizedBox(
-                                                width: 16,
-                                              ),
-                                              Text(
-                                                orderHeaderLine.orderReference,
-                                                textAlign: TextAlign.end,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      DateFormat('d MMM yy').format(
+                                        orderHeaderLine.orderDate,
                                       ),
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        DateFormat('d MMM yy').format(
-                                          orderHeaderLine.orderDate,
-                                        ),
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                      ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.merchandiser,
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        orderHeaderLine.merchandiser,
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          final draftCount = labdipController.rxDraftOrders.length;
+
+                          return rowIndex < draftCount
+                              ? draftRow((
+                                  rowIndex,
+                                  labdipController.rxDraftOrders[rowIndex],
+                                ))
+                              : orderRow((
+                                  rowIndex - draftCount,
+                                  filteredOrders[rowIndex - draftCount],
+                                ));
+                        },
+                        refreshOn: [
+                          labdipController.rxDraftOrders,
+                          labdipController.rxFilteredOrders,
+                          labdipController.rxSelectedOrderHeaderLine,
                         ],
+                        firstPageOn: [labdipController.rxFilteredOrders],
                       ),
                     ),
             ),
@@ -330,6 +328,11 @@ class LabdipOrdersView extends StatelessWidget {
             padding: EdgeInsets.only(top: 16, right: 8, left: 8, bottom: 8),
             child: Column(
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: DateRangeChips(filters: labdipController),
+                ),
+                SizedBox(height: 8),
                 Row(
                   children: <Widget>[
                     Flexible(
@@ -385,6 +388,7 @@ class LabdipOrdersView extends StatelessWidget {
                         onChanged: (DateTime? date) {
                           if (date != null) {
                             labdipController.rxOrderFromDate.value = date;
+                            labdipController.rxDateRange.value = null;
                           }
                         },
                       ),
@@ -412,6 +416,7 @@ class LabdipOrdersView extends StatelessWidget {
                         onChanged: (DateTime? date) {
                           if (date != null) {
                             labdipController.rxOrderToDate.value = date;
+                            labdipController.rxDateRange.value = null;
                           }
                         },
                       ),
@@ -518,6 +523,12 @@ class LabdipOrdersView extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (labdipController.rxLineSearchProgress.value != null) ...[
+                  SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: labdipController.rxLineSearchProgress.value,
+                  ),
+                ],
               ],
             ),
           ),

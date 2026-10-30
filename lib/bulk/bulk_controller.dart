@@ -4,10 +4,12 @@ import 'package:vardhman_b2b/api/order_detail_line.dart';
 import 'package:vardhman_b2b/api/order_header_line.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/orders/order_list_filters.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class BulkController extends GetxController {
+class BulkController extends GetxController with OrderListFilters {
+  @override
   final OrdersController ordersController = Get.find<OrdersController>();
 
   final rejectionReasons = [
@@ -22,70 +24,45 @@ class BulkController extends GetxController {
     'Order Cancel by Buyer',
   ];
 
+  @override
   final rxEarliestOrderDate = oldestDateTime.obs;
 
+  @override
   final rxOrderFromDate = oldestDateTime.obs;
 
+  @override
   final rxOrderToDate = DateTime.now().obs;
 
+  @override
   final rxOrderNumberInput = ''.obs;
 
-  final rxPoNumberInput = ''.obs;
+  @override
+  final RxString rxPoNumberInput = ''.obs;
 
+  @override
   final rxMerchandiserInput = ''.obs;
 
+  @override
   final rxShadeInput = ''.obs;
 
+  @override
   final rxBuyerInput = ''.obs;
 
   /// Orders having a line matching the shade / buyer inputs, or null when
   /// neither is entered.
+  @override
   final rxLineSearchMatches = Rxn<Set<int>>();
 
   @override
   void onInit() {
     super.onInit();
 
-    debounce(rxShadeInput, (_) => _searchByLine(),
-        time: const Duration(milliseconds: 600));
-
-    debounce(rxBuyerInput, (_) => _searchByLine(),
-        time: const Duration(milliseconds: 600));
-
-    everAll([rxOrderFromDate, rxOrderToDate], (_) => _searchByLine());
+    initOrderListFilters();
   }
 
-  Future<void> _searchByLine() async {
-    final shade = rxShadeInput.value;
-
-    final buyer = rxBuyerInput.value;
-
-    if (shade.trim().isEmpty && buyer.trim().isEmpty) {
-      rxLineSearchMatches.value = null;
-
-      return;
-    }
-
-    final matches = await ordersController.findOrdersByLine(
-      orderHeaderLines: bulkOrders
-          .where(
-            (orderHeaderLine) =>
-                orderHeaderLine.orderDate.isAfter(
-                  rxOrderFromDate.value.subtract(const Duration(days: 1)),
-                ) &&
-                orderHeaderLine.orderDate.isBefore(
-                  rxOrderToDate.value.add(const Duration(days: 1)),
-                ),
-          )
-          .toList(),
-      shade: shade,
-      buyer: buyer,
-    );
-
-    if (shade == rxShadeInput.value && buyer == rxBuyerInput.value) {
-      rxLineSearchMatches.value = matches;
-    }
-  }
+  @override
+  bool isListOrder(OrderHeaderLine orderHeaderLine) =>
+      orderHeaderLine.orderType == 'SW' && !orderHeaderLine.isDTM;
 
   final rxDraftOrders = <DraftTableData>[].obs;
 
@@ -128,13 +105,18 @@ class BulkController extends GetxController {
       },
     );
 
-    ordersController.rxOrderHeaderLines.listen(
+    ordersController.rxOrderHeaderLines.listenAndPump(
       (orderHeaderLines) {
+        assignListOrders(orderHeaderLines);
+
         rxEarliestOrderDate.value =
             bulkOrders.lastOrNull?.orderDate ?? oldestDateTime;
 
         rxOrderFromDate.value =
             bulkOrders.lastOrNull?.orderDate ?? oldestDateTime;
+
+        // A quick range such as This Month outlasts a reload.
+        reapplyDateRange();
       },
     );
   }
@@ -195,36 +177,9 @@ class BulkController extends GetxController {
         },
       ).toList();
 
-  List<OrderHeaderLine> get bulkOrders => ordersController.rxOrderHeaderLines
-      .where(
-        (orderHeaderLine) =>
-            orderHeaderLine.orderType == 'SW' && !orderHeaderLine.isDTM,
-      )
-      .toList();
+  List<OrderHeaderLine> get bulkOrders => rxOrders;
 
-  List<OrderHeaderLine> get filteredBulkOrders => bulkOrders
-      .where((orderHeaderLine) =>
-          (orderHeaderLine.orderReference
-                  .trim()
-                  .contains(rxOrderNumberInput.value) ||
-              orderHeaderLine.orderNumber
-                  .toString()
-                  .contains(rxOrderNumberInput.value)) &&
-          orderHeaderLine.orderDate.isAfter(
-            rxOrderFromDate.value.subtract(
-              const Duration(days: 1),
-            ),
-          ) &&
-          orderHeaderLine.orderDate.isBefore(
-            rxOrderToDate.value.add(
-              const Duration(days: 1),
-            ),
-          ) &&
-          orderHeaderLine.merchandiser.contains(rxMerchandiserInput.value) &&
-          (rxLineSearchMatches.value?.contains(orderHeaderLine.orderNumber) ??
-              true) &&
-          orderHeaderLine.poNumber.contains(rxPoNumberInput.value))
-      .toList();
+  List<OrderHeaderLine> get filteredBulkOrders => rxFilteredOrders;
 
   List<OrderDetailLine> getInvoicedLines(String itemNumber) {
     return rxOrderDetailLines
@@ -268,6 +223,8 @@ class BulkController extends GetxController {
 
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
+
+    rxDateRange.value = null;
 
     rxOrderToDate.value = DateTime.now();
 
