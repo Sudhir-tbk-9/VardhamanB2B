@@ -183,7 +183,46 @@ class LoginController extends GetxController {
     rxLoginState.value =
         canRestore ? LoginState.resuming : LoginState.loggedOut;
 
-    rxUserDetail.value = await _database.managers.userDetails.getSingleOrNull();
+    // The "Taking you back..." loader shows until this settles, so it must
+    // not wait forever on JDE or the local database, nor stop on an error.
+    try {
+      await _restoreUser(canRestore: canRestore, isReturning: isReturning)
+          .timeout(const Duration(seconds: 45));
+    } catch (e, stack) {
+      log('Session restore failed: $e', stackTrace: stack);
+
+      if (rxLoginState.value == LoginState.resuming) {
+        rxLoginState.value = rxUserDetail.value == null
+            ? LoginState.loggedOut
+            : LoginState.password;
+
+        toastification.show(
+          autoCloseDuration: Duration(seconds: 3),
+          primaryColor: VardhmanColors.red,
+          title: const Text('Could not restore your session. Please log in.'),
+          alignment: Alignment.bottomCenter,
+        );
+
+        if (isReturning) {
+          logPayment(
+            'session_restore_failed',
+            receiptNumber: pendingPaymentReceiptNumber,
+            data: 'Restore failed ($e), login screen shown',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _restoreUser({
+    required bool canRestore,
+    required bool isReturning,
+  }) async {
+    // Normally one row, but browsers that logged in as another user before
+    // _registerSession cleared the table have several: take the last saved
+    // (getSingleOrNull threw, leaving the loader up for good).
+    rxUserDetail.value =
+        (await _database.managers.userDetails.get()).lastOrNull;
 
     if (rxUserDetail.value == null) {
       rxLoginState.value = LoginState.loggedOut;
@@ -460,6 +499,10 @@ class LoginController extends GetxController {
     if (paymentReceiptNumber == null) {
       await clearPaymentReturn();
     }
+
+    // One saved user: the table is keyed by user ID, so logging in as
+    // someone else would otherwise add a second row (see _restoreUser).
+    await _database.managers.userDetails.delete();
 
     await _database.managers.userDetails.create(
       (o) => UserDetailsCompanion.insert(
