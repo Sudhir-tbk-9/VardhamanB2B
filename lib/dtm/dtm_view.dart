@@ -22,7 +22,8 @@ class DtmView extends StatelessWidget {
         () => MasterDetailLayout(
           master: DtmOrdersView(),
           detail: DtmOrderDetailsView(),
-          detailFlex: 3,
+          detailFlex: 2,
+          storageKey: 'dtmOrders',
           // One pane at a time: picking an order opens its details, and back
           // clears the pick so the same order can be opened again.
           showDetail: dtmController.rxSelectedOrderHeaderLine.value != null,

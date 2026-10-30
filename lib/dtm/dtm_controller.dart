@@ -196,6 +196,7 @@ class DtmController extends GetxController with OrderListFilters {
         .toList();
   }
 
+  @override
   bool get hasDefaultValues =>
       areDatesEqual(
         rxOrderFromDate.value,
@@ -208,6 +209,7 @@ class DtmController extends GetxController with OrderListFilters {
       rxShadeInput.value.isEmpty &&
       rxBuyerInput.value.isEmpty;
 
+  @override
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
 

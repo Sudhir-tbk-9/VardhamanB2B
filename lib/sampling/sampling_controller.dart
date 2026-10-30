@@ -323,6 +323,7 @@ class SamplingController extends GetxController with OrderListFilters {
 
   List<OrderHeaderLine> get filteredSamplingOrders => rxFilteredOrders;
 
+  @override
   bool get hasDefaultValues =>
       areDatesEqual(
         rxOrderFromDate.value,
@@ -334,6 +335,7 @@ class SamplingController extends GetxController with OrderListFilters {
       rxShadeInput.value.isEmpty &&
       rxBuyerInput.value.isEmpty;
 
+  @override
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
 

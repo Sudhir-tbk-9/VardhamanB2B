@@ -12,6 +12,8 @@ void main() {
 
   final builtRows = <int>{};
 
+  late PaginatorController paginatorController;
+
   Future<void> pumpTable(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1280, 3000);
     tester.view.devicePixelRatio = 1;
@@ -22,6 +24,7 @@ void main() {
         home: Scaffold(
           body: PagedOrdersTable(
             minWidth: 600,
+            controller: paginatorController,
             columns: const [DataColumn2(label: Text('Order No.'))],
             rowCount: () => rxOrders.length,
             rowBuilder: (int rowIndex) {
@@ -46,6 +49,7 @@ void main() {
   }
 
   setUp(() {
+    paginatorController = PaginatorController();
     rxOrders.assignAll(List.generate(1500, (index) => index));
     rxSelected.value = null;
     builtRows.clear();
@@ -75,7 +79,7 @@ void main() {
   testWidgets('new filtered orders go back to the first page', (tester) async {
     await pumpTable(tester);
 
-    await tester.tap(find.byIcon(Icons.chevron_right));
+    paginatorController.goToNextPage();
     await tester.pumpAndSettle();
 
     expect(find.text('order 50'), findsOneWidget);

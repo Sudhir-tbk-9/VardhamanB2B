@@ -209,6 +209,7 @@ class BulkController extends GetxController with OrderListFilters {
     return counts;
   }
 
+  @override
   bool get hasDefaultValues =>
       areDatesEqual(
         rxOrderFromDate.value,
@@ -221,6 +222,7 @@ class BulkController extends GetxController with OrderListFilters {
       rxShadeInput.value.isEmpty &&
       rxBuyerInput.value.isEmpty;
 
+  @override
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
 

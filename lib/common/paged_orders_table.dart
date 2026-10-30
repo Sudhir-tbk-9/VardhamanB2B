@@ -11,6 +11,9 @@ class PagedOrdersTable extends StatefulWidget {
 
   final List<DataColumn> columns;
 
+  /// Shared with the pager in the list's title bar; the table has no footer.
+  final PaginatorController controller;
+
   final int Function() rowCount;
 
   final DataRow Function(int index) rowBuilder;
@@ -27,6 +30,7 @@ class PagedOrdersTable extends StatefulWidget {
     super.key,
     required this.minWidth,
     required this.columns,
+    required this.controller,
     required this.rowCount,
     required this.rowBuilder,
     required this.refreshOn,
@@ -40,11 +44,7 @@ class PagedOrdersTable extends StatefulWidget {
 class _PagedOrdersTableState extends State<PagedOrdersTable> {
   late final _source = _RowsSource(this);
 
-  final _paginatorController = PaginatorController();
-
   final _workers = <Worker>[];
-
-  int _rowsPerPage = 50;
 
   @override
   void initState() {
@@ -57,8 +57,8 @@ class _PagedOrdersTableState extends State<PagedOrdersTable> {
     for (final rx in widget.firstPageOn) {
       _workers.add(
         ever(rx, (_) {
-          if (_paginatorController.isAttached) {
-            _paginatorController.goToFirstPage();
+          if (widget.controller.isAttached) {
+            widget.controller.goToFirstPage();
           }
         }),
       );
@@ -71,8 +71,6 @@ class _PagedOrdersTableState extends State<PagedOrdersTable> {
       worker.dispose();
     }
 
-    _paginatorController.dispose();
-
     _source.dispose();
 
     super.dispose();
@@ -82,17 +80,11 @@ class _PagedOrdersTableState extends State<PagedOrdersTable> {
   Widget build(BuildContext context) {
     return PaginatedDataTable2(
       source: _source,
-      controller: _paginatorController,
+      controller: widget.controller,
       wrapInCard: false,
       renderEmptyRowsInTheEnd: false,
-      showFirstLastButtons: true,
-      rowsPerPage: _rowsPerPage,
-      availableRowsPerPage: const [25, 50, 100],
-      onRowsPerPageChanged: (rowsPerPage) {
-        if (rowsPerPage != null) {
-          setState(() => _rowsPerPage = rowsPerPage);
-        }
-      },
+      hidePaginator: true,
+      rowsPerPage: 50,
       minWidth: widget.minWidth,
       isHorizontalScrollBarVisible: true,
       isVerticalScrollBarVisible: true,

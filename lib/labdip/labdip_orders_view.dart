@@ -1,9 +1,11 @@
 import 'package:data_table_2/data_table_2.dart';
-import 'package:vardhman_b2b/common/date_range_chips.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
+import 'package:vardhman_b2b/common/date_range_menu.dart';
+import 'package:vardhman_b2b/common/order_filters_panel.dart';
+import 'package:vardhman_b2b/common/order_pager.dart';
 import 'package:vardhman_b2b/common/paged_orders_table.dart';
 import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
@@ -34,6 +36,9 @@ class LabdipOrdersView extends StatelessWidget {
         // Kept up to date by the controller as orders and filters change.
         final filteredOrders = labdipController.filteredLabdipOrders;
 
+        final hasRows =
+            filteredOrders.isNotEmpty || labdipController.rxDraftOrders.isNotEmpty;
+
         final feedbackOrderNumbers = labdipController.rxLabdipFeedbacks
             .map((feedback) => feedback.orderNumber)
             .toSet();
@@ -46,14 +51,21 @@ class LabdipOrdersView extends StatelessWidget {
               text: '',
               onPressed: labdipController.refreshOrders,
             ),
-            title: Text(
-              'Labdip Orders',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: VardhmanColors.darkGrey,
-              ),
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Labdip Orders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: VardhmanColors.darkGrey,
+                  ),
+                ),
+                if (hasRows)
+                  OrderPager(controller: labdipController.paginatorController),
+              ],
             ),
             trailing: PrimaryButton(
               text: 'New Order',
@@ -102,6 +114,7 @@ class LabdipOrdersView extends StatelessWidget {
                       ),
                       child: PagedOrdersTable(
                         minWidth: 450,
+                        controller: labdipController.paginatorController,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
@@ -325,211 +338,205 @@ class LabdipOrdersView extends StatelessWidget {
           ),
           Container(
             color: Colors.white,
-            padding: EdgeInsets.only(top: 16, right: 8, left: 8, bottom: 8),
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: DateRangeChips(filters: labdipController),
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: labdipController.rxOrderNumberInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: labdipController
-                                  .rxOrderNumberInput.value.length,
+            padding: EdgeInsets.all(8),
+            child: OrderFiltersPanel(
+              filters: labdipController,
+              child: Column(
+                children: [
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: labdipController.rxOrderNumberInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: labdipController
+                                    .rxOrderNumberInput.value.length,
+                              ),
                             ),
                           ),
-                        ),
-                        onChanged: (String orderNumber) {
-                          labdipController.rxOrderNumberInput.value =
-                              orderNumber;
-                        },
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Order No.'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                          onChanged: (String orderNumber) {
+                            labdipController.rxOrderNumberInput.value =
+                                orderNumber;
+                          },
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Order No.'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'From Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            labdipController.rxOrderFromDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: labdipController.rxOrderFromDate.value
-                                    .isAtSameMomentAs(oldestDateTime)
-                                ? Colors.white
-                                : VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: labdipController.rxEarliestOrderDate.value,
-                        lastDate: labdipController.rxOrderToDate.value,
-                        value: labdipController.rxOrderFromDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            labdipController.rxOrderFromDate.value = date;
-                            labdipController.rxDateRange.value = null;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'To Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            labdipController.rxOrderToDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: labdipController.rxOrderFromDate.value,
-                        lastDate: DateTime.now(),
-                        value: labdipController.rxOrderToDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            labdipController.rxOrderToDate.value = date;
-                            labdipController.rxDateRange.value = null;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    SecondaryButton(
-                      wait: false,
-                      iconData: FontAwesomeIcons.arrowRotateLeft.data,
-                      text: '',
-                      onPressed: labdipController.hasDefaultValues
-                          ? null
-                          : labdipController.setDefaultValues,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: labdipController.rxMerchandiserInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: labdipController
-                                  .rxMerchandiserInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'From Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              labdipController.rxOrderFromDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: labdipController.rxOrderFromDate.value
+                                      .isAtSameMomentAs(oldestDateTime)
+                                  ? Colors.white
+                                  : VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String merchandiser) {
-                          labdipController.rxMerchandiserInput.value =
-                              merchandiser;
-                        },
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Merchandiser'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: labdipController.rxEarliestOrderDate.value,
+                          lastDate: labdipController.rxOrderToDate.value,
+                          value: labdipController.rxOrderFromDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              labdipController.rxOrderFromDate.value = date;
+                              labdipController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: labdipController.rxShadeInput.value,
-                            selection: TextSelection.collapsed(
-                              offset:
-                                  labdipController.rxShadeInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'To Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              labdipController.rxOrderToDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String value) {
-                          labdipController.rxShadeInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Shade'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: labdipController.rxOrderFromDate.value,
+                          lastDate: DateTime.now(),
+                          value: labdipController.rxOrderToDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              labdipController.rxOrderToDate.value = date;
+                              labdipController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: labdipController.rxBuyerInput.value,
-                            selection: TextSelection.collapsed(
-                              offset:
-                                  labdipController.rxBuyerInput.value.length,
-                            ),
-                          ),
-                        ),
-                        onChanged: (String value) {
-                          labdipController.rxBuyerInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Buyer'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (labdipController.rxLineSearchProgress.value != null) ...[
+                      SizedBox(width: 8),
+                      DateRangeMenu(filters: labdipController),
+                    ],
+                  ),
                   SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: labdipController.rxLineSearchProgress.value,
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: labdipController.rxMerchandiserInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: labdipController
+                                    .rxMerchandiserInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String merchandiser) {
+                            labdipController.rxMerchandiserInput.value =
+                                merchandiser;
+                          },
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Merchandiser'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: labdipController.rxShadeInput.value,
+                              selection: TextSelection.collapsed(
+                                offset:
+                                    labdipController.rxShadeInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            labdipController.rxShadeInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Shade'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: labdipController.rxBuyerInput.value,
+                              selection: TextSelection.collapsed(
+                                offset:
+                                    labdipController.rxBuyerInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            labdipController.rxBuyerInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Buyer'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ],

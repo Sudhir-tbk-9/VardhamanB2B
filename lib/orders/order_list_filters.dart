@@ -1,5 +1,8 @@
+import 'package:data_table_2/data_table_2.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:vardhman_b2b/api/order_header_line.dart';
+import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 
 /// Quick From / To date ranges offered above the date fields, each ending
@@ -72,6 +75,44 @@ mixin OrderListFilters on GetxController {
 
   /// Whether [orderHeaderLine] belongs to this list.
   bool isListOrder(OrderHeaderLine orderHeaderLine);
+
+  bool get hasDefaultValues;
+
+  Future<void> setDefaultValues();
+
+  /// Pages of the order table, shown in the list's title bar (see
+  /// OrderPager) rather than under the table.
+  final paginatorController = PaginatorController();
+
+  /// Whether the filter panel under the list is open; closed, it is one line
+  /// and the list keeps the room.
+  final rxFiltersExpanded = false.obs;
+
+  /// Short labels of the filters in use, for the closed filter panel.
+  List<String> get activeFilterLabels {
+    final dateFormat = DateFormat('d MMM yy');
+
+    final hasDefaultDates =
+        areDatesEqual(rxOrderFromDate.value, rxEarliestOrderDate.value) &&
+            areDatesEqual(rxOrderToDate.value, DateTime.now());
+
+    final poNumber = rxPoNumberInput?.value ?? '';
+
+    return [
+      if (rxDateRange.value != null)
+        rxDateRange.value!.label
+      else if (!hasDefaultDates)
+        '${dateFormat.format(rxOrderFromDate.value)} - '
+            '${dateFormat.format(rxOrderToDate.value)}',
+      if (rxOrderNumberInput.value.isNotEmpty)
+        'Order ${rxOrderNumberInput.value}',
+      if (poNumber.isNotEmpty) 'PO $poNumber',
+      if (rxMerchandiserInput.value.isNotEmpty)
+        'Merchandiser ${rxMerchandiserInput.value}',
+      if (rxShadeInput.value.isNotEmpty) 'Shade ${rxShadeInput.value}',
+      if (rxBuyerInput.value.isNotEmpty) 'Buyer ${rxBuyerInput.value}',
+    ];
+  }
 
   /// This list's orders, newest first.
   final rxOrders = <OrderHeaderLine>[].obs;

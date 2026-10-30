@@ -1,9 +1,11 @@
 import 'package:data_table_2/data_table_2.dart';
-import 'package:vardhman_b2b/common/date_range_chips.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
+import 'package:vardhman_b2b/common/date_range_menu.dart';
+import 'package:vardhman_b2b/common/order_filters_panel.dart';
+import 'package:vardhman_b2b/common/order_pager.dart';
 import 'package:vardhman_b2b/common/paged_orders_table.dart';
 import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
@@ -35,6 +37,9 @@ class SamplingOrdersView extends StatelessWidget {
         // Kept up to date by the controller as orders and filters change.
         final filteredOrders = samplingController.filteredSamplingOrders;
 
+        final hasRows =
+            filteredOrders.isNotEmpty || samplingController.rxDraftOrders.isNotEmpty;
+
         final feedbackOrderNumbers = samplingController.rxSamplingFeedbacks
             .map((feedback) => feedback.orderNumber)
             .toSet();
@@ -47,14 +52,21 @@ class SamplingOrdersView extends StatelessWidget {
               text: '',
               onPressed: samplingController.refreshOrders,
             ),
-            title: Text(
-              'Sampling Orders',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: VardhmanColors.darkGrey,
-              ),
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Sampling Orders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: VardhmanColors.darkGrey,
+                  ),
+                ),
+                if (hasRows)
+                  OrderPager(controller: samplingController.paginatorController),
+              ],
             ),
             trailing: PrimaryButton(
               text: 'New Order',
@@ -103,6 +115,7 @@ class SamplingOrdersView extends StatelessWidget {
                       ),
                       child: PagedOrdersTable(
                         minWidth: 450,
+                        controller: samplingController.paginatorController,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
@@ -327,211 +340,205 @@ class SamplingOrdersView extends StatelessWidget {
           ),
           Container(
             color: Colors.white,
-            padding: EdgeInsets.only(top: 16, right: 8, left: 8, bottom: 8),
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: DateRangeChips(filters: samplingController),
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: samplingController.rxOrderNumberInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: samplingController
-                                  .rxOrderNumberInput.value.length,
+            padding: EdgeInsets.all(8),
+            child: OrderFiltersPanel(
+              filters: samplingController,
+              child: Column(
+                children: [
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: samplingController.rxOrderNumberInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: samplingController
+                                    .rxOrderNumberInput.value.length,
+                              ),
                             ),
                           ),
-                        ),
-                        onChanged: (String orderNumber) {
-                          samplingController.rxOrderNumberInput.value =
-                              orderNumber;
-                        },
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Order No.'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                          onChanged: (String orderNumber) {
+                            samplingController.rxOrderNumberInput.value =
+                                orderNumber;
+                          },
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Order No.'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'From Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            samplingController.rxOrderFromDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: samplingController.rxOrderFromDate.value
-                                    .isAtSameMomentAs(oldestDateTime)
-                                ? Colors.white
-                                : VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: samplingController.rxEarliestOrderDate.value,
-                        lastDate: samplingController.rxOrderToDate.value,
-                        value: samplingController.rxOrderFromDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            samplingController.rxOrderFromDate.value = date;
-                            samplingController.rxDateRange.value = null;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'To Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            samplingController.rxOrderToDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: samplingController.rxOrderFromDate.value,
-                        lastDate: DateTime.now(),
-                        value: samplingController.rxOrderToDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            samplingController.rxOrderToDate.value = date;
-                            samplingController.rxDateRange.value = null;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    SecondaryButton(
-                      wait: false,
-                      iconData: FontAwesomeIcons.arrowRotateLeft.data,
-                      text: '',
-                      onPressed: samplingController.hasDefaultValues
-                          ? null
-                          : samplingController.setDefaultValues,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: samplingController.rxMerchandiserInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: samplingController
-                                  .rxMerchandiserInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'From Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              samplingController.rxOrderFromDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: samplingController.rxOrderFromDate.value
+                                      .isAtSameMomentAs(oldestDateTime)
+                                  ? Colors.white
+                                  : VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String merchandiser) {
-                          samplingController.rxMerchandiserInput.value =
-                              merchandiser;
-                        },
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Merchandiser'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: samplingController.rxEarliestOrderDate.value,
+                          lastDate: samplingController.rxOrderToDate.value,
+                          value: samplingController.rxOrderFromDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              samplingController.rxOrderFromDate.value = date;
+                              samplingController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: samplingController.rxShadeInput.value,
-                            selection: TextSelection.collapsed(
-                              offset:
-                                  samplingController.rxShadeInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'To Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              samplingController.rxOrderToDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String value) {
-                          samplingController.rxShadeInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Shade'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: samplingController.rxOrderFromDate.value,
+                          lastDate: DateTime.now(),
+                          value: samplingController.rxOrderToDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              samplingController.rxOrderToDate.value = date;
+                              samplingController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: samplingController.rxBuyerInput.value,
-                            selection: TextSelection.collapsed(
-                              offset:
-                                  samplingController.rxBuyerInput.value.length,
-                            ),
-                          ),
-                        ),
-                        onChanged: (String value) {
-                          samplingController.rxBuyerInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Buyer'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (samplingController.rxLineSearchProgress.value != null) ...[
+                      SizedBox(width: 8),
+                      DateRangeMenu(filters: samplingController),
+                    ],
+                  ),
                   SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: samplingController.rxLineSearchProgress.value,
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: samplingController.rxMerchandiserInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: samplingController
+                                    .rxMerchandiserInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String merchandiser) {
+                            samplingController.rxMerchandiserInput.value =
+                                merchandiser;
+                          },
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Merchandiser'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: samplingController.rxShadeInput.value,
+                              selection: TextSelection.collapsed(
+                                offset:
+                                    samplingController.rxShadeInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            samplingController.rxShadeInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Shade'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: samplingController.rxBuyerInput.value,
+                              selection: TextSelection.collapsed(
+                                offset:
+                                    samplingController.rxBuyerInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            samplingController.rxBuyerInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Buyer'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ],

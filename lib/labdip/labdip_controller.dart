@@ -297,6 +297,7 @@ class LabdipController extends GetxController with OrderListFilters {
 
   List<OrderHeaderLine> get filteredLabdipOrders => rxFilteredOrders;
 
+  @override
   bool get hasDefaultValues =>
       areDatesEqual(
         rxOrderFromDate.value,
@@ -308,6 +309,7 @@ class LabdipController extends GetxController with OrderListFilters {
       rxShadeInput.value.isEmpty &&
       rxBuyerInput.value.isEmpty;
 
+  @override
   Future<void> setDefaultValues() async {
     rxOrderFromDate.value = rxEarliestOrderDate.value;
 
