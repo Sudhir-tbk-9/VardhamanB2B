@@ -21,6 +21,10 @@ class UserController extends GetxController {
 
   final rxDeliveryAddresses = RxList<UserAddress>();
 
+  /// Merchandiser last picked on any order screen, prefilled on the next new
+  /// order until the user logs out.
+  String lastMerchandiser = '';
+
   UserController({
     required UserDetail userDetail,
     required UserDetail customerDetail,

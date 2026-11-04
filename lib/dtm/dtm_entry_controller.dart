@@ -194,6 +194,14 @@ class DtmEntryController extends GetxController {
       (merchandiserNames) => rxMerchandisers.addAll(merchandiserNames),
     );
 
+    rxMerchandiser.value = _userController.lastMerchandiser;
+
+    rxMerchandiser.listen((merchandiser) {
+      if (merchandiser.isNotEmpty) {
+        _userController.lastMerchandiser = merchandiser;
+      }
+    });
+
     rxShade.listen(shadeListener);
 
     rxArticle.listen(
