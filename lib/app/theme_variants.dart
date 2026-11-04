@@ -329,7 +329,9 @@ class ThemeVariants {
       highlightColor: variant.accent,
       splashColor: variant.primary,
       buttonTheme: ButtonThemeData(buttonColor: variant.primary),
-      focusColor: variant.accent,
+      // Translucent: dropdowns fill the focused button and the selected menu
+      // item with this, behind dark text.
+      focusColor: variant.primary.withAlpha(40),
       hoverColor: variant.primary.withAlpha(32),
       scaffoldBackgroundColor: Colors.white,
       appBarTheme: AppBarTheme(

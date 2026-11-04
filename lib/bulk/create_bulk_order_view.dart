@@ -54,7 +54,6 @@ class CreateBulkOrderView extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const Flexible(child: ShipToSelector()),
               ],
             ),
             trailing: DefaultTextStyle(
@@ -124,6 +123,7 @@ class CreateBulkOrderView extends StatelessWidget {
               ),
             ),
           ),
+          const ShipToBar(),
           // Flexible + scroll: on a short or narrow window the form
           // scrolls and the lines table below keeps at least half the
           // height.

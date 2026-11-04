@@ -1,26 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/api/user_address.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-/// Ship-To picker for order entry. Options are the Sold-To address
-/// (ORCH550116_Get_SoldTo_Address) plus the delivery addresses maintained in
-/// the JDE customer master (ORCH550101K_GetDeliveryAddress); the selection is
-/// what order submit sends as `ShipTo`.
-class ShipToSelector extends StatelessWidget {
-  const ShipToSelector({super.key});
+/// One-line "Deliver to" bar shown under the order entry header, with a
+/// full-width dropdown of the Ship-To options. Options are the Sold-To
+/// address (ORCH550116_Get_SoldTo_Address) plus the delivery addresses
+/// maintained in the JDE customer master (ORCH550101K_GetDeliveryAddress);
+/// the selection is what order submit sends as `ShipTo`.
+class ShipToBar extends StatelessWidget {
+  const ShipToBar({super.key});
 
+  /// "Name · street · City, State (number)".
   String _label(UserAddress address) {
+    final street = [
+      address.addressLine1,
+      address.addressLine2,
+      address.addressLine3,
+      address.addressLine4,
+    ].map((line) => line.trim()).where((line) => line.isNotEmpty).join(', ');
+
     final place = [address.city, address.state]
-        .where((part) => part.trim().isNotEmpty)
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
         .join(', ');
 
     final number = address.deliveryAddressNumber == 0
         ? 'Sold-To'
         : address.deliveryAddressNumber.toString();
 
-    return '${address.alphaName.trim()}${place.isEmpty ? '' : ' - $place'} ($number)';
+    final parts = [address.alphaName.trim(), street, place]
+        .where((part) => part.isNotEmpty)
+        .join(' · ');
+
+    return '$parts ($number)';
   }
 
   @override
@@ -33,49 +48,76 @@ class ShipToSelector extends StatelessWidget {
 
         final selected = userController.rxDeliveryAddress.value;
 
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ship To: ',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          // A light wash of the theme's primary gradient; the dark text
+          // stays readable on it.
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: ThemeVariants.current.primaryGradient
+                  .map((color) =>
+                      Color.alphaBlend(color.withAlpha(36), Colors.white))
+                  .toList(),
             ),
-            // Flexible: narrows (ellipsizing the address) when the header
-            // has less room than 360. Callers place this in a Flexible.
-            Flexible(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: DropdownButton<UserAddress>(
-                  isExpanded: true,
-                  isDense: true,
-                  value: addresses.contains(selected) ? selected : null,
-                  hint: Text(
-                    'No Ship-To address found',
-                    style: TextStyle(fontSize: 13, color: VardhmanColors.red),
-                  ),
-                  items: addresses
-                      .map(
-                        (address) => DropdownMenuItem<UserAddress>(
-                          value: address,
-                          child: Text(
-                            _label(address),
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: addresses.length < 2
-                      ? null
-                      : (address) {
-                          if (address != null) {
-                            userController.selectDeliveryAddress(address);
-                          }
-                        },
+            border: Border(
+              bottom: BorderSide(color: VardhmanColors.dividerGrey),
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                Icons.local_shipping_outlined,
+                size: 18,
+                color: VardhmanColors.red,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Deliver to:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: VardhmanColors.darkGrey,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<UserAddress>(
+                    isExpanded: true,
+                    isDense: true,
+                    value: addresses.contains(selected) ? selected : null,
+                    hint: Text(
+                      'No Ship-To address found',
+                      style: TextStyle(fontSize: 13, color: VardhmanColors.red),
+                    ),
+                    items: addresses
+                        .map(
+                          (address) => DropdownMenuItem<UserAddress>(
+                            value: address,
+                            child: Text(
+                              _label(address),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: VardhmanColors.darkGrey,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: addresses.length < 2
+                        ? null
+                        : (address) {
+                            if (address != null) {
+                              userController.selectDeliveryAddress(address);
+                            }
+                          },
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
