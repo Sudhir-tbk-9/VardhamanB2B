@@ -196,7 +196,9 @@ class InvoiceReviewDialog extends StatelessWidget {
                             "txn-session-id": receiptNumber,
                             "user-code": "",
                             "clientCode": "WT-2519",
-                            "txn-amount": "99.00",
+                            "txn-amount": invoicesController
+                                .selectedDiscountedAmount
+                                .toStringAsFixed(2),
                             "txn-datetime": DateFormat('dd/MM/yyyy HH:mm:ss')
                                 .format(DateTime.now()),
                             "txn-for": "payment",
@@ -208,7 +210,7 @@ class InvoiceReviewDialog extends StatelessWidget {
                             // scripts/run_web_payment_test.ps1) locally,
                             // b2b.amefird.in/vytldev/ when deployed.
                             "return-url": appReturnUrl,
-                            "cancel-url": appReturnUrl,
+                            "cancel-url": appCancelUrl,
 
                             "email-id": "",
                           };

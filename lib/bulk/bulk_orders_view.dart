@@ -1,7 +1,11 @@
 import 'package:data_table_2/data_table_2.dart';
+import 'package:vardhman_b2b/common/adaptive_row.dart';
+import 'package:vardhman_b2b/common/date_range_menu.dart';
+import 'package:vardhman_b2b/common/order_filters_panel.dart';
+import 'package:vardhman_b2b/common/order_pager.dart';
+import 'package:vardhman_b2b/common/paged_orders_table.dart';
 import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
@@ -29,8 +33,11 @@ class BulkOrdersView extends StatelessWidget {
 
     return Obx(
       () {
-        // Filter once per build; the getter re-filters on every call.
+        // Kept up to date by the controller as orders and filters change.
         final filteredOrders = bulkController.filteredBulkOrders;
+
+        final hasRows =
+            filteredOrders.isNotEmpty || bulkController.rxDraftOrders.isNotEmpty;
 
         return Column(
         children: [
@@ -40,14 +47,21 @@ class BulkOrdersView extends StatelessWidget {
               text: '',
               onPressed: bulkController.refreshOrders,
             ),
-            title: Text(
-              'Bulk Orders',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: VardhmanColors.darkGrey,
-              ),
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Bulk Orders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: VardhmanColors.darkGrey,
+                  ),
+                ),
+                if (hasRows)
+                  OrderPager(controller: bulkController.paginatorController),
+              ],
             ),
             trailing: PrimaryButton(
               text: 'New Order',
@@ -94,31 +108,9 @@ class BulkOrdersView extends StatelessWidget {
                       decoration: const BoxDecoration(
                         color: Colors.white,
                       ),
-                      child: DataTable2(
+                      child: PagedOrdersTable(
                         minWidth: 600,
-                        isHorizontalScrollBarVisible: true,
-                        isVerticalScrollBarVisible: true,
-                        columnSpacing: 16,
-                        horizontalMargin: 16,
-                        headingRowHeight: 40,
-                        dataRowHeight: 40,
-                        headingRowColor: WidgetStatePropertyAll(Colors.grey),
-                        headingTextStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        dataTextStyle: TextStyle(
-                          fontSize: 13,
-                          color: VardhmanColors.darkGrey,
-                        ),
-                        border: TableBorder.symmetric(
-                          inside: BorderSide(
-                            width: 0.1,
-                            color: VardhmanColors.darkGrey,
-                          ),
-                        ),
-                        showCheckboxColumn: false,
+                        controller: bulkController.paginatorController,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
@@ -146,442 +138,468 @@ class BulkOrdersView extends StatelessWidget {
                             headingRowAlignment: MainAxisAlignment.center,
                           ),
                         ],
-                        rows: [
-                          ...bulkController.rxDraftOrders.indexed.map(
-                            ((int, DraftTableData) entry) {
-                              final (index, draftTableData) = entry;
+                        rowCount: () =>
+                            bulkController.rxDraftOrders.length +
+                            filteredOrders.length,
+                        // Called only for the rows of the page on screen.
+                        rowBuilder: (int rowIndex) {
+                          DataRow draftRow((int, DraftTableData) entry) {
+                            final (index, draftTableData) = entry;
 
-                              return DataRow(
-                                color: WidgetStatePropertyAll(
-                                  index.isEven
-                                      ? Colors.white
-                                      : VardhmanColors.dividerGrey
-                                          .withAlpha(128),
+                            return DataRow(
+                              color: WidgetStatePropertyAll(
+                                index.isEven
+                                    ? Colors.white
+                                    : VardhmanColors.dividerGrey
+                                        .withAlpha(128),
+                              ),
+                              onSelectChanged: (value) {
+                                if (Get.isRegistered<BulkEntryController>()) {
+                                  Get.delete<BulkEntryController>();
+                                }
+
+                                Get.put(
+                                  BulkEntryController(
+                                    orderNumber: draftTableData.orderNumber,
+                                  ),
+                                );
+
+                                Get.dialog(
+                                  const AdaptiveDialog(
+                                    clipBehavior: Clip.hardEdge,
+                                    child: CreateBulkOrderView(),
+                                  ),
+                                );
+                              },
+                              cells: [
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: <Widget>[
+                                        Text(
+                                          'Draft',
+                                          textAlign: TextAlign.end,
+                                        ),
+                                        SizedBox(
+                                          width: 16,
+                                        ),
+                                        Text(
+                                          draftTableData.orderNumber
+                                              .toString(),
+                                          textAlign: TextAlign.end,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                onSelectChanged: (value) {
-                                  if (Get.isRegistered<BulkEntryController>()) {
-                                    Get.delete<BulkEntryController>();
-                                  }
-
-                                  Get.put(
-                                    BulkEntryController(
-                                      orderNumber: draftTableData.orderNumber,
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      DateFormat('d MMM yy HH:mm').format(
+                                        draftTableData.lastUpdated,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  );
-
-                                  Get.dialog(
-                                    const AdaptiveDialog(
-                                      clipBehavior: Clip.hardEdge,
-                                      child: CreateBulkOrderView(),
+                                  ),
+                                ),
+                                const DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Draft',
+                                      textAlign: TextAlign.center,
                                     ),
-                                  );
-                                },
-                                cells: [
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.centerRight,
+                                  ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      draftTableData.poNumber,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      draftTableData.merchandiser,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          DataRow orderRow((int, OrderHeaderLine) entry) {
+                            final (filteredIndex, orderHeaderLine) = entry;
+
+                            final index =
+                                filteredIndex + bulkController.rxDraftOrders.length;
+
+                            final isSelected = bulkController
+                                    .rxSelectedOrderHeaderLine.value ==
+                                orderHeaderLine;
+
+                            final textStyle = TextStyle(
+                              fontSize: 13,
+                              color: isSelected
+                                  ? Colors.white
+                                  : VardhmanColors.darkGrey,
+                            );
+
+                            return DataRow(
+                              color: WidgetStatePropertyAll(
+                                isSelected
+                                    ? VardhmanColors.red
+                                    : index.isEven
+                                        ? Colors.white
+                                        : VardhmanColors.dividerGrey
+                                            .withAlpha(128),
+                              ),
+                              selected: orderHeaderLine ==
+                                  bulkController
+                                      .rxSelectedOrderHeaderLine.value,
+                              onSelectChanged: (value) {
+                                if (value == true &&
+                                    bulkController.rxSelectedOrderHeaderLine
+                                            .value !=
+                                        orderHeaderLine) {
+                                  bulkController.selectOrder(orderHeaderLine);
+                                }
+                              },
+                              cells: [
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: DefaultTextStyle(
+                                      style: textStyle,
                                       child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: <Widget>[
                                           Text(
-                                            'Draft',
-                                            textAlign: TextAlign.end,
-                                          ),
-                                          SizedBox(
-                                            width: 16,
-                                          ),
-                                          Text(
-                                            draftTableData.orderNumber
+                                            orderHeaderLine.orderNumber
                                                 .toString(),
                                             textAlign: TextAlign.end,
                                           ),
+                                          if (orderHeaderLine.orderReference
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                            SizedBox(
+                                              width: 16,
+                                            ),
+                                            Text(
+                                              orderHeaderLine.orderReference,
+                                              textAlign: TextAlign.end,
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        DateFormat('d MMM yy HH:mm').format(
-                                          draftTableData.lastUpdated,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  const DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        'Draft',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        draftTableData.poNumber,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        draftTableData.merchandiser,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          ...filteredOrders.indexed.map(
-                            ((int, OrderHeaderLine) entry) {
-                              final (filteredIndex, orderHeaderLine) = entry;
-
-                              final index =
-                                  filteredIndex + bulkController.rxDraftOrders.length;
-
-                              final isSelected = bulkController
-                                      .rxSelectedOrderHeaderLine.value ==
-                                  orderHeaderLine;
-
-                              final textStyle = TextStyle(
-                                fontSize: 13,
-                                color: isSelected
-                                    ? Colors.white
-                                    : VardhmanColors.darkGrey,
-                              );
-
-                              return DataRow(
-                                color: WidgetStatePropertyAll(
-                                  isSelected
-                                      ? VardhmanColors.red
-                                      : index.isEven
-                                          ? Colors.white
-                                          : VardhmanColors.dividerGrey
-                                              .withAlpha(128),
                                 ),
-                                selected: orderHeaderLine ==
-                                    bulkController
-                                        .rxSelectedOrderHeaderLine.value,
-                                onSelectChanged: (value) {
-                                  if (value == true &&
-                                      bulkController.rxSelectedOrderHeaderLine
-                                              .value !=
-                                          orderHeaderLine) {
-                                    bulkController.selectOrder(orderHeaderLine);
-                                  }
-                                },
-                                cells: [
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: DefaultTextStyle(
-                                        style: textStyle,
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: <Widget>[
-                                            Text(
-                                              orderHeaderLine.orderNumber
-                                                  .toString(),
-                                              textAlign: TextAlign.end,
-                                            ),
-                                            if (orderHeaderLine.orderReference
-                                                .trim()
-                                                .isNotEmpty) ...[
-                                              SizedBox(
-                                                width: 16,
-                                              ),
-                                              Text(
-                                                orderHeaderLine.orderReference,
-                                                textAlign: TextAlign.end,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      DateFormat('d MMM yy').format(
+                                        orderHeaderLine.orderDate,
                                       ),
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        DateFormat('d MMM yy').format(
-                                          orderHeaderLine.orderDate,
-                                        ),
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                      ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.orderStatus.trim(),
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        orderHeaderLine.orderStatus.trim(),
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.poNumber,
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        orderHeaderLine.poNumber,
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                      ),
+                                ),
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.merchandiser,
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        orderHeaderLine.merchandiser,
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          final draftCount = bulkController.rxDraftOrders.length;
+
+                          return rowIndex < draftCount
+                              ? draftRow((
+                                  rowIndex,
+                                  bulkController.rxDraftOrders[rowIndex],
+                                ))
+                              : orderRow((
+                                  rowIndex - draftCount,
+                                  filteredOrders[rowIndex - draftCount],
+                                ));
+                        },
+                        refreshOn: [
+                          bulkController.rxDraftOrders,
+                          bulkController.rxFilteredOrders,
+                          bulkController.rxSelectedOrderHeaderLine,
                         ],
+                        firstPageOn: [bulkController.rxFilteredOrders],
                       ),
                     ),
             ),
           ),
           Container(
             color: Colors.white,
-            padding: EdgeInsets.only(top: 16, right: 8, left: 8, bottom: 8),
-            child: Column(
-              children: [
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: bulkController.rxOrderNumberInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: bulkController
-                                  .rxOrderNumberInput.value.length,
+            padding: EdgeInsets.all(8),
+            child: OrderFiltersPanel(
+              filters: bulkController,
+              child: Column(
+                children: [
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: bulkController.rxOrderNumberInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: bulkController
+                                    .rxOrderNumberInput.value.length,
+                              ),
                             ),
                           ),
-                        ),
-                        onChanged: (String orderNumber) {
-                          bulkController.rxOrderNumberInput.value = orderNumber;
-                        },
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Order No.'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                          onChanged: (String orderNumber) {
+                            bulkController.rxOrderNumberInput.value = orderNumber;
+                          },
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Order No.'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'From Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            bulkController.rxOrderFromDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: bulkController.rxOrderFromDate.value
-                                    .isAtSameMomentAs(oldestDateTime)
-                                ? Colors.white
-                                : VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: bulkController.rxEarliestOrderDate.value,
-                        lastDate: bulkController.rxOrderToDate.value,
-                        value: bulkController.rxOrderFromDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            bulkController.rxOrderFromDate.value = date;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: DateTimeField(
-                        mode: DateTimeFieldPickerMode.date,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: 'To Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Container(),
-                          prefixText: DateFormat('d MMM yy').format(
-                            bulkController.rxOrderToDate.value,
-                          ),
-                          prefixStyle: TextStyle(
-                            color: VardhmanColors.darkGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        firstDate: bulkController.rxOrderFromDate.value,
-                        lastDate: DateTime.now(),
-                        value: bulkController.rxOrderToDate.value,
-                        onChanged: (DateTime? date) {
-                          if (date != null) {
-                            bulkController.rxOrderToDate.value = date;
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    SecondaryButton(
-                      wait: false,
-                      iconData: FontAwesomeIcons.arrowRotateLeft.data,
-                      text: '',
-                      onPressed: bulkController.hasDefaultValues
-                          ? null
-                          : bulkController.setDefaultValues,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: bulkController.rxPoNumberInput.value,
-                            selection: TextSelection.collapsed(
-                              offset:
-                                  bulkController.rxPoNumberInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'From Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              bulkController.rxOrderFromDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: bulkController.rxOrderFromDate.value
+                                      .isAtSameMomentAs(oldestDateTime)
+                                  ? Colors.white
+                                  : VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String poNumber) {
-                          bulkController.rxPoNumberInput.value = poNumber;
-                        },
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('PO Number'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: bulkController.rxEarliestOrderDate.value,
+                          lastDate: bulkController.rxOrderToDate.value,
+                          value: bulkController.rxOrderFromDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              bulkController.rxOrderFromDate.value = date;
+                              bulkController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: bulkController.rxMerchandiserInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: bulkController
-                                  .rxMerchandiserInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: DateTimeField(
+                          mode: DateTimeFieldPickerMode.date,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'To Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Container(),
+                            prefixText: DateFormat('d MMM yy').format(
+                              bulkController.rxOrderToDate.value,
+                            ),
+                            prefixStyle: TextStyle(
+                              color: VardhmanColors.darkGrey,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        onChanged: (String merchandiser) {
-                          bulkController.rxMerchandiserInput.value =
-                              merchandiser;
-                        },
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Merchandiser'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          border: OutlineInputBorder(),
+                          firstDate: bulkController.rxOrderFromDate.value,
+                          lastDate: DateTime.now(),
+                          value: bulkController.rxOrderToDate.value,
+                          onChanged: (DateTime? date) {
+                            if (date != null) {
+                              bulkController.rxOrderToDate.value = date;
+                              bulkController.rxDateRange.value = null;
+                            }
+                          },
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: bulkController.rxShadeInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: bulkController.rxShadeInput.value.length,
+                      SizedBox(width: 8),
+                      DateRangeMenu(filters: bulkController),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: bulkController.rxPoNumberInput.value,
+                              selection: TextSelection.collapsed(
+                                offset:
+                                    bulkController.rxPoNumberInput.value.length,
+                              ),
                             ),
                           ),
-                        ),
-                        onChanged: (String value) {
-                          bulkController.rxShadeInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Shade'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                          onChanged: (String poNumber) {
+                            bulkController.rxPoNumberInput.value = poNumber;
+                          },
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('PO Number'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: TextField(
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
-                            text: bulkController.rxBuyerInput.value,
-                            selection: TextSelection.collapsed(
-                              offset: bulkController.rxBuyerInput.value.length,
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: bulkController.rxMerchandiserInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: bulkController
+                                    .rxMerchandiserInput.value.length,
+                              ),
                             ),
                           ),
-                        ),
-                        onChanged: (String value) {
-                          bulkController.rxBuyerInput.value = value;
-                        },
-                        inputFormatters: [capitalFormatter],
-                        decoration: InputDecoration(
-                          isDense: true,
-                          label: Text('Buyer'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                          onChanged: (String merchandiser) {
+                            bulkController.rxMerchandiserInput.value =
+                                merchandiser;
+                          },
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Merchandiser'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  AdaptiveRow(
+                    breakpoint: 440,
+                    narrowLayout: NarrowLayout.wrap,
+                    minChildWidth: 140,
+                    children: <Widget>[
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: bulkController.rxShadeInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: bulkController.rxShadeInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            bulkController.rxShadeInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Shade'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: TextField(
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(
+                              text: bulkController.rxBuyerInput.value,
+                              selection: TextSelection.collapsed(
+                                offset: bulkController.rxBuyerInput.value.length,
+                              ),
+                            ),
+                          ),
+                          onChanged: (String value) {
+                            bulkController.rxBuyerInput.value = value;
+                          },
+                          inputFormatters: [capitalFormatter],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            label: Text('Buyer'),
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],

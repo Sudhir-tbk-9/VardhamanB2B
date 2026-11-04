@@ -22,7 +22,8 @@ class SamplingView extends StatelessWidget {
         () => MasterDetailLayout(
           master: SamplingOrdersView(),
           detail: SamplingOrderDetailsView(),
-          detailFlex: 3,
+          detailFlex: 2,
+          storageKey: 'samplingOrders',
           // One pane at a time: picking an order opens its details, and back
           // clears the pick so the same order can be opened again.
           showDetail:

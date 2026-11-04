@@ -89,10 +89,16 @@ class OrdersController extends GetxController
   /// Order numbers among [orderHeaderLines] having a line whose shade contains
   /// [shade] and whose buyer (End Use code, or its F00092 BY name) contains
   /// [buyer]. Empty criteria match everything.
+  ///
+  /// Each order not cached yet costs an ORCH5542002 call, so the search stops
+  /// as soon as [isCancelled] says a newer search replaced it, and reports the
+  /// share of orders checked so far through [onProgress].
   Future<Set<int>> findOrdersByLine({
     required List<OrderHeaderLine> orderHeaderLines,
     required String shade,
     required String buyer,
+    bool Function()? isCancelled,
+    void Function(double progress)? onProgress,
   }) async {
     final shadeQuery = shade.trim().toUpperCase();
 
@@ -107,6 +113,10 @@ class OrdersController extends GetxController
     const batchSize = 5;
 
     for (int i = 0; i < orderHeaderLines.length; i += batchSize) {
+      if (isCancelled?.call() ?? false) {
+        break;
+      }
+
       await Future.wait(
         orderHeaderLines.skip(i).take(batchSize).map(
           (orderHeaderLine) async {
@@ -138,6 +148,11 @@ class OrdersController extends GetxController
             }
           },
         ),
+      );
+
+      onProgress?.call(
+        (i + batchSize).clamp(0, orderHeaderLines.length) /
+            orderHeaderLines.length,
       );
     }
 

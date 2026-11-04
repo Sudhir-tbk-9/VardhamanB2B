@@ -9,14 +9,106 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/login/login_controller.dart';
 import 'package:video_player/video_player.dart';
 
-class LoginView extends StatelessWidget {
-  LoginView({super.key});
-  final FocusNode _focusNode = FocusNode();
+/// Whether an Enter in a field is running its button's action, so a second
+/// Enter (or a held key) does not run it again meanwhile.
+bool _isSubmitting = false;
+
+/// Runs [action] for Enter in a field, as the field's button would. [action]
+/// is null while that button is disabled.
+Future<void> _submit(Future<void> Function()? action) async {
+  if (action == null || _isSubmitting) {
+    return;
+  }
+
+  _isSubmitting = true;
+
+  final loginController = Get.find<LoginController>();
+
+  final loginState = loginController.rxLoginState.value;
+
+  // Let go of the keyboard first, as clicking the button does. The next step
+  // can disable this field (User ID during OTP), and on the web a field
+  // disabled while it has the keyboard leaves its browser input read-only:
+  // back on User ID after Cancel, nothing typed reached it.
+  final focusNode = FocusManager.instance.primaryFocus;
+
+  focusNode?.unfocus();
+
+  try {
+    await action();
+  } finally {
+    _isSubmitting = false;
+
+    // Still on the same step (wrong OTP, unknown user): back to the field.
+    // A new step puts the cursor in its own field.
+    if (loginController.rxLoginState.value == loginState) {
+      focusNode?.requestFocus();
+    }
+  }
+}
+
+class LoginView extends StatefulWidget {
+  const LoginView({super.key});
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  // Kept for the whole login flow: the router builds a new LoginView on
+  // every step, and focus nodes made afresh each time (while the old field
+  // still held focus) left User ID untypeable on the web after going back
+  // from the OTP step.
+  final FocusNode _userIdFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _otpFocusNode = FocusNode();
+  final FocusNode _newPasswordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
+
+  /// The step whose field was last given the cursor.
+  LoginState? _focusedLoginState;
+
+  @override
+  void dispose() {
+    _userIdFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _otpFocusNode.dispose();
+    _newPasswordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
+
+    super.dispose();
+  }
+
+  /// Gives [loginState]'s field the cursor when the step changes, so the user
+  /// can type and press Enter straight away. Done after the frame, once the
+  /// field is built and enabled for the step (User ID is disabled during
+  /// the others).
+  void _focusFieldOf(LoginState loginState) {
+    if (loginState == _focusedLoginState) {
+      return;
+    }
+
+    _focusedLoginState = loginState;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final focusNode = switch (loginState) {
+        LoginState.password => _passwordFocusNode,
+        LoginState.otp => _otpFocusNode,
+        LoginState.setPassword => _newPasswordFocusNode,
+        _ => _userIdFocusNode,
+      };
+
+      focusNode.requestFocus();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final loginController = Get.find<LoginController>();
-    FocusScope.of(context).requestFocus(_focusNode);
 
     // Phone sized: smaller header, and the page scrolls (see below).
     final isCompact = context.isCompact;
@@ -25,6 +117,8 @@ class LoginView extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Obx(
         () {
+          _focusFieldOf(loginController.rxLoginState.value);
+
           // Built in here: they read the observables this Obx tracks.
           // Sized from the controller, which loads after the screen shows.
           final video = RepaintBoundary(
@@ -74,6 +168,26 @@ class LoginView extends StatelessWidget {
               ),
             ],
           );
+
+          // Each button's action, null while the button is disabled. Enter in
+          // the step's field runs the same one.
+          final sendOtp = loginController.rxUserId.value.isEmpty
+              ? null
+              : loginController.validateUser;
+
+          final logIn = loginController.rxPassword.value.isEmpty
+              ? null
+              : loginController.validatePassword;
+
+          final verifyOtp = loginController.rxOtp.value.isEmpty
+              ? null
+              : loginController.validateOtp;
+
+          final setPassword = loginController.rxPassword.value.trim().isEmpty ||
+                  loginController.rxConfirmPassword.value !=
+                      loginController.rxPassword.value
+              ? null
+              : loginController.setPassword;
 
           final card = Container(
             // margin: EdgeInsets.all(16),
@@ -151,12 +265,13 @@ class LoginView extends StatelessWidget {
                           SizedBox(
                             width: 150,
                             child: NewOrderTextField(
-                              focusNode: _focusNode,
+                              focusNode: _userIdFocusNode,
                               inputFormatters: [UpperCaseTextFormatter()],
                               isEnabled: loginController.rxLoginState.value ==
                                   LoginState.loggedOut,
                               labelText: 'User ID',
                               rxString: loginController.rxUserId,
+                              onSubmitted: () => _submit(sendOtp),
                             ),
                           ),
                           if (loginController.rxLoginState.value ==
@@ -165,9 +280,11 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _passwordFocusNode,
                                 obscureText: true,
                                 labelText: 'Password',
                                 rxString: loginController.rxPassword,
+                                onSubmitted: () => _submit(logIn),
                               ),
                             ),
                           ],
@@ -177,8 +294,10 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _otpFocusNode,
                                 labelText: 'OTP',
                                 rxString: loginController.rxOtp,
+                                onSubmitted: () => _submit(verifyOtp),
                               ),
                             ),
                           ],
@@ -188,20 +307,30 @@ class LoginView extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _newPasswordFocusNode,
                                 obscureText: true,
                                 labelText: 'New Password',
                                 rxString: loginController.rxPassword,
+                                // On to Confirm Password, which is enabled
+                                // once a new password is typed.
+                                onSubmitted: () {
+                                  if (loginController.rxPassword.isNotEmpty) {
+                                    _confirmPasswordFocusNode.requestFocus();
+                                  }
+                                },
                               ),
                             ),
                             SizedBox(width: 16),
                             SizedBox(
                               width: 150,
                               child: NewOrderTextField(
+                                focusNode: _confirmPasswordFocusNode,
                                 obscureText: true,
                                 labelText: 'Confirm Password',
                                 isEnabled:
                                     loginController.rxPassword.isNotEmpty,
                                 rxString: loginController.rxConfirmPassword,
+                                onSubmitted: () => _submit(setPassword),
                               ),
                             ),
                           ],
@@ -215,9 +344,7 @@ class LoginView extends StatelessWidget {
                         PrimaryButton(
                           iconData: Icons.login_outlined,
                           text: 'Send OTP',
-                          onPressed: loginController.rxUserId.value.isEmpty
-                              ? null
-                              : loginController.validateUser,
+                          onPressed: sendOtp,
                         ),
                       if (loginController.rxLoginState.value ==
                           LoginState.password)
@@ -235,10 +362,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Login',
-                              onPressed:
-                                  loginController.rxPassword.value.isEmpty
-                                      ? null
-                                      : loginController.validatePassword,
+                              onPressed: logIn,
                             ),
                           ],
                         ),
@@ -262,9 +386,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Verify OTP',
-                              onPressed: loginController.rxOtp.value.isEmpty
-                                  ? null
-                                  : loginController.validateOtp,
+                              onPressed: verifyOtp,
                             ),
                           ],
                         ),
@@ -289,13 +411,7 @@ class LoginView extends StatelessWidget {
                             PrimaryButton(
                               iconData: Icons.login_outlined,
                               text: 'Set Password',
-                              onPressed: loginController.rxPassword.value
-                                          .trim()
-                                          .isEmpty ||
-                                      loginController.rxConfirmPassword.value !=
-                                          loginController.rxPassword.value
-                                  ? null
-                                  : loginController.setPassword,
+                              onPressed: setPassword,
                             ),
                           ],
                         ),

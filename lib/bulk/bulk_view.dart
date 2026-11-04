@@ -22,7 +22,8 @@ class BulkView extends StatelessWidget {
         () => MasterDetailLayout(
           master: BulkOrdersView(),
           detail: BulkOrderDetailsView(),
-          detailFlex: 3,
+          detailFlex: 2,
+          storageKey: 'bulkOrders',
           // One pane at a time: picking an order opens its details, and back
           // clears the pick so the same order can be opened again.
           showDetail: bulkController.rxSelectedOrderHeaderLine.value != null,

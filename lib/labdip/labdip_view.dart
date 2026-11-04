@@ -22,7 +22,8 @@ class LabdipView extends StatelessWidget {
         () => MasterDetailLayout(
           master: LabdipOrdersView(),
           detail: LabdipOrderDetailsView(),
-          detailFlex: 3,
+          detailFlex: 2,
+          storageKey: 'labdipOrders',
           // One pane at a time: picking an order opens its details, and back
           // clears the pick so the same order can be opened again.
           showDetail: labdipController.rxSelectedOrderHeaderLine.value != null,

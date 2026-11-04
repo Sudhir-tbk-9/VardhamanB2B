@@ -19,6 +19,7 @@ class NewOrderTextField extends StatelessWidget {
     this.maxLength,
     this.obscureText = false,
     this.focusNode,
+    this.onSubmitted,
   });
 
   final String labelText;
@@ -33,6 +34,9 @@ class NewOrderTextField extends StatelessWidget {
   final int? maxLength;
   final bool obscureText;
   final FocusNode? focusNode;
+
+  /// Called when Enter is pressed in the field.
+  final VoidCallback? onSubmitted;
 
   final TextEditingController textEditingController = TextEditingController();
 
@@ -135,6 +139,11 @@ class NewOrderTextField extends StatelessWidget {
                           focusedBorder: border,
                         ),
                         onChanged: (value) => rxString.value = value,
+                        onSubmitted:
+                            onSubmitted == null ? null : (_) => onSubmitted!(),
+                        // Keep the cursor here after Enter (Flutter's default
+                        // drops it), e.g. to retype a wrong OTP.
+                        onEditingComplete: onSubmitted == null ? null : () {},
                         enabled: isEnabled,
                       ),
                     ),

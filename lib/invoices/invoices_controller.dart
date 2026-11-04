@@ -255,7 +255,20 @@ class InvoicesController extends GetxController
     rxLastPayment.value = payment;
   }
 
-  Future<void> dismissLastPayment() async {
+  /// With [receiptNumber], only when the saved last payment is that receipt.
+  /// Read from storage rather than [rxLastPayment], which is only loaded
+  /// once the invoices have been fetched.
+  Future<void> dismissLastPayment({String? receiptNumber}) async {
+    if (receiptNumber != null) {
+      final json = _sharedPrefs.getString(_lastPaymentKey);
+
+      if (json == null ||
+          (jsonDecode(json) as Map<String, dynamic>)['receiptNumber'] !=
+              receiptNumber) {
+        return;
+      }
+    }
+
     await _sharedPrefs.remove(_lastPaymentKey);
 
     rxLastPayment.value = null;

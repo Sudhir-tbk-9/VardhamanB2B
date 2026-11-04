@@ -10,9 +10,9 @@ import 'package:vardhman_b2b/login/login_controller.dart';
 import 'package:vardhman_b2b/login/login_view.dart';
 
 /// URL of each home tab, in nav rail order: 0–3 orders, 4–5 payments (see
-/// NavRail). With Flutter web's default hash strategy these show as
-/// `…/#/open`, so the server only ever sees the app root and the gateway's
-/// `POST /vytldev/` handling is unchanged.
+/// NavRail). main() switches Flutter web to path URLs, so these show as
+/// `…/vytldev/open` and the server has to answer every such path with the
+/// app's index.html. The gateway still returns to the bare app URL.
 const homeTabPaths = <String>[
   '/sampling',
   '/labdip',

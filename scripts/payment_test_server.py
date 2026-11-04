@@ -7,6 +7,9 @@ are logged (first 500 bytes of the body) and answered with a 303 redirect to
 
 The UAT build uses --base-href /vytldev/, so its asset URLs start with
 /vytldev/; that prefix is stripped so the build also works from "/".
+
+The app uses path URLs (/vytldev/open), so a path with no file behind it and
+no extension is answered with index.html, as the real server must do.
 """
 
 import os
@@ -24,7 +27,12 @@ class PaymentTestHandler(SimpleHTTPRequestHandler):
         if path == BASE_HREF or path.startswith(BASE_HREF + "/"):
             path = path[len(BASE_HREF):] or "/"
 
-        return super().translate_path(path)
+        result = super().translate_path(path)
+
+        if not os.path.exists(result) and "." not in os.path.basename(result):
+            result = os.path.join(self.directory, "index.html")
+
+        return result
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0) or 0)

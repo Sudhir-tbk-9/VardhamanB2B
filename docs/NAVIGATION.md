@@ -13,13 +13,16 @@ navigator key (`Get.key`), so `Get.dialog`, `Get.back()` and
 
 | URL | Shows |
 |---|---|
-| `#/login` (`?from=/open`) | Login flow, switched by `rxLoginState` |
-| `#/sampling` `#/labdip` `#/dtm` `#/bulk` | Orders tabs (nav rail index 0–3) |
-| `#/open` `#/paid` | Payments tabs (nav rail index 4–5) |
+| `/login` (`?from=/open`) | Login flow, switched by `rxLoginState` |
+| `/sampling` `/labdip` `/dtm` `/bulk` | Orders tabs (nav rail index 0–3) |
+| `/open` `/paid` | Payments tabs (nav rail index 4–5) |
 
-The URL uses Flutter web's default hash strategy, so the server only ever sees
-the app root (`/` or `/vytldev/`), and the gateway's `POST /vytldev/` handling
-is unchanged.
+These paths come after the base href, e.g. `https://b2b.amefird.in/vytldev/open`
+for PY or `https://b2b.amefird.in/open` for PD. `main()` calls
+`usePathUrlStrategy()`, so there is no `#` in the URL. The browser asks the
+server for these paths on a refresh or a bookmark, so the server must answer
+any path under the app that is not a file with the app's `index.html` (6.2).
+The gateway still returns to the bare app URL (`/vytldev/`).
 
 | State | Owner | Decides |
 |---|---|---|
@@ -50,8 +53,8 @@ its scroll position.
 ```mermaid
 flowchart TD
     A[main.dart] --> B[GetMaterialApp.router + appRouter]
-    B -->|rxLoginState != loggedIn| L["#/login → LoginView"]
-    B -->|rxLoginState == loggedIn| H["#/:tab → HomeScaffold(tabIndex)"]
+    B -->|rxLoginState != loggedIn| L["/login → LoginView"]
+    B -->|rxLoginState == loggedIn| H["/:tab → HomeScaffold(tabIndex)"]
     H --> N[NavRail → context.go]
     H --> T{LazyIndexedStack}
     T -->|/sampling| S[SamplingView]
@@ -206,8 +209,8 @@ in again (`rxLoginState` → `password`) and would land on **Sampling**
    straight away, skipping the password screen.
 3. `_registerSession` sets `rxNavRailIndex` to the saved tab (normally `4`,
    Open). The gateway returns to the bare app URL, which has no tab in it, so
-   the router's redirect sends the user to that tab (`#/open`). The return URL
-   could carry the tab itself (`…/vytldev/#/open`), but only once ICICI has
+   the router's redirect sends the user to that tab (`/open`). The return URL
+   could carry the tab itself (`…/vytldev/open`), but only once ICICI has
    confirmed it accepts that URL.
 4. After login, `_checkPaymentStatus` calls
    `Api.getPaymentStatus(receiptNumber)` (`ORCH55_GetPaymentWrapper`), logs the
@@ -279,28 +282,62 @@ Before shipping, check that `build\web_uat` contains `sqlite3.wasm` and
 
 ### 6.2 Package and deploy
 
-Zip the **contents** of `build\web_uat` (no wrapper folder):
-
-```powershell
-Compress-Archive -Path .\build\web_uat\* -DestinationPath .\build\vytldev_uat_<date>.zip
-```
+The build script also zips the **contents** of `build\web_uat` (no wrapper
+folder) as `build\vytldev_py_<yyyy-MM-dd>.zip`. It uses `tar`, not
+`Compress-Archive`: PowerShell 5.1 writes backslashes into the zip's paths,
+which unzip tools on a Linux server may not turn into folders.
 
 On the server:
 
 1. Extract the zip into the `/vytldev/` folder, so `index.html` is at
    `/vytldev/index.html`. Leave the production app at the root alone.
 2. Make `POST /vytldev/` serve `/vytldev/index.html` (see 5.2).
-3. Confirm with ICICI that `https://b2b.amefird.in/vytldev/` is an allowed
+3. Make every `GET` under `/vytldev/` that is not an existing file serve
+   `/vytldev/index.html` (the app uses path URLs, section 1). Without it a
+   refresh on `/vytldev/open` is a `404`. PD needs the same rule at `/`,
+   excluding `/vytldev/`, once it is built with path URLs.
+4. Confirm with ICICI that `https://b2b.amefird.in/vytldev/` is an allowed
    return URL for `WT-2519` / `WT-1474`.
 
 The repo has no server config for b2b.amefird.in (no `web.config`, nginx
-config, Dockerfile or deploy script), so steps 2 and 3 have to be checked on
+config, Dockerfile or deploy script), so steps 2 to 4 have to be checked on
 the server and with ICICI.
+
+nginx, for step 3:
+
+```nginx
+location /vytldev/ {
+    try_files $uri $uri/ /vytldev/index.html;
+}
+```
+
+IIS (URL Rewrite module), in a `web.config` inside the `vytldev` folder:
+
+```xml
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="PY app routes" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/vytldev/index.html" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+```
 
 ### 6.3 Testing the build locally
 
 `scripts/payment_test_server.py` serves `build\web_uat` on port 8000. It strips
-the `/vytldev` prefix so the build also works from `/`. For POST requests it
+the `/vytldev` prefix so the build also works from `/`, and answers a path
+with no file and no extension (`/vytldev/open`) with `index.html`, like the
+server's rule in 6.2. For POST requests it
 prints the first 500 bytes of the body (to see what the gateway sends) and
 answers with a `303` redirect to `/`.
 

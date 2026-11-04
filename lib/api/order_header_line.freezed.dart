@@ -27,12 +27,12 @@ mixin _$OrderHeaderLine {
   String get orderReference => throw _privateConstructorUsedError;
   String get holdCode => throw _privateConstructorUsedError;
   int get shipTo => throw _privateConstructorUsedError;
-  int get quantityOrdered => throw _privateConstructorUsedError;
-  int get quantityShipped => throw _privateConstructorUsedError;
-  int get quantityCancelled => throw _privateConstructorUsedError;
+  num get quantityOrdered => throw _privateConstructorUsedError;
+  num get quantityShipped => throw _privateConstructorUsedError;
+  num get quantityCancelled => throw _privateConstructorUsedError;
   String get orderStatus => throw _privateConstructorUsedError;
   double get orderAmount => throw _privateConstructorUsedError;
-  int get quantityBackOrdered => throw _privateConstructorUsedError;
+  num get quantityBackOrdered => throw _privateConstructorUsedError;
   bool get canIndent => throw _privateConstructorUsedError;
   bool get isDTM => throw _privateConstructorUsedError;
   String get poNumber => throw _privateConstructorUsedError;
@@ -62,12 +62,12 @@ abstract class $OrderHeaderLineCopyWith<$Res> {
       String orderReference,
       String holdCode,
       int shipTo,
-      int quantityOrdered,
-      int quantityShipped,
-      int quantityCancelled,
+      num quantityOrdered,
+      num quantityShipped,
+      num quantityCancelled,
       String orderStatus,
       double orderAmount,
-      int quantityBackOrdered,
+      num quantityBackOrdered,
       bool canIndent,
       bool isDTM,
       String poNumber,
@@ -139,15 +139,15 @@ class _$OrderHeaderLineCopyWithImpl<$Res, $Val extends OrderHeaderLine>
       quantityOrdered: null == quantityOrdered
           ? _value.quantityOrdered
           : quantityOrdered // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       quantityShipped: null == quantityShipped
           ? _value.quantityShipped
           : quantityShipped // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       quantityCancelled: null == quantityCancelled
           ? _value.quantityCancelled
           : quantityCancelled // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       orderStatus: null == orderStatus
           ? _value.orderStatus
           : orderStatus // ignore: cast_nullable_to_non_nullable
@@ -159,7 +159,7 @@ class _$OrderHeaderLineCopyWithImpl<$Res, $Val extends OrderHeaderLine>
       quantityBackOrdered: null == quantityBackOrdered
           ? _value.quantityBackOrdered
           : quantityBackOrdered // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       canIndent: null == canIndent
           ? _value.canIndent
           : canIndent // ignore: cast_nullable_to_non_nullable
@@ -196,12 +196,12 @@ abstract class _$$OrderHeaderLineImplCopyWith<$Res>
       String orderReference,
       String holdCode,
       int shipTo,
-      int quantityOrdered,
-      int quantityShipped,
-      int quantityCancelled,
+      num quantityOrdered,
+      num quantityShipped,
+      num quantityCancelled,
       String orderStatus,
       double orderAmount,
-      int quantityBackOrdered,
+      num quantityBackOrdered,
       bool canIndent,
       bool isDTM,
       String poNumber,
@@ -271,15 +271,15 @@ class __$$OrderHeaderLineImplCopyWithImpl<$Res>
       quantityOrdered: null == quantityOrdered
           ? _value.quantityOrdered
           : quantityOrdered // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       quantityShipped: null == quantityShipped
           ? _value.quantityShipped
           : quantityShipped // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       quantityCancelled: null == quantityCancelled
           ? _value.quantityCancelled
           : quantityCancelled // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       orderStatus: null == orderStatus
           ? _value.orderStatus
           : orderStatus // ignore: cast_nullable_to_non_nullable
@@ -291,7 +291,7 @@ class __$$OrderHeaderLineImplCopyWithImpl<$Res>
       quantityBackOrdered: null == quantityBackOrdered
           ? _value.quantityBackOrdered
           : quantityBackOrdered // ignore: cast_nullable_to_non_nullable
-              as int,
+              as num,
       canIndent: null == canIndent
           ? _value.canIndent
           : canIndent // ignore: cast_nullable_to_non_nullable
@@ -353,17 +353,17 @@ class _$OrderHeaderLineImpl extends _OrderHeaderLine {
   @override
   final int shipTo;
   @override
-  final int quantityOrdered;
+  final num quantityOrdered;
   @override
-  final int quantityShipped;
+  final num quantityShipped;
   @override
-  final int quantityCancelled;
+  final num quantityCancelled;
   @override
   final String orderStatus;
   @override
   final double orderAmount;
   @override
-  final int quantityBackOrdered;
+  final num quantityBackOrdered;
   @override
   final bool canIndent;
   @override
@@ -465,12 +465,12 @@ abstract class _OrderHeaderLine extends OrderHeaderLine {
       required final String orderReference,
       required final String holdCode,
       required final int shipTo,
-      required final int quantityOrdered,
-      required final int quantityShipped,
-      required final int quantityCancelled,
+      required final num quantityOrdered,
+      required final num quantityShipped,
+      required final num quantityCancelled,
       required final String orderStatus,
       required final double orderAmount,
-      required final int quantityBackOrdered,
+      required final num quantityBackOrdered,
       required final bool canIndent,
       required final bool isDTM,
       required final String poNumber,
@@ -495,17 +495,17 @@ abstract class _OrderHeaderLine extends OrderHeaderLine {
   @override
   int get shipTo;
   @override
-  int get quantityOrdered;
+  num get quantityOrdered;
   @override
-  int get quantityShipped;
+  num get quantityShipped;
   @override
-  int get quantityCancelled;
+  num get quantityCancelled;
   @override
   String get orderStatus;
   @override
   double get orderAmount;
   @override
-  int get quantityBackOrdered;
+  num get quantityBackOrdered;
   @override
   bool get canIndent;
   @override
