@@ -2,6 +2,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/popup_keyboard_navigation.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 
@@ -19,10 +20,14 @@ class CatalogSearchField extends StatelessWidget {
     this.inputFormatters = const [],
     this.invalidList = const [],
     this.dropdownKey,
+    this.onChanged,
   });
 
-  /// Lets a controller open this field programmatically; its search box then
-  /// takes focus.
+  /// Called after the user picks a value or clears the field; not when
+  /// [rxString] is set in code.
+  final ValueChanged<String>? onChanged;
+
+  /// Lets a controller open this field programmatically.
   final GlobalKey<DropdownSearchState<String>>? dropdownKey;
 
   final bool isSearchboxEnabled;
@@ -125,7 +130,8 @@ class CatalogSearchField extends StatelessWidget {
                             ),
                             popupProps: PopupProps.menu(
                               searchFieldProps: TextFieldProps(
-                                autofocus: dropdownKey != null,
+                                // Ready to type as soon as the field opens.
+                                autofocus: true,
                                 inputFormatters: inputFormatters,
                                 autocorrect: false,
                                 style: TextStyle(
@@ -136,14 +142,25 @@ class CatalogSearchField extends StatelessWidget {
                               showSearchBox: isSearchboxEnabled,
                               fit: FlexFit.loose,
                               searchDelay: Duration(milliseconds: 0),
+                              // Arrow keys move through the options, Enter
+                              // picks one.
+                              containerBuilder: (context, popupWidget) =>
+                                  PopupKeyboardNavigation<String>(
+                                autofocus: !isSearchboxEnabled,
+                                child: popupWidget,
+                              ),
                               itemBuilder:
                                   (context, item, isDisabled, isSelected) =>
-                                      ListTile(
-                                title: Text(
-                                  item,
-                                  style: TextStyle(
-                                    color: VardhmanColors.darkGrey,
-                                    fontSize: 13,
+                                      PopupKeyboardHighlight<String>(
+                                item: item,
+                                color: VardhmanColors.red.withAlpha(40),
+                                child: ListTile(
+                                  title: Text(
+                                    item,
+                                    style: TextStyle(
+                                      color: VardhmanColors.darkGrey,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -164,7 +181,11 @@ class CatalogSearchField extends StatelessWidget {
                               }
                             },
                             autoValidateMode: AutovalidateMode.disabled,
-                            onChanged: (value) => rxString.value = value ?? '',
+                            onChanged: (value) {
+                              rxString.value = value ?? '';
+
+                              onChanged?.call(rxString.value);
+                            },
                             selectedItem:
                                 rxString.value.isEmpty ? null : rxString.value,
                           ),
@@ -181,6 +202,8 @@ class CatalogSearchField extends StatelessWidget {
                         text: '',
                         onPressed: () async {
                           rxString.value = '';
+
+                          onChanged?.call('');
                         },
                       ),
                     ),

@@ -340,6 +340,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                 hasError: dtmEntryController
                                                     .articleHasError,
                                                 labelText: 'Article',
+                                                onChanged: dtmEntryController
+                                                    .onArticlePicked,
                                                 isRequired: true,
                                                 rxString: dtmEntryController
                                                     .rxArticle,
@@ -470,6 +472,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                 hasError: dtmEntryController
                                                     .shadeHasError,
                                                 labelText: 'Shade',
+                                                onChanged: dtmEntryController
+                                                    .onShadePicked,
                                                 isRequired: true,
                                                 isEnabled: dtmEntryController
                                                     .rxArticle.isNotEmpty,

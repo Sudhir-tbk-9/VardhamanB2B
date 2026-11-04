@@ -290,6 +290,9 @@ class CreateLabdipOrderView extends StatelessWidget {
                                                 hasError: labdipEntryController
                                                     .articleHasError,
                                                 labelText: 'Article',
+                                                onChanged:
+                                                    labdipEntryController
+                                                        .onArticlePicked,
                                                 isRequired: true,
                                                 rxString: labdipEntryController
                                                     .rxArticle,
@@ -426,6 +429,8 @@ class CreateLabdipOrderView extends StatelessWidget {
                                       hasError:
                                           labdipEntryController.shadeHasError,
                                       labelText: 'Shade',
+                                      onChanged:
+                                          labdipEntryController.onShadePicked,
                                       isRequired: true,
                                       isEnabled: labdipEntryController
                                           .rxArticle.isNotEmpty,

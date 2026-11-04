@@ -212,7 +212,11 @@ class DtmEntryController extends GetxController {
 
     rxUomWithDesc.listen(uomWithDescListener);
 
-    rxUom.listen((_) => selectIfOnlyOneOption(rxUom.hashCode));
+    rxUom.listen((_) {
+      if (!_clearingForShade) {
+        selectIfOnlyOneOption(rxUom.hashCode);
+      }
+    });
 
     rxPoFileName.listen(poFileNameListener);
   }
@@ -281,6 +285,12 @@ class DtmEntryController extends GetxController {
           );
 
           rxShades.assignAll(shades);
+
+          if (_openShadeWhenLoaded) {
+            _openShadeWhenLoaded = false;
+
+            focusShade();
+          }
         },
       );
     }
@@ -291,14 +301,48 @@ class DtmEntryController extends GetxController {
   Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
       _shadeUomLookup.forArticle(article, catalogController.industryItems);
 
-  /// Key of the Shade field, used to return the cursor there after a line
-  /// is added.
+  /// Key of the Shade field, used to open it after an Article is picked.
   final shadeDropdownKey = GlobalKey<DropdownSearchState<String>>();
 
   void focusShade() {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => shadeDropdownKey.currentState?.openDropDownSearch(),
     );
+  }
+
+  /// Set when the user picks an Article; Shade opens once the article's
+  /// shades are loaded.
+  bool _openShadeWhenLoaded = false;
+
+  /// Article picked by the user: the cursor moves on to Shade.
+  void onArticlePicked(String article) {
+    _openShadeWhenLoaded = article.trim().isNotEmpty && rxShade.value.isEmpty;
+  }
+
+  /// Set while [onShadePicked] clears the UOM, so the UOM listener does not
+  /// clear the Article with it.
+  bool _clearingForShade = false;
+
+  /// Shade cleared by the user: the UOM derived from it and the Ticket that
+  /// follows the UOM go blank too. Article stays.
+  void onShadePicked(String shade) {
+    if (shade.isNotEmpty) {
+      return;
+    }
+
+    _unlockUom();
+
+    _clearingForShade = true;
+
+    try {
+      rxUomWithDesc.value = '';
+
+      rxUom.value = '';
+
+      rxTicket.value = '';
+    } finally {
+      _clearingForShade = false;
+    }
   }
 
   /// Shade typed before UOM; restored after the UOM change resets shades.
@@ -555,9 +599,7 @@ class DtmEntryController extends GetxController {
       final item = filteredItems.first;
 
       rxArticle.value = item.article;
-      rxUom.value = item.uom;
-      rxUomWithDesc.value =
-          '${rxUom.value} - ${orderReviewController.getUomDescription(rxUom.value)}';
+      // UOM is not filled here: it follows from the shade (Sno 14).
       rxBrand.value = item.brandDesc;
       rxSubstrate.value = item.substrateDesc;
       rxTex.value = item.tex;
@@ -713,27 +755,7 @@ class DtmEntryController extends GetxController {
         mode: drift.InsertMode.insertOrReplace,
       );
 
-      clearAllInputs(
-        skipHashCodes: [
-          rxMerchandiser.hashCode,
-          rxBuyerName.hashCode,
-          if (isOtherBuyer) rxOtherBuyerName.hashCode,
-          rxFirstLightSource.hashCode,
-          rxSecondLightSource.hashCode,
-          rxEndUse.hashCode,
-          rxRequestedDate.hashCode,
-          rxPoNumber.hashCode,
-          rxPoFileName.hashCode,
-          rxArticle.hashCode,
-          rxUomWithDesc.hashCode,
-          rxTicket.hashCode,
-          rxBrand.hashCode,
-          rxTex.hashCode,
-          rxSubstrate.hashCode,
-        ],
-      );
-
-      focusShade();
+      // Every field keeps its value for the next line.
     }
   }
 
@@ -798,21 +820,8 @@ class DtmEntryController extends GetxController {
             ),
           );
 
+      // Back to adding; every field keeps the updated line's value.
       rxSelectedDtmOrderLines.clear();
-
-      clearAllInputs(
-        skipHashCodes: [
-          rxMerchandiser.hashCode,
-          rxBuyerName.hashCode,
-          if (isOtherBuyer) rxOtherBuyerName.hashCode,
-          rxFirstLightSource.hashCode,
-          rxSecondLightSource.hashCode,
-          rxEndUse.hashCode,
-          rxRequestedDate.hashCode,
-          rxPoNumber.hashCode,
-          rxPoFileName.hashCode,
-        ],
-      );
     }
   }
 

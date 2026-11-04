@@ -218,7 +218,11 @@ class LabdipEntryController extends GetxController {
 
     rxUomWithDesc.listen(_uomWithDescListener);
 
-    rxUom.listen((_) => _selectIfOnlyOneOption(rxUom.hashCode));
+    rxUom.listen((_) {
+      if (!_clearingForShade) {
+        _selectIfOnlyOneOption(rxUom.hashCode);
+      }
+    });
 
     rxFileName.listen(_fileNameListener);
 
@@ -297,6 +301,12 @@ class LabdipEntryController extends GetxController {
             );
 
           rxShades.assignAll(validShades);
+
+          if (_openShadeWhenLoaded) {
+            _openShadeWhenLoaded = false;
+
+            focusShade();
+          }
         },
       );
     }
@@ -308,14 +318,48 @@ class LabdipEntryController extends GetxController {
     }
   }
 
-  /// Key of the Shade field, used to return the cursor there after a line
-  /// is added.
+  /// Key of the Shade field, used to open it after an Article is picked.
   final shadeDropdownKey = GlobalKey<DropdownSearchState<String>>();
 
   void focusShade() {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => shadeDropdownKey.currentState?.openDropDownSearch(),
     );
+  }
+
+  /// Set when the user picks an Article; Shade opens once the article's
+  /// shades are loaded.
+  bool _openShadeWhenLoaded = false;
+
+  /// Article picked by the user: the cursor moves on to Shade.
+  void onArticlePicked(String article) {
+    _openShadeWhenLoaded = article.trim().isNotEmpty && rxShade.value.isEmpty;
+  }
+
+  /// Set while [onShadePicked] clears the UOM, so the UOM listener does not
+  /// clear the Article with it.
+  bool _clearingForShade = false;
+
+  /// Shade cleared by the user: the UOM derived from it and the Ticket that
+  /// follows the UOM go blank too. Article stays.
+  void onShadePicked(String shade) {
+    if (shade.isNotEmpty) {
+      return;
+    }
+
+    _unlockUom();
+
+    _clearingForShade = true;
+
+    try {
+      rxUomWithDesc.value = '';
+
+      rxUom.value = '';
+
+      rxTicket.value = '';
+    } finally {
+      _clearingForShade = false;
+    }
   }
 
   /// Shade typed before UOM; restored after the UOM change resets shades.
@@ -575,12 +619,7 @@ class LabdipEntryController extends GetxController {
         rxArticle.value = uniqueFilteredArticles.first;
       }
 
-      if (hashCode != rxUom.hashCode && uniqueFilteredUoms.length == 1) {
-        rxUom.value = uniqueFilteredUoms.first;
-
-        rxUomWithDesc.value =
-            '${rxUom.value} - ${orderReviewController.getUomDescription(rxUom.value)}';
-      }
+      // UOM is not filled here: it follows from the shade (Sno 14).
 
       if (hashCode != rxBrand.hashCode && uniqueFilteredBrands.length == 1) {
         rxBrand.value = uniqueFilteredBrands.first;
@@ -725,25 +764,7 @@ class LabdipEntryController extends GetxController {
         mode: drift.InsertMode.insertOrReplace,
       );
 
-      clearAllInputs(
-        skipHashCodes: [
-          rxMerchandiser.hashCode,
-          rxBuyerName.hashCode,
-          _rxBuyerCode.hashCode,
-          if (isOtherBuyer) rxOtherBuyerName.hashCode,
-          rxFirstLightSource.hashCode,
-          rxSecondLightSource.hashCode,
-          rxEndUse.hashCode,
-          rxArticle.hashCode,
-          rxUomWithDesc.hashCode,
-          rxTicket.hashCode,
-          rxBrand.hashCode,
-          rxTex.hashCode,
-          rxSubstrate.hashCode,
-        ],
-      );
-
-      focusShade();
+      // Every field keeps its value for the next line.
     }
   }
 
@@ -808,18 +829,8 @@ class LabdipEntryController extends GetxController {
             ),
           );
 
+      // Back to adding; every field keeps the updated line's value.
       rxSelectedLabdipOrderLines.clear();
-
-      clearAllInputs(
-        skipHashCodes: [
-          rxMerchandiser.hashCode,
-          rxBuyerName.hashCode,
-          if (isOtherBuyer) rxOtherBuyerName.hashCode,
-          rxFirstLightSource.hashCode,
-          rxSecondLightSource.hashCode,
-          rxEndUse.hashCode,
-        ],
-      );
     }
   }
 

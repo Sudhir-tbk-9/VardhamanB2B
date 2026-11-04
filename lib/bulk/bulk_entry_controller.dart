@@ -240,7 +240,7 @@ class BulkEntryController extends GetxController {
     rxUom.listen(
       (_) {
         // Clearing UOM would otherwise clear the new Article as well.
-        if (!_resettingForArticle) {
+        if (!_resettingForArticle && !_clearingForShade) {
           selectIfOnlyOneOption(rxUom.hashCode);
         }
       },
@@ -354,6 +354,12 @@ class BulkEntryController extends GetxController {
                 .toList()
               ..sort(),
           );
+
+          if (_openShadeWhenLoaded) {
+            _openShadeWhenLoaded = false;
+
+            focusShade();
+          }
         },
       );
     }
@@ -364,14 +370,48 @@ class BulkEntryController extends GetxController {
   Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
       _shadeUomLookup.forArticle(article, catalogController.industryItems);
 
-  /// Key of the Shade field, used to return the cursor there after a line
-  /// is added.
+  /// Key of the Shade field, used to open it after an Article is picked.
   final shadeDropdownKey = GlobalKey<DropdownSearchState<String>>();
 
   void focusShade() {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => shadeDropdownKey.currentState?.openDropDownSearch(),
     );
+  }
+
+  /// Set when the user picks an Article; Shade opens once the article's
+  /// shades are loaded.
+  bool _openShadeWhenLoaded = false;
+
+  /// Article picked by the user: the cursor moves on to Shade.
+  void onArticlePicked(String article) {
+    _openShadeWhenLoaded = article.trim().isNotEmpty && rxShade.value.isEmpty;
+  }
+
+  /// Set while [onShadePicked] clears the UOM, so the UOM listener does not
+  /// clear the Article with it.
+  bool _clearingForShade = false;
+
+  /// Shade cleared by the user: the UOM derived from it and the Ticket that
+  /// follows the UOM go blank too. Article stays.
+  void onShadePicked(String shade) {
+    if (shade.isNotEmpty) {
+      return;
+    }
+
+    _unlockUom();
+
+    _clearingForShade = true;
+
+    try {
+      rxUomWithDesc.value = '';
+
+      rxUom.value = '';
+
+      rxTicket.value = '';
+    } finally {
+      _clearingForShade = false;
+    }
   }
 
   /// Shade typed before UOM; restored after the UOM change resets shades.
@@ -518,9 +558,7 @@ class BulkEntryController extends GetxController {
     }
 
     if (newShade.isEmpty) {
-      if (!_keepUomLock) {
-        _unlockUom();
-      }
+      _unlockUom();
     } else if (rxUom.value.trim().isEmpty ||
         (rxUomLocked.value && newShade != _autoUomShade)) {
       _autoSelectUom(newShade);
@@ -763,9 +801,7 @@ class BulkEntryController extends GetxController {
       final item = filteredItems.first;
 
       rxArticle.value = item.article;
-      rxUom.value = item.uom;
-      rxUomWithDesc.value =
-          '${rxUom.value} - ${orderReviewController.getUomDescription(rxUom.value)}';
+      // UOM is not filled here: it follows from the shade (Sno 14).
       rxBrand.value = item.brandDesc;
       rxSubstrate.value = item.substrateDesc;
       rxTex.value = item.tex;
@@ -918,34 +954,8 @@ class BulkEntryController extends GetxController {
         mode: drift.InsertMode.insertOrReplace,
       );
 
-      _clearForNextLine();
+      // Every field keeps its value for the next line.
     }
-  }
-
-  /// Set while Shade is cleared for the next line, so a UOM derived from the
-  /// shade (Sno 14) stays locked and is derived again for the next shade.
-  bool _keepUomLock = false;
-
-  /// After a line is added only Shade and Quantity are cleared. Article, UOM,
-  /// Ticket, Brand, Tex, Substrate and the other fields stay in controller
-  /// state until the Article changes; the cursor goes back to Shade.
-  void _clearForNextLine() {
-    // The shade listener clears Style No. together with the shade.
-    final styleNo = rxColor.value;
-
-    _keepUomLock = true;
-
-    try {
-      rxShade.value = '';
-    } finally {
-      _keepUomLock = false;
-    }
-
-    rxColor.value = styleNo;
-
-    rxQuantity.value = '';
-
-    focusShade();
   }
 
   String get buyerOrOtherName =>
@@ -1010,21 +1020,8 @@ class BulkEntryController extends GetxController {
             ),
           );
 
+      // Back to adding; every field keeps the updated line's value.
       rxSelectedBulkOrderLines.clear();
-
-      clearAllInputs(
-        skipHashCodes: [
-          rxMerchandiser.hashCode,
-          rxBuyerName.hashCode,
-          if (isOtherBuyer) rxOtherBuyerName.hashCode,
-          rxFirstLightSource.hashCode,
-          rxSecondLightSource.hashCode,
-          rxEndUse.hashCode,
-          rxRequestedDate.hashCode,
-          rxPoNumber.hashCode,
-          rxPoFileName.hashCode,
-        ],
-      );
     }
   }
 

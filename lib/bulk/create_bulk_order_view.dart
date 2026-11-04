@@ -416,6 +416,8 @@ class CreateBulkOrderView extends StatelessWidget {
                                                 hasError: bulkEntryController
                                                     .articleHasError,
                                                 labelText: 'Article',
+                                                onChanged: bulkEntryController
+                                                    .onArticlePicked,
                                                 isRequired: true,
                                                 rxString: bulkEntryController
                                                     .rxArticle,
@@ -543,6 +545,8 @@ class CreateBulkOrderView extends StatelessWidget {
                                                 hasError: bulkEntryController
                                                     .shadeHasError,
                                                 labelText: 'Shade',
+                                                onChanged: bulkEntryController
+                                                    .onShadePicked,
                                                 isRequired: true,
                                                 isEnabled: bulkEntryController
                                                     .rxArticle.isNotEmpty,

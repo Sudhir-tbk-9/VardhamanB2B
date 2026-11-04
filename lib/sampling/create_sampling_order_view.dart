@@ -299,6 +299,9 @@ class CreateSamplingOrderView extends StatelessWidget {
                                                     samplingEntryController
                                                         .articleHasError,
                                                 labelText: 'Article',
+                                                onChanged:
+                                                    samplingEntryController
+                                                        .onArticlePicked,
                                                 isRequired: true,
                                                 rxString:
                                                     samplingEntryController
@@ -444,6 +447,8 @@ class CreateSamplingOrderView extends StatelessWidget {
                                       hasError:
                                           samplingEntryController.shadeHasError,
                                       labelText: 'Shade',
+                                      onChanged: samplingEntryController
+                                          .onShadePicked,
                                       isRequired: true,
                                       isEnabled: samplingEntryController
                                           .rxArticle.isNotEmpty,
