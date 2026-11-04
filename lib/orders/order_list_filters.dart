@@ -9,25 +9,27 @@ import 'package:vardhman_b2b/orders/orders_controller.dart';
 /// today.
 enum OrderDateRange {
   today('Today'),
-  thisWeek('This Week'),
-  thisMonth('This Month'),
+  lastSevenDays('Last 7 Days'),
+  lastThirtyDays('Last 30 Days'),
   lastThreeMonths('Last 3 Months');
 
   final String label;
 
   const OrderDateRange(this.label);
 
-  /// First day of the range ending on [now]'s date. Weeks start on Monday.
+  /// First day of the range ending on [now]'s date; "Last 7 Days" is today
+  /// and the 6 days before it.
   DateTime startDate(DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
 
     switch (this) {
       case OrderDateRange.today:
         return today;
-      case OrderDateRange.thisWeek:
-        return today.subtract(Duration(days: today.weekday - DateTime.monday));
-      case OrderDateRange.thisMonth:
-        return DateTime(today.year, today.month);
+      case OrderDateRange.lastSevenDays:
+        // Calendar days, not 24 h steps, so a clock change cannot shift it.
+        return DateTime(today.year, today.month, today.day - 6);
+      case OrderDateRange.lastThirtyDays:
+        return DateTime(today.year, today.month, today.day - 29);
       case OrderDateRange.lastThreeMonths:
         // Same day three months back, or that month's last day when it is
         // shorter (31 May -> 28/29 Feb).

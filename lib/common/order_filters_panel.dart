@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
@@ -89,7 +88,10 @@ class OrderFiltersPanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 SecondaryButton(
                   wait: false,
-                  iconData: FontAwesomeIcons.arrowRotateLeft.data,
+                  // A Material icon: the Font Awesome one did not show in
+                  // the deployed web build.
+                  iconData: Icons.restart_alt,
+                  tooltip: 'Reset filters',
                   text: '',
                   onPressed:
                       filters.hasDefaultValues ? null : filters.setDefaultValues,

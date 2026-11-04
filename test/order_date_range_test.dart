@@ -9,20 +9,28 @@ void main() {
     expect(OrderDateRange.today.startDate(now), DateTime(2026, 10, 29));
   });
 
-  test('This Week starts on Monday', () {
-    expect(OrderDateRange.thisWeek.startDate(now), DateTime(2026, 10, 26));
+  test('Last 7 Days is today and the 6 days before', () {
     expect(
-      OrderDateRange.thisWeek.startDate(DateTime(2026, 10, 26, 9)),
-      DateTime(2026, 10, 26),
+      OrderDateRange.lastSevenDays.startDate(now),
+      DateTime(2026, 10, 23),
     );
+    // Across a month start.
     expect(
-      OrderDateRange.thisWeek.startDate(DateTime(2026, 11, 1)),
-      DateTime(2026, 10, 26),
+      OrderDateRange.lastSevenDays.startDate(DateTime(2026, 11, 3, 9)),
+      DateTime(2026, 10, 28),
     );
   });
 
-  test('This Month starts on the 1st', () {
-    expect(OrderDateRange.thisMonth.startDate(now), DateTime(2026, 10, 1));
+  test('Last 30 Days is today and the 29 days before', () {
+    expect(
+      OrderDateRange.lastThirtyDays.startDate(now),
+      DateTime(2026, 9, 30),
+    );
+    // Across a year start.
+    expect(
+      OrderDateRange.lastThirtyDays.startDate(DateTime(2027, 1, 10)),
+      DateTime(2026, 12, 12),
+    );
   });
 
   test('Last 3 Months goes back to the same day', () {

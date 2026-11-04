@@ -44,6 +44,7 @@ class DtmOrdersView extends StatelessWidget {
           HeaderView(
             leading: SecondaryButton(
               iconData: Icons.refresh,
+              tooltip: 'Refresh orders',
               text: '',
               onPressed: dtmController.refreshOrders,
             ),

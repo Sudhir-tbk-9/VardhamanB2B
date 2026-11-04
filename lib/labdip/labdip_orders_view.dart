@@ -48,6 +48,7 @@ class LabdipOrdersView extends StatelessWidget {
           HeaderView(
             leading: SecondaryButton(
               iconData: Icons.refresh,
+              tooltip: 'Refresh orders',
               text: '',
               onPressed: labdipController.refreshOrders,
             ),
@@ -113,13 +114,22 @@ class LabdipOrdersView extends StatelessWidget {
                         color: Colors.white,
                       ),
                       child: PagedOrdersTable(
-                        minWidth: 450,
+                        minWidth: 570,
                         controller: labdipController.paginatorController,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
                             headingRowAlignment: MainAxisAlignment.start,
-                            size: ColumnSize.L,
+                            size: ColumnSize.S,
+                          ),
+                          DataColumn2(
+                            label: Text(
+                              'Stitch Connect\nOrder No.',
+                              textAlign: TextAlign.center,
+                            ),
+                            headingRowAlignment: MainAxisAlignment.center,
+                            // Two-line heading: no wider than the references.
+                            fixedWidth: 120,
                           ),
                           DataColumn2(
                             label: Text('Date'),
@@ -190,6 +200,8 @@ class LabdipOrdersView extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                                // Not sent to Stitch Connect yet.
+                                const DataCell(SizedBox.shrink()),
                                 DataCell(
                                   Align(
                                     alignment: Alignment.center,
@@ -259,32 +271,18 @@ class LabdipOrdersView extends StatelessWidget {
                               },
                               cells: [
                                 DataCell(
+                                  Text(
+                                    orderHeaderLine.orderNumber.toString(),
+                                    style: textStyle,
+                                  ),
+                                ),
+                                DataCell(
                                   Align(
-                                    alignment: Alignment.centerRight,
-                                    child: DefaultTextStyle(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.orderReference.trim(),
                                       style: textStyle,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: <Widget>[
-                                          Text(
-                                            orderHeaderLine.orderNumber
-                                                .toString(),
-                                            textAlign: TextAlign.end,
-                                          ),
-                                          if (orderHeaderLine.orderReference
-                                              .trim()
-                                              .isNotEmpty) ...[
-                                            SizedBox(
-                                              width: 16,
-                                            ),
-                                            Text(
-                                              orderHeaderLine.orderReference,
-                                              textAlign: TextAlign.end,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/api/buyer_info.dart';
 import 'package:vardhman_b2b/api/order_detail_line.dart';
 import 'package:vardhman_b2b/api/order_header_line.dart';
+import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
 class OrdersController extends GetxController
@@ -35,15 +37,42 @@ class OrdersController extends GetxController
   /// True while the order headers are being fetched from JDE.
   bool get isLoading => _rxLoadCount.value > 0;
 
-  Future<void> refreshOrders() async {
-    _orderDetailLinesCache.clear();
+  Future<void>? _refreshing;
 
+  String? _refreshingSoldToNumber;
+
+  /// Reloads the order headers. A tap while the same customer's orders are
+  /// still loading waits for that load instead of starting another.
+  Future<void> refreshOrders() async {
     final customerSoldToNumber =
         _userController.rxCustomerDetail.value.soldToNumber;
 
+    if (_refreshing != null &&
+        _refreshingSoldToNumber == customerSoldToNumber) {
+      return _refreshing;
+    }
+
+    final refreshing = _refreshOrders(customerSoldToNumber);
+
+    _refreshing = refreshing;
+
+    _refreshingSoldToNumber = customerSoldToNumber;
+
+    try {
+      await refreshing;
+    } finally {
+      if (identical(_refreshing, refreshing)) {
+        _refreshing = null;
+
+        _refreshingSoldToNumber = null;
+      }
+    }
+  }
+
+  Future<void> _refreshOrders(String customerSoldToNumber) async {
     _rxLoadCount.value++;
 
-    final List<OrderHeaderLine> orderHeaderLines;
+    final List<OrderHeaderLine>? orderHeaderLines;
 
     try {
       orderHeaderLines =
@@ -51,6 +80,25 @@ class OrdersController extends GetxController
     } finally {
       _rxLoadCount.value--;
     }
+
+    // Another customer was picked meanwhile; its own load fills the lists.
+    if (customerSoldToNumber !=
+        _userController.rxCustomerDetail.value.soldToNumber) {
+      return;
+    }
+
+    // A failed load keeps the orders on screen rather than emptying the lists.
+    if (orderHeaderLines == null) {
+      toastification.show(
+        autoCloseDuration: const Duration(seconds: 3),
+        primaryColor: VardhmanColors.red,
+        title: const Text('Could not refresh orders. Please try again.'),
+      );
+
+      return;
+    }
+
+    _orderDetailLinesCache.clear();
 
     orderHeaderLines.sort(
       (a, b) {

@@ -120,7 +120,7 @@ class LabdipController extends GetxController with OrderListFilters {
         rxOrderFromDate.value =
             labdipOrders.lastOrNull?.orderDate ?? oldestDateTime;
 
-        // A quick range such as This Month outlasts a reload.
+        // A quick range such as Last 30 Days outlasts a reload.
         reapplyDateRange();
 
         refreshLabdipFeedbacks();

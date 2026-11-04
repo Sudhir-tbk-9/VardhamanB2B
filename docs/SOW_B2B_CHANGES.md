@@ -226,7 +226,7 @@ Lab Dip and Sampling: a single UOM is still filled in automatically, but not loc
 - **Knock-off per invoice**: after a payment, with nothing selected, the right panel shows **"Last payment P… · knock-off from JDE"**.
   - Columns: Invoice, PO, Paid, Knocked off, Open in JDE, JDE Receipt, Status.
   - Values come from JDE: `ORCH5503B11A` open amounts, `F550313Z` processing, and the `F03B14` receipt number and date.
-- **SMS**: `ORCH55_SendSMSNotification` with the receipt number when the payment entry is created (invoice and advance payments), if the customer allows SMS.
+- **SMS**: `ORCH55_SendSMSNotification_B2B` with the receipt number when the payment entry is created (invoice and advance payments), if the customer allows SMS.
 
 ### Click-through test
 

@@ -193,7 +193,7 @@ class Api {
       };
     }
 
-    if (path.endsWith('/ORCH55_SendSMSNotification')) {
+    if (path.endsWith('/ORCH55_SendSMSNotification_B2B')) {
       return 'Order SMS';
     }
 
@@ -446,7 +446,7 @@ class Api {
       {required String orderNumber, required String mobileNumber}) async {
     try {
       await _dio.post(
-        '/orchestrator/ORCH55_SendSMSNotification',
+        '/orchestrator/ORCH55_SendSMSNotification_B2B',
         data: {
           "OrderNumber": orderNumber,
           "Mobilenumber": mobileNumber,
@@ -1536,7 +1536,9 @@ class Api {
     return samplingRejections;
   }
 
-  static Future<List<OrderHeaderLine>> fetchOrders({
+  /// Null when JDE could not be reached or refused the request, so a failed
+  /// reload is not mistaken for a customer without orders.
+  static Future<List<OrderHeaderLine>?> fetchOrders({
     required String soldToNumber,
     DateTime? fromDate,
   }) async {
@@ -1588,9 +1590,15 @@ class Api {
             log('fetchOrders skipped ${orderStatus['OrderNumber']} - $e');
           }
         }
+      } else {
+        log('fetchOrders status ${response.statusCode}');
+
+        return null;
       }
     } catch (e) {
       log('fetchOrders error - $e');
+
+      return null;
     }
 
     return orderHeaderLines;

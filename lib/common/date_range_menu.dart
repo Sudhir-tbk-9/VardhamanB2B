@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
 
-/// "Range ▾" next to an order list's From / To dates: Today, This Week, ...
+/// "Range ▾" next to an order list's From / To dates: Today, Last 7 Days, ...
 /// fill both dates. The date fields still open the calendar for any other
 /// range.
 class DateRangeMenu extends StatelessWidget {

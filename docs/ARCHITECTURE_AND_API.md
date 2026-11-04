@@ -702,7 +702,7 @@ name. For `LD`/`SA` the PO number and colour are dropped from those fields.
 
 | Dart function | Endpoint | Payload | Response |
 |---|---|---|---|
-| `sendOrderEntrySMS` `:222` | `ORCH55_SendSMSNotification` | `OrderNumber`, `Mobilenumber` | ignored |
+| `sendOrderEntrySMS` `:222` | `ORCH55_SendSMSNotification_B2B` | `OrderNumber`, `Mobilenumber` | ignored |
 | `sendOrderEntryWhatsApp` `:237` | Airtel `…/whatsapp-manager/v1/template/send` | `templateId:'01jj1c8ddqvjdd5v9hp63d850p'`, `to`, `from:'9313503051'`, `message.headerVars=[orderNumber]`, `message.variables=[orderNumber]` | logged only |
 
 A direct Airtel Bulk SMS integration is present but **fully commented out**

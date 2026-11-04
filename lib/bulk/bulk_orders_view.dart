@@ -44,6 +44,7 @@ class BulkOrdersView extends StatelessWidget {
           HeaderView(
             leading: SecondaryButton(
               iconData: Icons.refresh,
+              tooltip: 'Refresh orders',
               text: '',
               onPressed: bulkController.refreshOrders,
             ),
@@ -109,13 +110,22 @@ class BulkOrdersView extends StatelessWidget {
                         color: Colors.white,
                       ),
                       child: PagedOrdersTable(
-                        minWidth: 600,
+                        minWidth: 720,
                         controller: bulkController.paginatorController,
                         columns: const [
                           DataColumn2(
                             label: Text('Order No.'),
                             headingRowAlignment: MainAxisAlignment.start,
-                            size: ColumnSize.L,
+                            size: ColumnSize.S,
+                          ),
+                          DataColumn2(
+                            label: Text(
+                              'Stitch Connect\nOrder No.',
+                              textAlign: TextAlign.center,
+                            ),
+                            headingRowAlignment: MainAxisAlignment.center,
+                            // Two-line heading: no wider than the references.
+                            fixedWidth: 120,
                           ),
                           DataColumn2(
                             label: Text('Date'),
@@ -195,6 +205,8 @@ class BulkOrdersView extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                                // Not sent to Stitch Connect yet.
+                                const DataCell(SizedBox.shrink()),
                                 DataCell(
                                   Align(
                                     alignment: Alignment.center,
@@ -276,32 +288,18 @@ class BulkOrdersView extends StatelessWidget {
                               },
                               cells: [
                                 DataCell(
+                                  Text(
+                                    orderHeaderLine.orderNumber.toString(),
+                                    style: textStyle,
+                                  ),
+                                ),
+                                DataCell(
                                   Align(
-                                    alignment: Alignment.centerRight,
-                                    child: DefaultTextStyle(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.orderReference.trim(),
                                       style: textStyle,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: <Widget>[
-                                          Text(
-                                            orderHeaderLine.orderNumber
-                                                .toString(),
-                                            textAlign: TextAlign.end,
-                                          ),
-                                          if (orderHeaderLine.orderReference
-                                              .trim()
-                                              .isNotEmpty) ...[
-                                            SizedBox(
-                                              width: 16,
-                                            ),
-                                            Text(
-                                              orderHeaderLine.orderReference,
-                                              textAlign: TextAlign.end,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ),

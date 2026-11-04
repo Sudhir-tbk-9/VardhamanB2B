@@ -5,6 +5,8 @@ class SecondaryButton extends StatefulWidget {
   final Future<void> Function()? onPressed;
   final String text;
   final IconData? iconData;
+  /// Shown on hover / long press; names an icon-only button.
+  final String? tooltip;
   /// Pause 500 ms before running [onPressed]. Off by default: the spinner
   /// already shows while the action runs, and the pause made every tap lag.
   final bool wait;
@@ -12,6 +14,7 @@ class SecondaryButton extends StatefulWidget {
   const SecondaryButton({
     super.key,
     this.iconData,
+    this.tooltip,
     required this.text,
     required this.onPressed,
     this.wait = false,
@@ -26,7 +29,7 @@ class _SecondaryButtonState extends State<SecondaryButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final button = GestureDetector(
       onTap: () async {
         if (widget.onPressed != null && !isProcessing) {
           setState(() {
@@ -107,5 +110,9 @@ class _SecondaryButtonState extends State<SecondaryButton> {
         ),
       ),
     );
+
+    return widget.tooltip == null
+        ? button
+        : Tooltip(message: widget.tooltip!, child: button);
   }
 }

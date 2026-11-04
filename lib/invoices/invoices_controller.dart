@@ -153,6 +153,11 @@ class InvoicesController extends GetxController
       fromDate: fromDate.subtract(const Duration(days: 180)),
     );
 
+    // Not reached: keep the PO numbers already shown.
+    if (orderHeaderLines == null) {
+      return;
+    }
+
     rxPoNumbers.assignAll({
       for (final orderHeaderLine in orderHeaderLines)
         if (orderHeaderLine.poNumber.trim().isNotEmpty)
