@@ -58,3 +58,6 @@ key.properties
 **/__pycache__/
 *.bak
 ROUGH.txt
+
+# Stray Flutter screenshots
+flutter_*.png
