@@ -13,6 +13,8 @@ import 'package:vardhman_b2b/common/catalog_search_field.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/labdip/labdip_entry_controller.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
+import 'package:vardhman_b2b/common/form_section.dart';
+import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/breakpoints.dart';
@@ -32,6 +34,8 @@ class CreateLabdipOrderView extends StatelessWidget {
         children: <Widget>[
           HeaderView(
             elevation: 4,
+            // Slim: leaves the form room to fit without scrolling.
+            dense: true,
             leading: SecondaryButton(
               wait: false,
               iconData: Icons.arrow_back_ios_new,
@@ -40,19 +44,9 @@ class CreateLabdipOrderView extends StatelessWidget {
                 Get.back();
               },
             ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'New Labdip Order',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+            title: OrderFormTitle(
+              icon: Icons.palette_outlined,
+              title: 'New Labdip Order',
             ),
             trailing: DefaultTextStyle(
               style: const TextStyle(
@@ -67,13 +61,16 @@ class CreateLabdipOrderView extends StatelessWidget {
             ),
           ),
           const ShipToBar(),
-          // Flexible + scroll: on a short or narrow window the form
-          // scrolls and the lines table below keeps at least half the
-          // height.
-          Flexible(
+          // The form takes the height it needs, so it does not scroll; the
+          // lines table below gets the rest. Only a window too short for the
+          // form and a few lines makes it scroll.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: formMaxHeight(context),
+            ),
             child: SingleChildScrollView(
               child: Container(
-                color: VardhmanColors.dividerGrey.withAlpha(128),
+                color: Colors.white,
                 padding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -86,77 +83,79 @@ class CreateLabdipOrderView extends StatelessWidget {
                     // Same test as the AdaptiveRows below.
                     final isNarrow = constraints.maxWidth < Breakpoints.formRow;
 
-                    final actions = AdaptiveRow(
-                      narrowLayout: NarrowLayout.wrap,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            text: '*',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                    final actions = FormActionsBar(
+                      child: AdaptiveRow(
+                        narrowLayout: NarrowLayout.wrap,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              text: '*',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: ' required field',
+                                  style: TextStyle(
+                                    color: VardhmanColors.darkGrey,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              ],
                             ),
-                            children: [
-                              TextSpan(
-                                text: ' required field',
-                                style: TextStyle(
-                                  color: VardhmanColors.darkGrey,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            ],
                           ),
-                        ),
-                        Spacer(),
-                        SecondaryButton(
-                          wait: false,
-                          text: 'Clear Inputs',
-                          onPressed: !labdipEntryController.canClearInputs
-                              ? null
-                              : () async {
-                                  labdipEntryController.clearAllInputs();
+                          Spacer(),
+                          SecondaryButton(
+                            wait: false,
+                            text: 'Clear Inputs',
+                            onPressed: !labdipEntryController.canClearInputs
+                                ? null
+                                : () async {
+                                    labdipEntryController.clearAllInputs();
 
-                                  labdipEntryController
-                                      .rxSelectedLabdipOrderLines
-                                      .clear();
-                                },
-                        ),
-                        Spacer(),
-                        PrimaryButton(
-                          text: 'Add Line',
-                          onPressed: labdipEntryController
-                                  .rxSelectedLabdipOrderLines.isNotEmpty
-                              ? null
-                              : () async {
-                                  labdipEntryController.addLapdipOrderLine();
-                                },
-                        ),
-                        Spacer(),
-                        PrimaryButton(
-                          text: 'Update',
-                          onPressed: labdipEntryController
-                                      .rxSelectedLabdipOrderLines.length ==
-                                  1
-                              ? () async {
-                                  labdipEntryController.updateLapdipOrderLine();
-                                }
-                              : null,
-                        ),
-                        Spacer(),
-                        PrimaryButton(
-                          text: 'Delete',
-                          onPressed: labdipEntryController
-                                  .rxSelectedLabdipOrderLines.isEmpty
-                              ? null
-                              : () async {
-                                  labdipEntryController.deleteSelectedLines();
-                                },
-                        ),
-                        Spacer(),
-                      ],
+                                    labdipEntryController
+                                        .rxSelectedLabdipOrderLines
+                                        .clear();
+                                  },
+                          ),
+                          Spacer(),
+                          PrimaryButton(
+                            text: 'Add Line',
+                            onPressed: labdipEntryController
+                                    .rxSelectedLabdipOrderLines.isNotEmpty
+                                ? null
+                                : () async {
+                                    labdipEntryController.addLapdipOrderLine();
+                                  },
+                          ),
+                          Spacer(),
+                          PrimaryButton(
+                            text: 'Update',
+                            onPressed: labdipEntryController
+                                        .rxSelectedLabdipOrderLines.length ==
+                                    1
+                                ? () async {
+                                    labdipEntryController.updateLapdipOrderLine();
+                                  }
+                                : null,
+                          ),
+                          Spacer(),
+                          PrimaryButton(
+                            text: 'Delete',
+                            onPressed: labdipEntryController
+                                    .rxSelectedLabdipOrderLines.isEmpty
+                                ? null
+                                : () async {
+                                    labdipEntryController.deleteSelectedLines();
+                                  },
+                          ),
+                          Spacer(),
+                        ],
+                      ),
                     );
 
                     return AdaptiveRow(
@@ -175,234 +174,232 @@ class CreateLabdipOrderView extends StatelessWidget {
                                 children: <Widget>[
                                   Expanded(
                                     flex: 4,
-                                    child: Column(
-                                      children: <Widget>[
-                                        CatalogSearchField(
-                                          isRequired: true,
-                                          labelText: 'Merchandiser',
-                                          rxString: labdipEntryController
-                                              .rxMerchandiser,
-                                          searchList: labdipEntryController
-                                              .rxMerchandisers,
-                                          shouldEnforceList: false,
-                                          hasError: labdipEntryController
-                                              .merchandiserHasError,
-                                          inputFormatters: [capitalFormatter],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                hasError: labdipEntryController
-                                                    .buyerNameHasError,
-                                                labelText: 'Buyer',
-                                                isRequired: true,
-                                                rxString: labdipEntryController
-                                                    .rxBuyerName,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .buyerNames,
-                                              ),
-                                            ),
-                                            if (labdipEntryController
-                                                .isOtherBuyer) ...[
-                                              SizedBox(
-                                                width: 8,
-                                              ),
+                                    child: FormSection(
+                                      title: 'Order & Buyer',
+                                      icon: Icons.assignment_outlined,
+                                      child: Column(
+                                        children: <Widget>[
+                                          CatalogSearchField(
+                                            isRequired: true,
+                                            labelText: 'Merchandiser',
+                                            rxString: labdipEntryController
+                                                .rxMerchandiser,
+                                            searchList: labdipEntryController
+                                                .rxMerchandisers,
+                                            shouldEnforceList: false,
+                                            hasError: labdipEntryController
+                                                .merchandiserHasError,
+                                            inputFormatters: [capitalFormatter],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
                                               Expanded(
-                                                child: NewOrderTextField(
+                                                child: CatalogSearchField(
                                                   inputFormatters: [
                                                     capitalFormatter
                                                   ],
                                                   hasError: labdipEntryController
-                                                      .otherBuyerNameHasError,
-                                                  labelText: 'Name',
+                                                      .buyerNameHasError,
+                                                  labelText: 'Buyer',
                                                   isRequired: true,
-                                                  rxString:
+                                                  rxString: labdipEntryController
+                                                      .rxBuyerName,
+                                                  searchList:
                                                       labdipEntryController
-                                                          .rxOtherBuyerName,
+                                                          .buyerNames,
                                                 ),
                                               ),
-                                            ]
-                                          ],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isSearchboxEnabled: false,
-                                                hasError: labdipEntryController
-                                                    .firstLightSourceHasError,
-                                                isRequired: true,
-                                                isEnabled: labdipEntryController
-                                                    .isLightSource1Enabled,
-                                                labelText: 'Light Source 1',
-                                                rxString: labdipEntryController
-                                                    .rxFirstLightSource,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .firstLightSources,
+                                              if (labdipEntryController
+                                                  .isOtherBuyer) ...[
+                                                SizedBox(
+                                                  width: 8,
+                                                ),
+                                                Expanded(
+                                                  child: NewOrderTextField(
+                                                    inputFormatters: [
+                                                      capitalFormatter
+                                                    ],
+                                                    hasError: labdipEntryController
+                                                        .otherBuyerNameHasError,
+                                                    labelText: 'Name',
+                                                    isRequired: true,
+                                                    rxString:
+                                                        labdipEntryController
+                                                            .rxOtherBuyerName,
+                                                  ),
+                                                ),
+                                              ]
+                                            ],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isSearchboxEnabled: false,
+                                                  hasError: labdipEntryController
+                                                      .firstLightSourceHasError,
+                                                  isRequired: true,
+                                                  isEnabled: labdipEntryController
+                                                      .isLightSource1Enabled,
+                                                  labelText: 'Light Source 1',
+                                                  rxString: labdipEntryController
+                                                      .rxFirstLightSource,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .firstLightSources,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 8,
-                                            ),
-                                            Expanded(
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isSearchboxEnabled: false,
-                                                isEnabled: labdipEntryController
-                                                    .isLightSource2Enabled,
-                                                labelText: 'Light Source 2',
-                                                rxString: labdipEntryController
-                                                    .rxSecondLightSource,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .secondLightSources,
+                                              SizedBox(
+                                                width: 8,
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                              Expanded(
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isSearchboxEnabled: false,
+                                                  isEnabled: labdipEntryController
+                                                      .isLightSource2Enabled,
+                                                  labelText: 'Light Source 2',
+                                                  rxString: labdipEntryController
+                                                      .rxSecondLightSource,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .secondLightSources,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   Spacer(),
                                   Expanded(
                                     flex: 4,
-                                    child: Column(
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                hasError: labdipEntryController
-                                                    .articleHasError,
-                                                labelText: 'Article',
-                                                onChanged:
-                                                    labdipEntryController
-                                                        .onArticlePicked,
-                                                isRequired: true,
-                                                rxString: labdipEntryController
-                                                    .rxArticle,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .uniqueFilteredArticles,
+                                    child: FormSection(
+                                      title: 'Article & Shade',
+                                      icon: Icons.category_outlined,
+                                      child: Column(
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  hasError: labdipEntryController
+                                                      .articleHasError,
+                                                  labelText: 'Article',
+                                                  onChanged:
+                                                      labdipEntryController
+                                                          .onArticlePicked,
+                                                  isRequired: true,
+                                                  rxString: labdipEntryController
+                                                      .rxArticle,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .uniqueFilteredArticles,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isRequired: true,
-                                                hasError: labdipEntryController
-                                                    .uomHasError,
-                                                // Article -> Shade -> UOM: UOM follows
-                                                // from the shade (Sno 14).
-                                                isEnabled:
-                                                    !labdipEntryController.rxUomLocked.value &&
-                                                        (labdipEntryController.rxShade
-                                                                .isNotEmpty ||
-                                                            labdipEntryController.rxUom
-                                                                .isNotEmpty),
-                                                dropdownKey: labdipEntryController
-                                                    .uomDropdownKey,
-                                                labelText: 'UOM',
-                                                rxString: labdipEntryController
-                                                    .rxUomWithDesc,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .uomChoices
-                                                        .map(
-                                                  (uom) {
-                                                    return '$uom - ${orderReviewController.getUomDescription(uom)}';
-                                                  },
-                                                ).toList(),
+                                              SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [capitalFormatter],
+                                                  hasError:
+                                                      labdipEntryController.shadeHasError,
+                                                  labelText: 'Shade',
+                                                  onChanged:
+                                                      labdipEntryController.onShadePicked,
+                                                  isRequired: true,
+                                                  isEnabled: labdipEntryController
+                                                      .rxArticle.isNotEmpty,
+                                                  rxString: labdipEntryController.rxShade,
+                                                  dropdownKey: labdipEntryController
+                                                      .shadeDropdownKey,
+                                                  searchList:
+                                                      labdipEntryController.rxShades,
+                                                  shouldEnforceList: false,
+                                                  invalidList:
+                                                      labdipEntryController.skipShades,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isEnabled: false,
-                                                labelText: 'Ticket',
-                                                rxString: labdipEntryController
-                                                    .rxTicket,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .uniqueFilteredTickets,
+                                            ],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isEnabled: false,
+                                                  labelText: 'Ticket',
+                                                  rxString: labdipEntryController
+                                                      .rxTicket,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .uniqueFilteredTickets,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Brand',
-                                                rxString: labdipEntryController
-                                                    .rxBrand,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .uniqueFilteredBrands,
+                                              SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Brand',
+                                                  rxString: labdipEntryController
+                                                      .rxBrand,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .uniqueFilteredBrands,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Tex',
-                                                rxString:
-                                                    labdipEntryController.rxTex,
-                                                searchList:
-                                                    labdipEntryController
-                                                        .uniqueFilteredTexs,
+                                            ],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Tex',
+                                                  rxString:
+                                                      labdipEntryController.rxTex,
+                                                  searchList:
+                                                      labdipEntryController
+                                                          .uniqueFilteredTexs,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Substrate',
-                                                rxString: labdipEntryController
-                                                    .rxSubstrate,
-                                                searchList: labdipEntryController
-                                                    .uniqueFilteredSubstrates,
+                                              SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Substrate',
+                                                  rxString: labdipEntryController
+                                                      .rxSubstrate,
+                                                  searchList: labdipEntryController
+                                                      .uniqueFilteredSubstrates,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -419,172 +416,186 @@ class CreateLabdipOrderView extends StatelessWidget {
                         Spacer(),
                         Expanded(
                           flex: 4,
-                          child: Column(
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: CatalogSearchField(
-                                      inputFormatters: [capitalFormatter],
-                                      hasError:
-                                          labdipEntryController.shadeHasError,
-                                      labelText: 'Shade',
-                                      onChanged:
-                                          labdipEntryController.onShadePicked,
-                                      isRequired: true,
-                                      isEnabled: labdipEntryController
-                                          .rxArticle.isNotEmpty,
-                                      rxString: labdipEntryController.rxShade,
-                                      dropdownKey: labdipEntryController
-                                          .shadeDropdownKey,
-                                      searchList:
-                                          labdipEntryController.rxShades,
-                                      shouldEnforceList: false,
-                                      invalidList:
-                                          labdipEntryController.skipShades,
+                          child: FormSection(
+                            title: 'Line Details',
+                            icon: Icons.tune,
+                            child: Column(
+                              children: <Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: CatalogSearchField(
+                                        inputFormatters: [
+                                          capitalFormatter
+                                        ],
+                                        isRequired: true,
+                                        hasError: labdipEntryController
+                                            .uomHasError,
+                                        // Article -> Shade -> UOM: UOM follows
+                                        // from the shade (Sno 14).
+                                        isEnabled:
+                                            !labdipEntryController.rxUomLocked.value &&
+                                                (labdipEntryController.rxShade
+                                                        .isNotEmpty ||
+                                                    labdipEntryController.rxUom
+                                                        .isNotEmpty),
+                                        dropdownKey: labdipEntryController
+                                            .uomDropdownKey,
+                                        labelText: 'UOM',
+                                        rxString: labdipEntryController
+                                            .rxUomWithDesc,
+                                        searchList:
+                                            labdipEntryController
+                                                .uomChoices
+                                                .map(
+                                          (uom) {
+                                            return '$uom - ${orderReviewController.getUomDescription(uom)}';
+                                          },
+                                        ).toList(),
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: 8,
-                                  ),
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      inputFormatters: [capitalFormatter],
-                                      hasError:
-                                          labdipEntryController.colorHasError,
-                                      labelText: 'Color Name',
-                                      rxString: labdipEntryController.rxColor,
-                                      isRequired:
-                                          labdipEntryController.isSwatchShade,
-                                      isEnabled:
-                                          labdipEntryController.isSwatchShade,
+                                    SizedBox(
+                                      width: 8,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      labelText: 'L',
-                                      rxString: labdipEntryController.rxL,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'^-?\d*\.?\d*'),
-                                        ),
-                                      ],
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        inputFormatters: [capitalFormatter],
+                                        hasError:
+                                            labdipEntryController.colorHasError,
+                                        labelText: 'Color Name',
+                                        rxString: labdipEntryController.rxColor,
+                                        isRequired:
+                                            labdipEntryController.isSwatchShade,
+                                        isEnabled:
+                                            labdipEntryController.isSwatchShade,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: 8,
-                                  ),
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      labelText: 'A',
-                                      hasError:
-                                          labdipEntryController.rxAHasError,
-                                      isEnabled:
-                                          labdipEntryController.rxL.isNotEmpty,
-                                      isRequired:
-                                          labdipEntryController.rxL.isNotEmpty,
-                                      rxString: labdipEntryController.rxA,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'^-?\d*\.?\d*'),
-                                        ),
-                                      ],
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        labelText: 'L',
+                                        rxString: labdipEntryController.rxL,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: 8,
-                                  ),
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      labelText: 'B',
-                                      hasError:
-                                          labdipEntryController.rxBHasError,
-                                      isEnabled:
-                                          labdipEntryController.rxA.isNotEmpty,
-                                      isRequired:
-                                          labdipEntryController.rxA.isNotEmpty,
-                                      rxString: labdipEntryController.rxB,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'^-?\d*\.?\d*'),
-                                        ),
-                                      ],
+                                    SizedBox(
+                                      width: 8,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      isEnabled: false,
-                                      labelText:
-                                          'File Upload (QTX/XML Files Only)',
-                                      rxString:
-                                          labdipEntryController.rxFileName,
-                                      hintText: 'no file chosen',
-                                      trailingWidget: labdipEntryController
-                                              .rxFileName.isEmpty
-                                          ? SecondaryButton(
-                                              wait: false,
-                                              text: 'Choose File',
-                                              onPressed: () async {
-                                                final FilePickerResult?
-                                                    filePickerResult =
-                                                    await FilePicker.platform
-                                                        .pickFiles(
-                                                  type: FileType.custom,
-                                                  allowedExtensions: [
-                                                    'qtx',
-                                                    'xml'
-                                                  ],
-                                                  withData: true,
-                                                  readSequential: true,
-                                                );
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        labelText: 'A',
+                                        hasError:
+                                            labdipEntryController.rxAHasError,
+                                        isEnabled:
+                                            labdipEntryController.rxL.isNotEmpty,
+                                        isRequired:
+                                            labdipEntryController.rxL.isNotEmpty,
+                                        rxString: labdipEntryController.rxA,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 8,
+                                    ),
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        labelText: 'B',
+                                        hasError:
+                                            labdipEntryController.rxBHasError,
+                                        isEnabled:
+                                            labdipEntryController.rxA.isNotEmpty,
+                                        isRequired:
+                                            labdipEntryController.rxA.isNotEmpty,
+                                        rxString: labdipEntryController.rxB,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        isEnabled: false,
+                                        labelText:
+                                            'File Upload (QTX/XML Files Only)',
+                                        rxString:
+                                            labdipEntryController.rxFileName,
+                                        hintText: 'no file chosen',
+                                        trailingWidget: labdipEntryController
+                                                .rxFileName.isEmpty
+                                            ? SecondaryButton(
+                                                wait: false,
+                                                text: 'Choose File',
+                                                onPressed: () async {
+                                                  final FilePickerResult?
+                                                      filePickerResult =
+                                                      await FilePicker.platform
+                                                          .pickFiles(
+                                                    type: FileType.custom,
+                                                    allowedExtensions: [
+                                                      'qtx',
+                                                      'xml'
+                                                    ],
+                                                    withData: true,
+                                                    readSequential: true,
+                                                  );
 
-                                                if (filePickerResult != null) {
-                                                  final file = filePickerResult
-                                                      .files.single;
+                                                  if (filePickerResult != null) {
+                                                    final file = filePickerResult
+                                                        .files.single;
+
+                                                    labdipEntryController
+                                                        .rxFileName
+                                                        .value = file.name;
+
+                                                    labdipEntryController
+                                                        .rxFileBytes
+                                                        .value = file.bytes;
+                                                  }
+                                                },
+                                              )
+                                            : SecondaryButton(
+                                                wait: false,
+                                                iconData: Icons.clear,
+                                                text: '',
+                                                onPressed: () async {
+                                                  labdipEntryController
+                                                      .rxFileName.value = '';
 
                                                   labdipEntryController
-                                                      .rxFileName
-                                                      .value = file.name;
-
-                                                  labdipEntryController
-                                                      .rxFileBytes
-                                                      .value = file.bytes;
-                                                }
-                                              },
-                                            )
-                                          : SecondaryButton(
-                                              wait: false,
-                                              iconData: Icons.clear,
-                                              text: '',
-                                              onPressed: () async {
-                                                labdipEntryController
-                                                    .rxFileName.value = '';
-
-                                                labdipEntryController
-                                                    .rxFileBytes.value = null;
-                                              },
-                                            ),
+                                                      .rxFileBytes.value = null;
+                                                },
+                                              ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              NewOrderTextField(
-                                labelText: 'Remark',
-                                inputFormatters: [capitalFormatter],
-                                rxString: labdipEntryController.rxRemark,
-                                hintText:
-                                    'Mention Request Type, End Use....etc',
-                              ),
-                            ],
+                                  ],
+                                ),
+                                NewOrderTextField(
+                                  labelText: 'Remark',
+                                  inputFormatters: [capitalFormatter],
+                                  rxString: labdipEntryController.rxRemark,
+                                  hintText:
+                                      'Mention Request Type, End Use....etc',
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         Spacer(),

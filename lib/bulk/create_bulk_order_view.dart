@@ -16,6 +16,8 @@ import 'package:vardhman_b2b/common/catalog_search_field.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/bulk/bulk_entry_controller.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
+import 'package:vardhman_b2b/common/form_section.dart';
+import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 
@@ -34,6 +36,8 @@ class CreateBulkOrderView extends StatelessWidget {
         children: <Widget>[
           HeaderView(
             elevation: 4,
+            // Slim: leaves the form room to fit without scrolling.
+            dense: true,
             leading: SecondaryButton(
               wait: false,
               iconData: Icons.arrow_back_ios_new,
@@ -42,19 +46,9 @@ class CreateBulkOrderView extends StatelessWidget {
                 Get.back();
               },
             ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'New Bulk Order',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+            title: OrderFormTitle(
+              icon: Icons.inventory_2_outlined,
+              title: 'New Bulk Order',
             ),
             trailing: DefaultTextStyle(
               style: const TextStyle(
@@ -124,13 +118,16 @@ class CreateBulkOrderView extends StatelessWidget {
             ),
           ),
           const ShipToBar(),
-          // Flexible + scroll: on a short or narrow window the form
-          // scrolls and the lines table below keeps at least half the
-          // height.
-          Flexible(
+          // The form takes the height it needs, so it does not scroll; the
+          // lines table below gets the rest. Only a window too short for the
+          // form and a few lines makes it scroll.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: formMaxHeight(context),
+            ),
             child: SingleChildScrollView(
               child: Container(
-                color: VardhmanColors.dividerGrey.withAlpha(128),
+                color: Colors.white,
                 padding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -140,91 +137,93 @@ class CreateBulkOrderView extends StatelessWidget {
                   // fields enabled by other fields (Shade after Article, UOM
                   // after Shade) would otherwise never update.
                   builder: (context, constraints) => Obx(() {
-                    final actions = AdaptiveRow(
-                      narrowLayout: NarrowLayout.wrap,
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            text: '*',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                    final actions = FormActionsBar(
+                      child: AdaptiveRow(
+                        narrowLayout: NarrowLayout.wrap,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              text: '*',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: ' required field',
+                                  style: TextStyle(
+                                    color: VardhmanColors.darkGrey,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              ],
                             ),
-                            children: [
-                              TextSpan(
-                                text: ' required field',
-                                style: TextStyle(
-                                  color: VardhmanColors.darkGrey,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            ],
                           ),
-                        ),
-                        SecondaryButton(
-                          wait: false,
-                          text: 'Clear Inputs',
-                          onPressed: !bulkEntryController.canClearInputs
-                              ? null
-                              : () async {
-                                  bulkEntryController.clearAllInputs();
+                          SecondaryButton(
+                            wait: false,
+                            text: 'Clear Inputs',
+                            onPressed: !bulkEntryController.canClearInputs
+                                ? null
+                                : () async {
+                                    bulkEntryController.clearAllInputs();
 
-                                  bulkEntryController.rxSelectedBulkOrderLines
-                                      .clear();
-                                },
-                        ),
-                        PrimaryButton(
-                          text: 'Add Line',
-                          onPressed: bulkEntryController
-                                  .rxSelectedBulkOrderLines.isNotEmpty
-                              ? null
-                              : () async {
-                                  bulkEntryController.addBulkOrderLine();
-                                },
-                        ),
-                        PrimaryButton(
-                          text: 'Update',
-                          onPressed: bulkEntryController
-                                      .rxSelectedBulkOrderLines.length ==
-                                  1
-                              ? () async {
-                                  bulkEntryController.updateBulkOrderLine();
-                                }
-                              : null,
-                        ),
-                        PrimaryButton(
-                          text: 'Delete',
-                          onPressed: bulkEntryController
-                                  .rxSelectedBulkOrderLines.isEmpty
-                              ? null
-                              : () async {
-                                  bulkEntryController.deleteSelectedLines();
-                                },
-                        ),
-                        SecondaryButton(
-                          text: 'Sample Excel',
-                          onPressed: () async {
-                            final ByteData data = await rootBundle
-                                .load('assets/bulk_import.xlsx');
+                                    bulkEntryController.rxSelectedBulkOrderLines
+                                        .clear();
+                                  },
+                          ),
+                          PrimaryButton(
+                            text: 'Add Line',
+                            onPressed: bulkEntryController
+                                    .rxSelectedBulkOrderLines.isNotEmpty
+                                ? null
+                                : () async {
+                                    bulkEntryController.addBulkOrderLine();
+                                  },
+                          ),
+                          PrimaryButton(
+                            text: 'Update',
+                            onPressed: bulkEntryController
+                                        .rxSelectedBulkOrderLines.length ==
+                                    1
+                                ? () async {
+                                    bulkEntryController.updateBulkOrderLine();
+                                  }
+                                : null,
+                          ),
+                          PrimaryButton(
+                            text: 'Delete',
+                            onPressed: bulkEntryController
+                                    .rxSelectedBulkOrderLines.isEmpty
+                                ? null
+                                : () async {
+                                    bulkEntryController.deleteSelectedLines();
+                                  },
+                          ),
+                          SecondaryButton(
+                            text: 'Sample Excel',
+                            onPressed: () async {
+                              final ByteData data = await rootBundle
+                                  .load('assets/bulk_import.xlsx');
 
-                            final Uint8List bytes = data.buffer.asUint8List();
+                              final Uint8List bytes = data.buffer.asUint8List();
 
-                            await FileSaver.instance.saveFile(
-                              name: 'bulk_import',
-                              bytes: bytes,
-                              ext: 'xlsx',
-                              mimeType: MimeType.microsoftExcel,
-                            );
-                          },
-                        ),
-                        SecondaryButton(
-                          text: 'Import Excel',
-                          onPressed: bulkEntryController.importExcel,
-                        ),
-                      ],
+                              await FileSaver.instance.saveFile(
+                                name: 'bulk_import',
+                                bytes: bytes,
+                                ext: 'xlsx',
+                                mimeType: MimeType.microsoftExcel,
+                              );
+                            },
+                          ),
+                          SecondaryButton(
+                            text: 'Import Excel',
+                            onPressed: bulkEntryController.importExcel,
+                          ),
+                        ],
+                      ),
                     );
 
                     return AdaptiveRow(
@@ -233,161 +232,165 @@ class CreateBulkOrderView extends StatelessWidget {
                         Spacer(),
                         Expanded(
                           flex: 4,
-                          child: Column(
-                            children: <Widget>[
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: NewOrderTextField(
-                                      isRequired: true,
-                                      hasError:
-                                          bulkEntryController.poNumberHasError,
-                                      labelText: 'PO Number',
-                                      minLines: 1,
-                                      rxString: bulkEntryController.rxPoNumber,
-                                      inputFormatters: [capitalFormatter],
+                          child: FormSection(
+                            title: 'Order & Buyer',
+                            icon: Icons.assignment_outlined,
+                            child: Column(
+                              children: <Widget>[
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: NewOrderTextField(
+                                        isRequired: true,
+                                        hasError:
+                                            bulkEntryController.poNumberHasError,
+                                        labelText: 'PO Number',
+                                        minLines: 1,
+                                        rxString: bulkEntryController.rxPoNumber,
+                                        inputFormatters: [capitalFormatter],
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: 4,
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: NewOrderTextField(
-                                      isEnabled: false,
-                                      labelText: 'Upload PO Document',
-                                      rxString:
-                                          bulkEntryController.rxPoFileName,
-                                      hintText: 'no file chosen',
-                                      trailingWidget: bulkEntryController
-                                              .rxPoFileName.isEmpty
-                                          ? SecondaryButton(
-                                              wait: false,
-                                              text: 'Choose File',
-                                              onPressed: () async {
-                                                final FilePickerResult?
-                                                    filePickerResult =
-                                                    await FilePicker.platform
-                                                        .pickFiles(
-                                                  type: FileType.custom,
-                                                  allowedExtensions: [
-                                                    'pdf',
-                                                    'xlsx'
-                                                  ],
-                                                  withData: true,
-                                                  readSequential: true,
-                                                );
-
-                                                if (filePickerResult != null) {
-                                                  final file = filePickerResult
-                                                      .files.single;
-
-                                                  bulkEntryController
-                                                      .rxPoFileName
-                                                      .value = file.name;
-
-                                                  bulkEntryController
-                                                      .rxPoFileBytes
-                                                      .value = file.bytes;
-                                                }
-                                              },
-                                            )
-                                          : SecondaryButton(
-                                              wait: false,
-                                              iconData: Icons.clear,
-                                              text: '',
-                                              onPressed: () async {
-                                                bulkEntryController
-                                                    .rxPoFileName.value = '';
-
-                                                bulkEntryController
-                                                    .rxPoFileBytes.value = null;
-                                              },
-                                            ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              CatalogSearchField(
-                                isRequired: true,
-                                labelText: 'Merchandiser',
-                                rxString: bulkEntryController.rxMerchandiser,
-                                searchList: bulkEntryController.rxMerchandisers,
-                                shouldEnforceList: false,
-                                hasError:
-                                    bulkEntryController.merchandiserHasError,
-                                inputFormatters: [capitalFormatter],
-                              ),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: CatalogSearchField(
-                                      hasError:
-                                          bulkEntryController.buyerNameHasError,
-                                      labelText: 'Buyer',
-                                      isRequired: true,
-                                      rxString: bulkEntryController.rxBuyerName,
-                                      searchList:
-                                          bulkEntryController.buyerNames,
-                                      inputFormatters: [capitalFormatter],
-                                    ),
-                                  ),
-                                  if (bulkEntryController.isOtherBuyer) ...[
                                     SizedBox(
                                       width: 4,
                                     ),
                                     Expanded(
+                                      flex: 2,
                                       child: NewOrderTextField(
-                                        hasError: bulkEntryController
-                                            .otherBuyerNameHasError,
-                                        labelText: 'Name',
+                                        isEnabled: false,
+                                        labelText: 'Upload PO Document',
+                                        rxString:
+                                            bulkEntryController.rxPoFileName,
+                                        hintText: 'no file chosen',
+                                        trailingWidget: bulkEntryController
+                                                .rxPoFileName.isEmpty
+                                            ? SecondaryButton(
+                                                wait: false,
+                                                text: 'Choose File',
+                                                onPressed: () async {
+                                                  final FilePickerResult?
+                                                      filePickerResult =
+                                                      await FilePicker.platform
+                                                          .pickFiles(
+                                                    type: FileType.custom,
+                                                    allowedExtensions: [
+                                                      'pdf',
+                                                      'xlsx'
+                                                    ],
+                                                    withData: true,
+                                                    readSequential: true,
+                                                  );
+
+                                                  if (filePickerResult != null) {
+                                                    final file = filePickerResult
+                                                        .files.single;
+
+                                                    bulkEntryController
+                                                        .rxPoFileName
+                                                        .value = file.name;
+
+                                                    bulkEntryController
+                                                        .rxPoFileBytes
+                                                        .value = file.bytes;
+                                                  }
+                                                },
+                                              )
+                                            : SecondaryButton(
+                                                wait: false,
+                                                iconData: Icons.clear,
+                                                text: '',
+                                                onPressed: () async {
+                                                  bulkEntryController
+                                                      .rxPoFileName.value = '';
+
+                                                  bulkEntryController
+                                                      .rxPoFileBytes.value = null;
+                                                },
+                                              ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                CatalogSearchField(
+                                  isRequired: true,
+                                  labelText: 'Merchandiser',
+                                  rxString: bulkEntryController.rxMerchandiser,
+                                  searchList: bulkEntryController.rxMerchandisers,
+                                  shouldEnforceList: false,
+                                  hasError:
+                                      bulkEntryController.merchandiserHasError,
+                                  inputFormatters: [capitalFormatter],
+                                ),
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: CatalogSearchField(
+                                        hasError:
+                                            bulkEntryController.buyerNameHasError,
+                                        labelText: 'Buyer',
                                         isRequired: true,
-                                        rxString: bulkEntryController
-                                            .rxOtherBuyerName,
+                                        rxString: bulkEntryController.rxBuyerName,
+                                        searchList:
+                                            bulkEntryController.buyerNames,
                                         inputFormatters: [capitalFormatter],
                                       ),
                                     ),
-                                  ]
-                                ],
-                              ),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: CatalogSearchField(
-                                      isSearchboxEnabled: false,
-                                      hasError: bulkEntryController
-                                          .firstLightSourceHasError,
-                                      isRequired: true,
-                                      isEnabled: bulkEntryController
-                                          .isLightSource1Enabled,
-                                      labelText: 'Light Source 1',
-                                      rxString: bulkEntryController
-                                          .rxFirstLightSource,
-                                      searchList:
-                                          bulkEntryController.firstLightSources,
-                                      inputFormatters: [capitalFormatter],
+                                    if (bulkEntryController.isOtherBuyer) ...[
+                                      SizedBox(
+                                        width: 4,
+                                      ),
+                                      Expanded(
+                                        child: NewOrderTextField(
+                                          hasError: bulkEntryController
+                                              .otherBuyerNameHasError,
+                                          labelText: 'Name',
+                                          isRequired: true,
+                                          rxString: bulkEntryController
+                                              .rxOtherBuyerName,
+                                          inputFormatters: [capitalFormatter],
+                                        ),
+                                      ),
+                                    ]
+                                  ],
+                                ),
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: CatalogSearchField(
+                                        isSearchboxEnabled: false,
+                                        hasError: bulkEntryController
+                                            .firstLightSourceHasError,
+                                        isRequired: true,
+                                        isEnabled: bulkEntryController
+                                            .isLightSource1Enabled,
+                                        labelText: 'Light Source 1',
+                                        rxString: bulkEntryController
+                                            .rxFirstLightSource,
+                                        searchList:
+                                            bulkEntryController.firstLightSources,
+                                        inputFormatters: [capitalFormatter],
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: 4,
-                                  ),
-                                  Expanded(
-                                    child: CatalogSearchField(
-                                      isSearchboxEnabled: false,
-                                      isEnabled: bulkEntryController
-                                          .isLightSource2Enabled,
-                                      labelText: 'Light Source 2',
-                                      rxString: bulkEntryController
-                                          .rxSecondLightSource,
-                                      searchList: bulkEntryController
-                                          .secondLightSources,
-                                      inputFormatters: [capitalFormatter],
+                                    SizedBox(
+                                      width: 4,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    Expanded(
+                                      child: CatalogSearchField(
+                                        isSearchboxEnabled: false,
+                                        isEnabled: bulkEntryController
+                                            .isLightSource2Enabled,
+                                        labelText: 'Light Source 2',
+                                        rxString: bulkEntryController
+                                            .rxSecondLightSource,
+                                        searchList: bulkEntryController
+                                            .secondLightSources,
+                                        inputFormatters: [capitalFormatter],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         Expanded(
@@ -403,252 +406,282 @@ class CreateBulkOrderView extends StatelessWidget {
                                   Spacer(),
                                   Expanded(
                                     flex: 4,
-                                    child: Column(
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                hasError: bulkEntryController
-                                                    .articleHasError,
-                                                labelText: 'Article',
-                                                onChanged: bulkEntryController
-                                                    .onArticlePicked,
-                                                isRequired: true,
-                                                rxString: bulkEntryController
-                                                    .rxArticle,
-                                                searchList: bulkEntryController
-                                                    .uniqueFilteredArticles,
+                                    child: FormSection(
+                                      title: 'Article & Shade',
+                                      icon: Icons.category_outlined,
+                                      child: Column(
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  hasError: bulkEntryController
+                                                      .articleHasError,
+                                                  labelText: 'Article',
+                                                  onChanged: bulkEntryController
+                                                      .onArticlePicked,
+                                                  isRequired: true,
+                                                  rxString: bulkEntryController
+                                                      .rxArticle,
+                                                  searchList: bulkEntryController
+                                                      .uniqueFilteredArticles,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isRequired: true,
-                                                hasError: bulkEntryController
-                                                    .uomHasError,
-                                                // Article -> Shade -> UOM: UOM follows
-                                                // from the shade (Sno 14).
-                                                isEnabled:
-                                                    !bulkEntryController.rxUomLocked.value &&
-                                                        (bulkEntryController.rxShade
-                                                                .isNotEmpty ||
-                                                            bulkEntryController.rxUom
-                                                                .isNotEmpty),
-                                                dropdownKey: bulkEntryController
-                                                    .uomDropdownKey,
-                                                labelText: 'UOM',
-                                                rxString: bulkEntryController
-                                                    .rxUomWithDesc,
-                                                searchList: bulkEntryController
-                                                    .uomChoices
-                                                    .map(
-                                                  (uom) {
-                                                    return '$uom - ${orderReviewController.getUomDescription(uom)}';
-                                                  },
-                                                ).toList(),
+                                              SizedBox(
+                                                width: 4,
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isEnabled: false,
-                                                labelText: 'Ticket',
-                                                rxString: bulkEntryController
-                                                    .rxTicket,
-                                                searchList: [],
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  hasError: bulkEntryController
+                                                      .shadeHasError,
+                                                  labelText: 'Shade',
+                                                  onChanged: bulkEntryController
+                                                      .onShadePicked,
+                                                  isRequired: true,
+                                                  isEnabled: bulkEntryController
+                                                      .rxArticle.isNotEmpty,
+                                                  rxString:
+                                                      bulkEntryController.rxShade,
+                                                  dropdownKey: bulkEntryController
+                                                      .shadeDropdownKey,
+                                                  searchList: bulkEntryController
+                                                      .rxShades,
+                                                  shouldEnforceList: false,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Brand',
-                                                rxString:
-                                                    bulkEntryController.rxBrand,
-                                                searchList: [],
-                                                isEnabled: false,
+                                            ],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isEnabled: false,
+                                                  labelText: 'Ticket',
+                                                  rxString: bulkEntryController
+                                                      .rxTicket,
+                                                  searchList: [],
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              flex: 2,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Tex',
-                                                isEnabled: false,
-                                                rxString:
-                                                    bulkEntryController.rxTex,
-                                                searchList: [],
+                                              SizedBox(
+                                                width: 4,
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Expanded(
-                                              flex: 3,
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                isEnabled: false,
-                                                labelText: 'Substrate',
-                                                rxString: bulkEntryController
-                                                    .rxSubstrate,
-                                                searchList: [],
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Brand',
+                                                  rxString:
+                                                      bulkEntryController.rxBrand,
+                                                  searchList: [],
+                                                  isEnabled: false,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                            ],
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 2,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Tex',
+                                                  isEnabled: false,
+                                                  rxString:
+                                                      bulkEntryController.rxTex,
+                                                  searchList: [],
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 4,
+                                              ),
+                                              Expanded(
+                                                flex: 3,
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isEnabled: false,
+                                                  labelText: 'Substrate',
+                                                  rxString: bulkEntryController
+                                                      .rxSubstrate,
+                                                  searchList: [],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   Spacer(),
                                   Expanded(
                                     flex: 4,
-                                    child: Column(
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              child: CatalogSearchField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                hasError: bulkEntryController
-                                                    .shadeHasError,
-                                                labelText: 'Shade',
-                                                onChanged: bulkEntryController
-                                                    .onShadePicked,
-                                                isRequired: true,
-                                                isEnabled: bulkEntryController
-                                                    .rxArticle.isNotEmpty,
-                                                rxString:
-                                                    bulkEntryController.rxShade,
-                                                dropdownKey: bulkEntryController
-                                                    .shadeDropdownKey,
-                                                searchList: bulkEntryController
-                                                    .rxShades,
-                                                shouldEnforceList: false,
+                                    child: FormSection(
+                                      title: 'Line Details',
+                                      icon: Icons.tune,
+                                      child: Column(
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: CatalogSearchField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  isRequired: true,
+                                                  hasError: bulkEntryController
+                                                      .uomHasError,
+                                                  // Article -> Shade -> UOM: UOM follows
+                                                  // from the shade (Sno 14).
+                                                  isEnabled:
+                                                      !bulkEntryController.rxUomLocked.value &&
+                                                          (bulkEntryController.rxShade
+                                                                  .isNotEmpty ||
+                                                              bulkEntryController.rxUom
+                                                                  .isNotEmpty),
+                                                  dropdownKey: bulkEntryController
+                                                      .uomDropdownKey,
+                                                  labelText: 'UOM',
+                                                  rxString: bulkEntryController
+                                                      .rxUomWithDesc,
+                                                  searchList: bulkEntryController
+                                                      .uomChoices
+                                                      .map(
+                                                    (uom) {
+                                                      return '$uom - ${orderReviewController.getUomDescription(uom)}';
+                                                    },
+                                                  ).toList(),
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Expanded(
-                                              child: NewOrderTextField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Style No./Part No.',
-                                                rxString:
-                                                    bulkEntryController.rxColor,
+                                              SizedBox(
+                                                width: 4,
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: NewOrderTextField(
-                                                labelText: 'Quantity',
-                                                isRequired: true,
-                                                maxLength: 10,
-                                                rxString: bulkEntryController
-                                                    .rxQuantity,
-                                                hasError: bulkEntryController
-                                                    .quantityHasError,
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter
-                                                      .allow(
-                                                    RegExp(r'^[1-9]\d*'),
-                                                  ),
-                                                ],
+                                              Expanded(
+                                                child: NewOrderTextField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Style No./Part No.',
+                                                  rxString:
+                                                      bulkEntryController.rxColor,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Expanded(
-                                              child: NewOrderDateField(
-                                                labelText: 'Requested Date',
-                                                rxDate: bulkEntryController
-                                                    .rxRequestedDate,
-                                                hintText: 'select',
-                                                firstDate: DateTime.now(),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: NewOrderTextField(
+                                                  labelText: 'Quantity',
+                                                  isRequired: true,
+                                                  maxLength: 10,
+                                                  rxString: bulkEntryController
+                                                      .rxQuantity,
+                                                  hasError: bulkEntryController
+                                                      .quantityHasError,
+                                                  inputFormatters: [
+                                                    FilteringTextInputFormatter
+                                                        .allow(
+                                                      RegExp(r'^[1-9]\d*'),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        NewOrderTextField(
-                                          labelText: 'Unit Price',
-                                          isEnabled: false,
-                                          rxString:
-                                              bulkEntryController.rxUnitPrice,
-                                        ),
-                                        if (bulkEntryController
-                                            .isRecycledArticle)
-                                          Padding(
-                                            padding:
-                                                const EdgeInsets.only(top: 4),
-                                            child: InkWell(
-                                              onTap: () => bulkEntryController
-                                                      .rxTcRequired.value =
-                                                  !bulkEntryController
-                                                      .rxTcRequired.value,
-                                              child: Row(
-                                                children: [
-                                                  Checkbox(
-                                                    value: bulkEntryController
-                                                        .rxTcRequired.value,
-                                                    onChanged: (value) =>
-                                                        bulkEntryController
-                                                                .rxTcRequired
-                                                                .value =
-                                                            value ?? false,
-                                                  ),
-                                                  Text(
-                                                    'Direct delivery - TC required',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: VardhmanColors
-                                                          .darkGrey,
+                                              SizedBox(
+                                                width: 4,
+                                              ),
+                                              Expanded(
+                                                child: NewOrderDateField(
+                                                  labelText: 'Requested Date',
+                                                  rxDate: bulkEntryController
+                                                      .rxRequestedDate,
+                                                  hintText: 'select',
+                                                  firstDate: DateTime.now(),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          // TC beside Unit Price rather than
+                                          // under it: a row of its own made
+                                          // the form scroll.
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: NewOrderTextField(
+                                                  labelText: 'Unit Price',
+                                                  isEnabled: false,
+                                                  rxString: bulkEntryController
+                                                      .rxUnitPrice,
+                                                ),
+                                              ),
+                                              if (bulkEntryController
+                                                  .isRecycledArticle) ...[
+                                                SizedBox(
+                                                  width: 4,
+                                                ),
+                                                Expanded(
+                                                  child: InkWell(
+                                                    onTap: () => bulkEntryController
+                                                            .rxTcRequired.value =
+                                                        !bulkEntryController
+                                                            .rxTcRequired.value,
+                                                    child: Row(
+                                                      children: [
+                                                        Checkbox(
+                                                          value: bulkEntryController
+                                                              .rxTcRequired.value,
+                                                          visualDensity:
+                                                              VisualDensity
+                                                                  .compact,
+                                                          materialTapTargetSize:
+                                                              MaterialTapTargetSize
+                                                                  .shrinkWrap,
+                                                          onChanged: (value) =>
+                                                              bulkEntryController
+                                                                      .rxTcRequired
+                                                                      .value =
+                                                                  value ?? false,
+                                                        ),
+                                                        Flexible(
+                                                          child: Text(
+                                                            'Direct delivery - TC required',
+                                                            maxLines: 2,
+                                                            overflow: TextOverflow
+                                                                .ellipsis,
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight.bold,
+                                                              color: VardhmanColors
+                                                                  .darkGrey,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                ],
-                                              ),
-                                            ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   Spacer(),

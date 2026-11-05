@@ -69,6 +69,7 @@ class LabdipController extends GetxController with OrderListFilters {
 
   final rxLabdipTableRows = <LabdipTableRow>[].obs;
 
+  @override
   final rxSelectedOrderHeaderLine = Rxn<OrderHeaderLine>();
 
   final rxOrderDetailLines = <OrderDetailLine>[].obs;
@@ -162,22 +163,27 @@ class LabdipController extends GetxController with OrderListFilters {
 
     rxOrderDetailFeedbackMap.clear();
 
-    if (rxSelectedOrderHeaderLine.value != null) {
+    final selectedOrderHeaderLine = rxSelectedOrderHeaderLine.value;
+
+    if (selectedOrderHeaderLine != null) {
       _rxDetailsLoadCount.value++;
 
       final List<OrderDetailLine> orderDetailLines;
 
       try {
         orderDetailLines = await Api.fetchOrderDetails(
-          orderNumber: rxSelectedOrderHeaderLine.value!.orderNumber,
-          orderType: rxSelectedOrderHeaderLine.value!.orderType,
-          orderCompany: rxSelectedOrderHeaderLine.value!.orderCompany,
+          orderNumber: selectedOrderHeaderLine.orderNumber,
+          orderType: selectedOrderHeaderLine.orderType,
+          orderCompany: selectedOrderHeaderLine.orderCompany,
         );
       } finally {
         _rxDetailsLoadCount.value--;
       }
 
-      rxOrderDetailLines.assignAll(orderDetailLines);
+      // Deselected, or another order picked, while these loaded.
+      if (rxSelectedOrderHeaderLine.value == selectedOrderHeaderLine) {
+        rxOrderDetailLines.assignAll(orderDetailLines);
+      }
     }
   }
 

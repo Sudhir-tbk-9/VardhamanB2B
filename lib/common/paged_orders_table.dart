@@ -1,6 +1,7 @@
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/constants.dart';
 
 /// Order list table that builds only the rows of the page on screen: a
@@ -76,8 +77,18 @@ class _PagedOrdersTableState extends State<PagedOrdersTable> {
     super.dispose();
   }
 
+  int _themeGeneration = ThemeVariants.generation;
+
   @override
   Widget build(BuildContext context) {
+    // The table keeps the rows it has built until the source changes, so a
+    // theme switch rebuilds them here, in the new colours.
+    if (_themeGeneration != ThemeVariants.generation) {
+      _themeGeneration = ThemeVariants.generation;
+
+      _source.refresh();
+    }
+
     return PaginatedDataTable2(
       source: _source,
       controller: widget.controller,

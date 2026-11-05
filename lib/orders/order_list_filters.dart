@@ -75,6 +75,9 @@ mixin OrderListFilters on GetxController {
   /// Only the Bulk and DTM lists filter on PO number.
   RxString? get rxPoNumberInput => null;
 
+  /// Order whose details are shown next to the list.
+  Rxn<OrderHeaderLine> get rxSelectedOrderHeaderLine;
+
   /// Whether [orderHeaderLine] belongs to this list.
   bool isListOrder(OrderHeaderLine orderHeaderLine);
 
@@ -231,6 +234,10 @@ mixin OrderListFilters on GetxController {
             (lineSearchMatches?.contains(orderHeaderLine.orderNumber) ?? true),
       ),
     );
+
+    // A reload or new filter starts with no order open: the details pane
+    // empties rather than showing an order the list may no longer hold.
+    rxSelectedOrderHeaderLine.value = null;
   }
 
   Future<void> _searchByLine() async {

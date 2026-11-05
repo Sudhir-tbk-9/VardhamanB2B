@@ -2,7 +2,69 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/constants.dart';
+
+/// The 36 px box of a form field ([NewOrderTextField], CatalogSearchField):
+/// a light border, the theme colour while the field has the cursor, the
+/// theme's error colour when a required value is missing.
+class FieldBox extends StatelessWidget {
+  final bool isEnabled;
+
+  final bool hasError;
+
+  final Widget child;
+
+  const FieldBox({
+    super.key,
+    required this.isEnabled,
+    required this.hasError,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final variant = ThemeVariants.current;
+
+    // Focus + Builder: rebuilt when focus enters or leaves the field.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      child: Builder(
+        builder: (context) {
+          final isFocused = Focus.of(context).hasFocus;
+
+          return Container(
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: hasError
+                    ? variant.error
+                    : isFocused
+                        ? variant.primary
+                        : VardhmanColors.darkGrey.withAlpha(90),
+                width: hasError || isFocused ? 1.5 : 1,
+              ),
+              color: isEnabled
+                  ? Colors.white
+                  : VardhmanColors.dividerGrey.withAlpha(128),
+              boxShadow: isFocused
+                  ? [
+                      BoxShadow(
+                        color: variant.primary.withAlpha(40),
+                        blurRadius: 6,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+}
 
 class NewOrderTextField extends StatelessWidget {
   NewOrderTextField({
@@ -67,7 +129,7 @@ class NewOrderTextField extends StatelessWidget {
                     style: TextStyle(
                       color: VardhmanColors.darkGrey,
                       fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                     children: [
                       if (isRequired)
@@ -86,21 +148,10 @@ class NewOrderTextField extends StatelessWidget {
               SizedBox(
                 height: 4,
               ),
-              Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color:
-                        isEnabled && hasError && rxString.value.trim().isEmpty
-                            ? VardhmanColors.red
-                            : VardhmanColors.darkGrey,
-                    width: 1.5,
-                  ),
-                  color: isEnabled
-                      ? Colors.white
-                      : VardhmanColors.dividerGrey.withAlpha(128),
-                ),
+              FieldBox(
+                isEnabled: isEnabled,
+                hasError:
+                    isEnabled && hasError && rxString.value.trim().isEmpty,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [

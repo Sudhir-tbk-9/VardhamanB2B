@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
@@ -7,6 +8,9 @@ import 'package:vardhman_b2b/orders/order_list_filters.dart';
 /// An order list's filters, closed to one "Filters" line (with the filters
 /// in use) so the list keeps the room; tapping it opens [child], the filter
 /// fields.
+///
+/// Drawn as a card washed in the active theme's primary gradient: stronger
+/// on the header line, lighter behind the fields so they stay readable.
 class OrderFiltersPanel extends StatelessWidget {
   final OrderListFilters filters;
 
@@ -18,6 +22,10 @@ class OrderFiltersPanel extends StatelessWidget {
     required this.child,
   });
 
+  /// [color] laid over white at [alpha]: a tint that keeps dark text legible.
+  static Color _wash(Color color, int alpha) =>
+      Color.alphaBlend(color.withAlpha(alpha), Colors.white);
+
   @override
   Widget build(BuildContext context) {
     return Obx(
@@ -28,52 +36,102 @@ class OrderFiltersPanel extends StatelessWidget {
 
         final lineSearchProgress = filters.rxLineSearchProgress.value;
 
+        // Read on every build: a theme switch rebuilds the panel.
+        final variant = ThemeVariants.current;
+
         final textStyle = TextStyle(
           fontSize: 13,
           color: VardhmanColors.darkGrey,
         );
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => filters.rxFiltersExpanded.value = !isExpanded,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isExpanded ? Icons.expand_more : Icons.chevron_right,
+        const radius = Radius.circular(12);
+
+        final header = Container(
+          padding: const EdgeInsets.fromLTRB(4, 4, 6, 4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: variant.primaryGradient
+                  .map((color) => _wash(color, 46))
+                  .toList(),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => filters.rxFiltersExpanded.value = !isExpanded,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        AnimatedRotation(
+                          turns: isExpanded ? 0.25 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.chevron_right,
                             size: 20,
                             color: VardhmanColors.darkGrey,
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.filter_list,
-                            size: 16,
-                            color: activeFilterLabels.isEmpty
-                                ? VardhmanColors.darkGrey
-                                : VardhmanColors.red,
+                        ),
+                        const SizedBox(width: 4),
+                        // Theme badge: the full gradient, as on the primary
+                        // buttons.
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: variant.primaryFill(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: variant.primary.withAlpha(70),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Filters',
-                            style: textStyle.copyWith(
-                              fontWeight: FontWeight.w600,
+                          child: const Icon(
+                            Icons.filter_list,
+                            size: 15,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Filters',
+                          style: textStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (activeFilterLabels.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: variant.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${activeFilterLabels.length}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                          if (activeFilterLabels.isNotEmpty) ...[
+                          if (!isExpanded) ...[
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                isExpanded
-                                    ? '(${activeFilterLabels.length} active)'
-                                    : '(${activeFilterLabels.join(', ')})',
+                                activeFilterLabels.join(', '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: textStyle.copyWith(fontSize: 12),
@@ -81,37 +139,66 @@ class OrderFiltersPanel extends StatelessWidget {
                             ),
                           ],
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                SecondaryButton(
-                  wait: false,
-                  // A Material icon: the Font Awesome one did not show in
-                  // the deployed web build.
-                  iconData: Icons.restart_alt,
-                  tooltip: 'Reset filters',
-                  text: '',
-                  onPressed:
-                      filters.hasDefaultValues ? null : filters.setDefaultValues,
-                ),
-              ],
-            ),
-            if (isExpanded) ...[
-              const SizedBox(height: 12),
-              child,
-            ],
-            // Shown closed too: a shade / buyer search keeps running.
-            if (lineSearchProgress != null) ...[
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: lineSearchProgress,
-                color: VardhmanColors.red,
-                backgroundColor: VardhmanColors.dividerGrey,
+              ),
+              const SizedBox(width: 8),
+              SecondaryButton(
+                wait: false,
+                // A Material icon: the Font Awesome one did not show in
+                // the deployed web build.
+                iconData: Icons.restart_alt,
+                tooltip: 'Reset filters',
+                text: '',
+                onPressed:
+                    filters.hasDefaultValues ? null : filters.setDefaultValues,
               ),
             ],
-          ],
+          ),
+        );
+
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.all(radius),
+            border: Border.all(color: variant.primary.withAlpha(70)),
+            // Lighter wash behind the fields, fading down the panel.
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: variant.primaryGradient
+                  .map((color) => _wash(color, 16))
+                  .toList(),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              if (isExpanded) ...[
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: variant.primary.withAlpha(50),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: child,
+                ),
+              ],
+              // Shown closed too: a shade / buyer search keeps running.
+              if (lineSearchProgress != null)
+                LinearProgressIndicator(
+                  value: lineSearchProgress,
+                  minHeight: 3,
+                  color: variant.primary,
+                  backgroundColor: variant.primary.withAlpha(30),
+                ),
+            ],
+          ),
         );
       },
     );

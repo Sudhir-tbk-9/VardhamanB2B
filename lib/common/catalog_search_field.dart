@@ -2,6 +2,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/common/popup_keyboard_navigation.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
@@ -61,7 +62,7 @@ class CatalogSearchField extends StatelessWidget {
                   style: TextStyle(
                     color: VardhmanColors.darkGrey,
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                   children: [
                     if (isRequired)
@@ -80,21 +81,9 @@ class CatalogSearchField extends StatelessWidget {
             SizedBox(
               height: 4,
             ),
-            Container(
-              height: 36,
-              margin: const EdgeInsets.all(0),
-              decoration: BoxDecoration(
-                color: isEnabled
-                    ? Colors.white
-                    : VardhmanColors.dividerGrey.withAlpha(128),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isEnabled && hasError && rxString.value.trim().isEmpty
-                      ? VardhmanColors.red
-                      : VardhmanColors.darkGrey,
-                  width: 1.5,
-                ),
-              ),
+            FieldBox(
+              isEnabled: isEnabled,
+              hasError: isEnabled && hasError && rxString.value.trim().isEmpty,
               child: Stack(
                 children: [
                   Align(
