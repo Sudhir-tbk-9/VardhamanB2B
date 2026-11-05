@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:vardhman_b2b/constants.dart';
 
+/// Makes the [SecondaryButton]s under it compact, for buttons placed inside
+/// a 36 px form field (clear, Choose File) so they clear its border.
+class CompactButtons extends InheritedWidget {
+  const CompactButtons({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CompactButtons>() != null;
+
+  @override
+  bool updateShouldNotify(CompactButtons oldWidget) => false;
+}
+
 class SecondaryButton extends StatefulWidget {
   final Future<void> Function()? onPressed;
   final String text;
@@ -29,6 +41,10 @@ class _SecondaryButtonState extends State<SecondaryButton> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = CompactButtons.of(context);
+
+    final iconSize = isCompact ? 14.0 : 18.0;
+
     final button = GestureDetector(
       onTap: () async {
         if (widget.onPressed != null && !isProcessing) {
@@ -56,9 +72,9 @@ class _SecondaryButtonState extends State<SecondaryButton> {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 8 : 12,
+          vertical: isCompact ? 4 : 8,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
@@ -75,10 +91,10 @@ class _SecondaryButtonState extends State<SecondaryButton> {
           children: [
             isProcessing
                 ? SizedBox(
-                    height: 16,
-                    width: 16,
+                    height: iconSize - 2,
+                    width: iconSize - 2,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
+                      strokeWidth: isCompact ? 2 : 2.5,
                       valueColor: AlwaysStoppedAnimation(
                         VardhmanColors.red,
                       ),
@@ -91,16 +107,16 @@ class _SecondaryButtonState extends State<SecondaryButton> {
                         color: widget.onPressed != null
                             ? VardhmanColors.darkGrey
                             : Colors.white,
-                        size: 18,
+                        size: iconSize,
                       ),
             if ((widget.iconData != null || isProcessing) &&
                 widget.text.isNotEmpty)
-              const SizedBox(width: 8),
+              SizedBox(width: isCompact ? 6 : 8),
             if (widget.text.isNotEmpty)
               Text(
                 widget.text,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: isCompact ? 12 : 13,
                   color: widget.onPressed != null
                       ? VardhmanColors.darkGrey
                       : Colors.white,

@@ -36,6 +36,8 @@ class FieldBox extends StatelessWidget {
 
           return Container(
             height: 36,
+            // Keeps clear / Choose File buttons off the right border.
+            padding: const EdgeInsets.only(right: 4),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
@@ -58,7 +60,8 @@ class FieldBox extends StatelessWidget {
                     ]
                   : null,
             ),
-            child: child,
+            // Buttons inside the field are compact, clear of its border.
+            child: CompactButtons(child: child),
           );
         },
       ),
