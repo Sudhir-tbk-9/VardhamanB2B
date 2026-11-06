@@ -15,8 +15,7 @@ void main() {
     expect(OrderSegment.speciality.categories, ['SPE']);
     expect(OrderSegment.industryAndSpeciality.categories, ['IND', 'SPE']);
 
-    // All Segments: what the order screens offered before.
-    expect(OrderSegment.all.categories, ['IND', 'SPE']);
+    expect(OrderSegment.all.categories, ['IND', 'SPE', 'DOM']);
 
     expect(OrderSegment.industry.includesCategory(' ind '), isTrue);
     expect(OrderSegment.industry.includesCategory('SPE'), isFalse);

@@ -509,8 +509,8 @@ class Api {
   }
 
   /// F4101.SRP1 (category) condition limiting an item master query to the
-  /// selected segment (see [SegmentController]); IND and SPE before one is
-  /// picked. Logged with `[SEGMENT]` and the calling [query].
+  /// selected segment (see [SegmentController]); all segments before one
+  /// is picked. Logged with `[SEGMENT]` and the calling [query].
   static Map<String, Object> _segmentCondition(String query) {
     final categories = getx.Get.isRegistered<SegmentController>()
         ? getx.Get.find<SegmentController>().categories

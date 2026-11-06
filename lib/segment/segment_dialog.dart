@@ -722,7 +722,7 @@ class _Footer extends StatelessWidget {
     final hint = picked == null
         ? 'Pick a segment to continue'
         : picked == OrderSegment.all
-            ? 'All articles will be offered, as before'
+            ? 'Articles of every segment will be offered'
             : 'Only ${picked.categories.join(' and ')} articles will be '
                 'offered';
 

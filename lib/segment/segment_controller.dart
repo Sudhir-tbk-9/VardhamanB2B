@@ -35,14 +35,13 @@ enum OrderSegment {
     categories: ['IND', 'SPE'],
   ),
 
-  /// No segment restriction: the articles the order screens offered before
-  /// segments existed (IND and SPE).
+  /// No segment restriction: articles of every segment.
   all(
     code: 'ALL',
     title: 'All Segments',
-    subtitle: 'Every article, as before',
+    subtitle: 'Articles of every segment',
     icon: Icons.all_inclusive,
-    categories: ['IND', 'SPE'],
+    categories: ['IND', 'SPE', 'DOM'],
   );
 
   final String code;
