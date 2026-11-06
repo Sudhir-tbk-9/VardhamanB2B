@@ -314,7 +314,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
   final _shadeUomLookup = ShadeUomLookup(shadeStartsWith: 'SWT');
 
   Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
-      _shadeUomLookup.forArticle(article, catalogController.industryItems);
+      _shadeUomLookup.forArticle(article, catalogController.orderItems);
 
   /// Key of the Shade field, used to open it after an Article is picked.
   final shadeDropdownKey = GlobalKey<DropdownSearchState<String>>();
@@ -623,7 +623,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
   }
 
   List<ItemCatalogInfo> get filteredItems {
-    final filteredItems = catalogController.industryItems
+    final filteredItems = catalogController.orderItems
         .where(
           (itemCatalogInfo) =>
               (rxArticle.value.isNotEmpty
@@ -933,7 +933,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  List<String> get uniqueFilteredArticles => catalogController.industryItems
+  List<String> get uniqueFilteredArticles => catalogController.orderItems
       .where(
         (itemCatalogInfo) => (rxUom.value.isNotEmpty
             ? itemCatalogInfo.uom == (rxUom.value)
@@ -943,7 +943,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredUoms => catalogController.industryItems
+  List<String> get uniqueFilteredUoms => catalogController.orderItems
       .where(
         (itemCatalogInfo) => (rxArticle.value.isNotEmpty
             ? itemCatalogInfo.article == (rxArticle.value)

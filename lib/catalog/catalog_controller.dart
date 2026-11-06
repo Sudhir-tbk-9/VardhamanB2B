@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/api/item_catalog_info.dart';
+import 'package:vardhman_b2b/segment/segment_controller.dart';
 
 class CatalogController extends GetxController
     with GetSingleTickerProviderStateMixin {
   final _items = <ItemCatalogInfo>[].obs;
 
-  /// Industry (IND / SPE) and domestic (DOM) items, split once per refresh
-  /// instead of on every read; table rows look items up per line.
-  final _rxIndustryItems = <ItemCatalogInfo>[].obs;
+  /// Items of the selected segment (see [SegmentController]) and domestic
+  /// (DOM) items, split once per refresh or segment change instead of on
+  /// every read; table rows look items up per line.
+  final _rxOrderItems = <ItemCatalogInfo>[].obs;
 
   final _rxDomesticItems = <ItemCatalogInfo>[].obs;
 
-  /// Industry items keyed by [_itemKey] for constant time row lookups.
-  var _industryItemsByKey = <String, ItemCatalogInfo>{};
+  /// Order items keyed by [_itemKey] for constant time row lookups.
+  var _orderItemsByKey = <String, ItemCatalogInfo>{};
 
   late final TabController tabController =
       TabController(length: 2, vsync: this);
@@ -26,11 +28,15 @@ class CatalogController extends GetxController
 
   final _rxFilteredItems = RxList<ItemCatalogInfo>();
 
+  final _segmentController = Get.find<SegmentController>();
+
   CatalogController() {
     brandEditingController.addListener(_filterItems);
     substrateEditingController.addListener(_filterItems);
     lengthEditingController.addListener(_filterItems);
     articleTextEditingController.addListener(_filterItems);
+
+    ever(_segmentController.rxSegment, (_) => _applySegment());
 
     refreshItems();
   }
@@ -41,25 +47,75 @@ class CatalogController extends GetxController
     final items = await Api.fetchItemCatalogInfo();
 
     if (items.isNotEmpty) {
-      final industryItems = items
-          .where((item) => item.category == 'IND' || item.category == 'SPE')
-          .toList();
-
-      _industryItemsByKey = {
-        // Reversed so the first match wins, as with firstWhere.
-        for (final item in industryItems.reversed)
-          _itemKey(item.article, item.uom): item,
-      };
-
       _items.assignAll(items);
 
-      _rxIndustryItems.assignAll(industryItems);
+      _applySegment();
 
       _rxDomesticItems.assignAll(
         items.where((element) => element.category == 'DOM'),
       );
       // _filterItems();
     }
+  }
+
+  /// Limits the order items to the selected segment's categories.
+  void _applySegment() {
+    if (_items.isEmpty) {
+      logSegment('Catalog not loaded yet; it is filtered once it loads');
+
+      return;
+    }
+
+    final segment = _segmentController.segment;
+
+    final categories = _segmentController.categories;
+
+    final orderItems = _items
+        .where((item) => categories.contains(_categoryOf(item)))
+        .toList();
+
+    _orderItemsByKey = {
+      // Reversed so the first match wins, as with firstWhere.
+      for (final item in orderItems.reversed)
+        _itemKey(item.article, item.uom): item,
+    };
+
+    _rxOrderItems.assignAll(orderItems);
+
+    final itemsPerCategory = <String, int>{};
+
+    for (final item in _items) {
+      itemsPerCategory.update(
+        _categoryOf(item),
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    final articles = orderItems.map((item) => item.article).toSet();
+
+    logSegment(
+      'Catalog filtered for ${segment?.title ?? 'no segment yet (All)'}: '
+      'categories ${categories.join(', ')} -> ${orderItems.length} of '
+      '${_items.length} items, ${articles.length} articles in the Article '
+      'dropdowns. Catalog items per category: $itemsPerCategory. First '
+      'articles: ${articles.take(10).join(', ')}',
+    );
+  }
+
+  static String _categoryOf(ItemCatalogInfo item) =>
+      item.category.trim().toUpperCase();
+
+  /// JDE category of [article] anywhere in the catalog, or null when the
+  /// catalog does not have it.
+  String? categoryOfArticle(String article) {
+    final key = article.trim().toUpperCase();
+
+    final item = _items.firstWhereOrNull(
+      (item) => item.article.trim().toUpperCase() == key,
+    );
+
+    return item == null ? null : _categoryOf(item);
   }
 
   void _filterItems() {
@@ -94,21 +150,22 @@ class CatalogController extends GetxController
       brandEditingController.text.isNotEmpty ||
       articleTextEditingController.text.isNotEmpty;
 
-  List<ItemCatalogInfo> get industryItems => _rxIndustryItems;
+  /// Items of the selected segment, offered on the order screens.
+  List<ItemCatalogInfo> get orderItems => _rxOrderItems;
 
   List<ItemCatalogInfo> get domesticItems => _rxDomesticItems;
 
-  /// Industry item for [article] / [uom], or null.
-  ItemCatalogInfo? industryItem({
+  /// Order item for [article] / [uom], or null.
+  ItemCatalogInfo? orderItem({
     required String article,
     required String uom,
   }) {
     // Reading the list registers the Obx dependency, so rows rebuild once the
     // catalog loads.
-    if (_rxIndustryItems.isEmpty) {
+    if (_rxOrderItems.isEmpty) {
       return null;
     }
 
-    return _industryItemsByKey[_itemKey(article, uom)];
+    return _orderItemsByKey[_itemKey(article, uom)];
   }
 }

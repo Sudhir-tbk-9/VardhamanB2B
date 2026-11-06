@@ -17,6 +17,7 @@ import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
+import 'package:vardhman_b2b/segment/segment_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
@@ -99,6 +100,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   final rxBulkOrderLines = <DraftTableData>[].obs;
 
   final catalogController = Get.find<CatalogController>();
+
+  final _segmentController = Get.find<SegmentController>();
 
   final _rxBuyerInfos = <BuyerInfo>[].obs;
 
@@ -357,7 +360,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   final _shadeUomLookup = ShadeUomLookup();
 
   Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
-      _shadeUomLookup.forArticle(article, catalogController.industryItems);
+      _shadeUomLookup.forArticle(article, catalogController.orderItems);
 
   /// Key of the Shade field, used to open it after an Article is picked.
   final shadeDropdownKey = GlobalKey<DropdownSearchState<String>>();
@@ -799,7 +802,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   }
 
   List<ItemCatalogInfo> get filteredItems {
-    final filteredItems = catalogController.industryItems
+    final filteredItems = catalogController.orderItems
         .where(
           (itemCatalogInfo) =>
               (rxArticle.value.isNotEmpty
@@ -1106,7 +1109,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  List<String> get uniqueFilteredArticles => catalogController.industryItems
+  List<String> get uniqueFilteredArticles => catalogController.orderItems
       .where(
         (itemCatalogInfo) => (rxUom.value.isNotEmpty
             ? itemCatalogInfo.uom == (rxUom.value)
@@ -1117,7 +1120,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       .toList();
 
   List<String> get uniqueFilteredUoms {
-    final List<String> uniqueFilteredUoms = catalogController.industryItems
+    final List<String> uniqueFilteredUoms = catalogController.orderItems
         .where(
           (itemCatalogInfo) => (rxArticle.value.isNotEmpty
               ? itemCatalogInfo.article == (rxArticle.value)
@@ -1364,6 +1367,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
                 orderLine.shade == row.line.shade,
           )) {
         row.error = 'Duplicate item number';
+      } else if (_segmentErrorOf(row.line.article) case final segmentError?) {
+        row.error = segmentError;
       } else {
         rowsToCheck.add(row);
       }
@@ -1393,6 +1398,27 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       '[BULK IMPORT] ${importRows.length - invalidCount} valid, '
       '$invalidCount with errors',
     );
+  }
+
+  /// Error for an Excel [article] the catalog has under a category outside
+  /// the selected segment, or null. Articles the catalog does not have are
+  /// left to the JDE item master check.
+  String? _segmentErrorOf(String article) {
+    final category = catalogController.categoryOfArticle(article);
+
+    final segment = _segmentController.segment;
+
+    if (category == null ||
+        segment == null ||
+        segment.includesCategory(category)) {
+      return null;
+    }
+
+    logSegment('Excel upload: article $article is $category, not in '
+        '${segment.title} (${segment.categories.join(', ')}); row rejected');
+
+    return 'Article is $category, not in the selected segment '
+        '(${segment.code})';
   }
 
   /// Item master (F4101) and unit price checks for [rowsToCheck]. Each call
@@ -1443,7 +1469,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       lineNumber++;
 
-      final catalogItem = catalogController.industryItem(
+      final catalogItem = catalogController.orderItem(
         article: excelLine.article,
         uom: excelLine.uom,
       );

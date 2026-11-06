@@ -23,6 +23,7 @@ import 'package:vardhman_b2b/labdip/labdip_view.dart';
 import 'package:vardhman_b2b/open/open_view.dart';
 import 'package:vardhman_b2b/paid/paid_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_view.dart';
+import 'package:vardhman_b2b/segment/segment_dialog.dart';
 import 'package:vardhman_b2b/user/my_details_dialog.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
@@ -50,6 +51,10 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     super.initState();
 
     _syncNavRailIndex();
+
+    // Right after login: pick the segment before anything else.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => showSegmentDialogIfNeeded());
   }
 
   @override
@@ -391,6 +396,8 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                const SegmentHeaderButton(),
+                                const SizedBox(width: 12),
                                 Flexible(
                                   child: Text(
                                     'Welcome! ${userController.rxUserDetail.value.name}',

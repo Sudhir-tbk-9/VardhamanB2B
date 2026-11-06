@@ -20,6 +20,7 @@ import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/sampling/sampling_controller.dart';
+import 'package:vardhman_b2b/segment/segment_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 import 'package:video_player/video_player.dart';
 
@@ -118,6 +119,8 @@ class LoginController extends GetxController {
         html.window.sessionStorage[_sessionActiveKey] = 'true';
       } else {
         html.window.sessionStorage.remove(_sessionActiveKey);
+
+        SegmentController.clearStored();
       }
     } catch (e) {
       log('setSessionActive error - $e');
@@ -469,6 +472,9 @@ class LoginController extends GetxController {
       ),
       tag: 'userController',
     );
+
+    // Before the catalog, which filters its articles by the segment.
+    await resetController(() => SegmentController());
 
     await resetController(() => CatalogController());
 

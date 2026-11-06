@@ -24,6 +24,7 @@ import 'package:vardhman_b2b/api/user_address.dart';
 import 'package:vardhman_b2b/common/payment_log.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/segment/segment_controller.dart';
 import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'dart:developer';
 import 'package:vardhman_b2b/sample_data.dart';
@@ -507,6 +508,27 @@ class Api {
     }
   }
 
+  /// F4101.SRP1 (category) condition limiting an item master query to the
+  /// selected segment (see [SegmentController]); IND and SPE before one is
+  /// picked. Logged with `[SEGMENT]` and the calling [query].
+  static Map<String, Object> _segmentCondition(String query) {
+    final categories = getx.Get.isRegistered<SegmentController>()
+        ? getx.Get.find<SegmentController>().categories
+        : OrderSegment.all.categories;
+
+    logSegment('$query: JDE item master (F4101) limited to categories '
+        '${categories.join(', ')}');
+
+    return {
+      "controlId": "F4101.SRP1",
+      "operator": "LIST",
+      "value": [
+        for (final category in categories)
+          {"specialValueId": "LITERAL", "content": category},
+      ],
+    };
+  }
+
   static Future<List<String>> fetchShades({
     required String article,
     String uom = '',
@@ -558,14 +580,7 @@ class Api {
                     }
                   ],
                 },
-              {
-                "controlId": "F4101.SRP1",
-                "operator": "LIST",
-                "value": [
-                  {"specialValueId": "LITERAL", "content": "IND"},
-                  {"specialValueId": "LITERAL", "content": "SPE"}
-                ]
-              },
+              _segmentCondition('fetchShades'),
               {
                 "controlId": "F4101.PRP1",
                 "operator": "LIST",
@@ -704,14 +719,7 @@ class Api {
                   {"specialValueId": "LITERAL", "content": shade}
                 ],
               },
-              {
-                "controlId": "F4101.SRP1",
-                "operator": "LIST",
-                "value": [
-                  {"specialValueId": "LITERAL", "content": "IND"},
-                  {"specialValueId": "LITERAL", "content": "SPE"}
-                ]
-              },
+              _segmentCondition('fetchUomsForShade'),
               {
                 "controlId": "F4101.PRP1",
                 "operator": "LIST",
@@ -1707,14 +1715,7 @@ class Api {
                     )
                     .toList(),
               },
-              {
-                "controlId": "F4101.SRP1",
-                "operator": "LIST",
-                "value": [
-                  {"specialValueId": "LITERAL", "content": "IND"},
-                  {"specialValueId": "LITERAL", "content": "SPE"}
-                ]
-              },
+              _segmentCondition('validateItemNumbers'),
               {
                 "controlId": "F4101.PRP1",
                 "operator": "LIST",

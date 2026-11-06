@@ -263,7 +263,7 @@ class SamplingOrderDetailsView extends StatelessWidget {
                               final String uom = itemParts[1];
                               final String shade = itemParts[2];
 
-                              final catalogItem = catalogController.industryItem(
+                              final catalogItem = catalogController.orderItem(
                                 article: article,
                                 uom: uom,
                               );

@@ -376,7 +376,7 @@ class SamplingEntryController extends GetxController {
   final _shadeUomLookup = ShadeUomLookup();
 
   Future<Map<String, List<String>>> _shadeUomsFor(String article) =>
-      _shadeUomLookup.forArticle(article, catalogController.industryItems);
+      _shadeUomLookup.forArticle(article, catalogController.orderItems);
 
   /// True while the UOM (K2) was derived from Article (K1) + Shade (K3); the
   /// UOM field is read-only meanwhile.
@@ -944,7 +944,7 @@ class SamplingEntryController extends GetxController {
     }
   }
 
-  List<String> get uniqueFilteredArticles => catalogController.industryItems
+  List<String> get uniqueFilteredArticles => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxUom.value.isNotEmpty
@@ -964,7 +964,7 @@ class SamplingEntryController extends GetxController {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredUoms => catalogController.industryItems
+  List<String> get uniqueFilteredUoms => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxArticle.value.isNotEmpty
@@ -984,7 +984,7 @@ class SamplingEntryController extends GetxController {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredBrands => catalogController.industryItems
+  List<String> get uniqueFilteredBrands => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxArticle.value.isNotEmpty
@@ -1004,7 +1004,7 @@ class SamplingEntryController extends GetxController {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredSubstrates => catalogController.industryItems
+  List<String> get uniqueFilteredSubstrates => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxArticle.value.isNotEmpty
@@ -1024,7 +1024,7 @@ class SamplingEntryController extends GetxController {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredTexs => catalogController.industryItems
+  List<String> get uniqueFilteredTexs => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxArticle.value.isNotEmpty
@@ -1044,7 +1044,7 @@ class SamplingEntryController extends GetxController {
       .toSet()
       .toList();
 
-  List<String> get uniqueFilteredTickets => catalogController.industryItems
+  List<String> get uniqueFilteredTickets => catalogController.orderItems
       .where(
         (itemCatalogInfo) =>
             (rxArticle.value.isNotEmpty
