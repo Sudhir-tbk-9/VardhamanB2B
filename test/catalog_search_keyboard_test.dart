@@ -125,4 +125,53 @@ void main() {
 
     expect(rxShade.value, 'SWT3');
   });
+
+  // dropdown_search places its menu once, when it opens; laid out in a
+  // smaller window it got a negative width and the app stopped drawing.
+  testWidgets('a window resize closes the open popup instead of crashing',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topRight,
+            child: SizedBox(
+              width: 300,
+              child: CatalogSearchField(
+                labelText: 'Shade',
+                rxString: rxShade,
+                searchList: shades,
+                dropdownKey: dropdownKey,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    dropdownKey.currentState!.openDropDownSearch();
+    await tester.pumpAndSettle();
+
+    expect(find.text('SWT1'), findsOneWidget);
+
+    // As when browser DevTools open beside the page.
+    tester.view.physicalSize = const Size(700, 800);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('SWT1'), findsNothing, reason: 'popup closed');
+
+    // The field still opens, placed for the new size.
+    dropdownKey.currentState!.openDropDownSearch();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('SWT2'));
+    await tester.pumpAndSettle();
+
+    expect(rxShade.value, 'SWT2');
+  });
 }

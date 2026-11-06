@@ -2,6 +2,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/close_popup_on_resize.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:vardhman_b2b/common/popup_keyboard_navigation.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
@@ -134,9 +135,11 @@ class CatalogSearchField extends StatelessWidget {
                               // Arrow keys move through the options, Enter
                               // picks one.
                               containerBuilder: (context, popupWidget) =>
-                                  PopupKeyboardNavigation<String>(
-                                autofocus: !isSearchboxEnabled,
-                                child: popupWidget,
+                                  ClosePopupOnResize(
+                                child: PopupKeyboardNavigation<String>(
+                                  autofocus: !isSearchboxEnabled,
+                                  child: popupWidget,
+                                ),
                               ),
                               itemBuilder:
                                   (context, item, isDisabled, isSelected) =>

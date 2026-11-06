@@ -10,6 +10,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/sampling/sampling_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_dialog.dart';
+import 'package:vardhman_b2b/common/close_popup_on_resize.dart';
 
 class SamplingFeedbackDialog extends StatelessWidget {
   SamplingFeedbackDialog({super.key});
@@ -291,6 +292,11 @@ class SamplingFeedbackDialog extends StatelessWidget {
                                               fit: FlexFit.loose,
                                               searchDelay:
                                                   Duration(milliseconds: 0),
+                                              containerBuilder:
+                                                  (context, popupWidget) =>
+                                                      ClosePopupOnResize(
+                                                child: popupWidget,
+                                              ),
                                               itemBuilder: (context, item,
                                                       isDisabled, isSelected) =>
                                                   ListTile(

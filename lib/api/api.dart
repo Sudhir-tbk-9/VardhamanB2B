@@ -72,9 +72,9 @@ class Api {
       // baseUrl: 'https://erp.vardhmanthreads.in/jderest',
       // TODO - Change this as per environment - erpdev / erptest / erp
       headers: {
+        // No Connection / Accept-Encoding: browsers refuse to let a page set
+        // them (a console warning per request) and set their own.
         'Content-Type': 'application/json',
-        'Connection': 'keep-alive',
-        'Accept-Encoding': 'gzip, deflate, br',
         'Accept': '*/*',
       },
       sendTimeout: const Duration(seconds: 180),
