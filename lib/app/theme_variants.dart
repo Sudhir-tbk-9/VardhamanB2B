@@ -105,7 +105,7 @@ class StatusColors extends ThemeExtension<StatusColors> {
 }
 
 class ThemeVariants {
-  /// The original Vardhman palette; the default.
+  /// The original Vardhman palette.
   static const vardhmanRed = AppThemeVariant(
     id: 'vardhman_red',
     name: 'Vardhman Red',
@@ -119,6 +119,25 @@ class ThemeVariants {
     primaryGradient: [Color(0xFFE61E31), Color(0xFFFF5A5F)],
     accentGradient: [Color(0xFF333333), Color(0xFF4A4A4A)],
   );
+
+  static const threadSpectrum = AppThemeVariant(
+    id: 'thread_spectrum',
+    name: 'Thread Spectrum',
+    icon: Icons.color_lens_rounded,
+    primary: Color(0xFF00838F),
+    accent: Color(0xFF1C2B36),
+    surface: Color(0xFFE0F2F1),
+    success: Color(0xFF2E7D32),
+    warning: Color(0xFFFB8C00),
+    error: Color(0xFFD32F2F),
+    primaryGradient: [Color(0xFF00838F), Color(0xFFE64A19)],
+    accentGradient: [Color(0xE61C2B36), Color(0xCC263D4A)],
+    pattern: ThemePattern.waves,
+    backgroundImage: 'assets/home_background.jpg',
+  );
+
+  /// Used until the user picks a theme (and for an unknown saved one).
+  static const defaultVariant = threadSpectrum;
 
   static const all = <AppThemeVariant>[
     vardhmanRed,
@@ -276,32 +295,18 @@ class ThemeVariants {
       ],
       pattern: ThemePattern.stars,
     ),
-    AppThemeVariant(
-      id: 'thread_spectrum',
-      name: 'Thread Spectrum',
-      icon: Icons.color_lens_rounded,
-      primary: Color(0xFF00838F),
-      accent: Color(0xFF1C2B36),
-      surface: Color(0xFFE0F2F1),
-      success: Color(0xFF2E7D32),
-      warning: Color(0xFFFB8C00),
-      error: Color(0xFFD32F2F),
-      primaryGradient: [Color(0xFF00838F), Color(0xFFE64A19)],
-      accentGradient: [Color(0xE61C2B36), Color(0xCC263D4A)],
-      pattern: ThemePattern.waves,
-      backgroundImage: 'assets/home_background.jpg',
-    ),
+    threadSpectrum,
   ];
 
   /// Variant in use; read by [VardhmanColors] so existing widgets follow it.
-  static AppThemeVariant current = vardhmanRed;
+  static AppThemeVariant current = defaultVariant;
 
   /// Bumped on every theme switch, so a hidden tab skipped by the switch can
   /// tell it is out of date when it is shown (see [ThemeRebuildWhenShown]).
   static int generation = 0;
 
   static AppThemeVariant byId(String? id) =>
-      all.firstWhereOrNull((variant) => variant.id == id) ?? vardhmanRed;
+      all.firstWhereOrNull((variant) => variant.id == id) ?? defaultVariant;
 
   /// ThemeData is costly to build; each variant's is built once.
   static final _themeDataCache = <String, ThemeData>{};

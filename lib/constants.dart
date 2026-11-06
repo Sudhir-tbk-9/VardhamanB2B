@@ -4,7 +4,7 @@ import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 
 /// App colours, taken from the theme variant the user picked
-/// ([ThemeVariants.current]); the default variant keeps the original values.
+/// ([ThemeVariants.current]); Vardhman Red keeps the original values.
 class VardhmanColors {
   /// Success.
   static Color get green => ThemeVariants.current.success;

@@ -6,7 +6,19 @@ import 'package:vardhman_b2b/common/paged_orders_table.dart';
 import 'package:vardhman_b2b/constants.dart';
 
 void main() {
-  tearDown(() => ThemeVariants.current = ThemeVariants.vardhmanRed);
+  tearDown(() => ThemeVariants.current = ThemeVariants.defaultVariant);
+
+  test('Thread Spectrum until the user picks a theme', () {
+    expect(ThemeVariants.defaultVariant.id, 'thread_spectrum');
+    expect(ThemeVariants.current, ThemeVariants.threadSpectrum);
+
+    // Nothing saved yet, or a saved theme that no longer exists.
+    expect(ThemeVariants.byId(null), ThemeVariants.threadSpectrum);
+    expect(ThemeVariants.byId('retired_theme'), ThemeVariants.threadSpectrum);
+
+    // A theme the user picked is kept.
+    expect(ThemeVariants.byId('vardhman_red'), ThemeVariants.vardhmanRed);
+  });
 
   testWidgets('rows already built take the new theme colour', (tester) async {
     final controller = PaginatorController();
@@ -37,10 +49,10 @@ void main() {
 
     await tester.pumpWidget(table());
 
-    expect(rowColor(), ThemeVariants.vardhmanRed.primary);
+    expect(rowColor(), ThemeVariants.defaultVariant.primary);
 
     final other = ThemeVariants.all.firstWhere(
-      (variant) => variant.primary != ThemeVariants.vardhmanRed.primary,
+      (variant) => variant.primary != ThemeVariants.defaultVariant.primary,
     );
 
     // As ThemeController.select does before rebuilding the screen.
