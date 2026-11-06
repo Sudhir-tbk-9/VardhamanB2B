@@ -18,6 +18,7 @@ import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/breakpoints.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class CreateSamplingOrderView extends StatelessWidget {
   const CreateSamplingOrderView({super.key});
@@ -655,7 +656,7 @@ class CreateSamplingOrderView extends StatelessWidget {
               horizontalMargin: 16,
               headingRowHeight: 60,
               dataRowHeight: 60,
-              headingRowColor: WidgetStatePropertyAll(VardhmanColors.darkGrey),
+              headingRowDecoration: TableHeader.decoration,
               headingTextStyle: TextStyle(
                 color: Colors.white,
                 fontSize: 13,

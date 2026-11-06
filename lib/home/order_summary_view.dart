@@ -11,6 +11,7 @@ import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/common/vardhman_loader.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/home/order_summary_controller.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class OrderSummaryView extends StatelessWidget {
   const OrderSummaryView({super.key});
@@ -135,8 +136,7 @@ class OrderSummaryView extends StatelessWidget {
                 horizontalMargin: 0,
                 headingRowHeight: 60,
                 dataRowHeight: 60,
-                headingRowColor:
-                    WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                headingRowDecoration: TableHeader.decoration,
                 headingTextStyle: TextStyle(
                   color: Colors.white,
                   fontSize: 13,

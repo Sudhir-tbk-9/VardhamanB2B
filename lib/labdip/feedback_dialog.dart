@@ -11,6 +11,7 @@ import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_dialog.dart';
 import 'package:vardhman_b2b/common/close_popup_on_resize.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class FeedbackDialog extends StatelessWidget {
   FeedbackDialog({super.key});
@@ -87,8 +88,7 @@ class FeedbackDialog extends StatelessWidget {
                   checkboxHorizontalMargin: 0,
                   headingRowHeight: 40,
                   dataRowHeight: 60,
-                  headingRowColor:
-                      WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                  headingRowDecoration: TableHeader.decoration,
                   headingTextStyle: TextStyle(
                     color: Colors.white,
                     fontSize: 13,

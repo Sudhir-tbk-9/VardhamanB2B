@@ -14,6 +14,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/labdip/feedback_dialog.dart';
 import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class LabdipOrderDetailsView extends StatelessWidget {
   const LabdipOrderDetailsView({
@@ -122,8 +123,7 @@ class LabdipOrderDetailsView extends StatelessWidget {
                           showCheckboxColumn: false,
                           headingRowHeight: 60,
                           dataRowHeight: 60,
-                          headingRowColor:
-                              WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                          headingRowDecoration: TableHeader.decoration,
                           headingTextStyle: TextStyle(
                             color: Colors.white,
                             fontSize: 13,

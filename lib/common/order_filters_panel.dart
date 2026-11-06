@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
-import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
 
@@ -145,13 +144,8 @@ class OrderFiltersPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              SecondaryButton(
-                wait: false,
-                // A Material icon: the Font Awesome one did not show in
-                // the deployed web build.
-                iconData: Icons.restart_alt,
-                tooltip: 'Reset filters',
-                text: '',
+              _ResetFiltersButton(
+                variant: variant,
                 onPressed:
                     filters.hasDefaultValues ? null : filters.setDefaultValues,
               ),
@@ -201,6 +195,67 @@ class OrderFiltersPanel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Resets the filters. In the theme like the "Filters" badge: the full
+/// primary gradient while there is something to reset, a light tint of it
+/// (not grey) while the filters are at their defaults and it does nothing.
+class _ResetFiltersButton extends StatelessWidget {
+  final AppThemeVariant variant;
+
+  /// Null while the filters are at their defaults.
+  final VoidCallback? onPressed;
+
+  const _ResetFiltersButton({required this.variant, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = onPressed != null;
+
+    return Tooltip(
+      message: 'Reset filters',
+      child: MouseRegion(
+        cursor: isEnabled ? SystemMouseCursors.click : MouseCursor.defer,
+        child: GestureDetector(
+          onTap: onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isEnabled ? null : Colors.white,
+              gradient: isEnabled
+                  ? variant.primaryFill(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              border: isEnabled
+                  ? null
+                  : Border.all(color: variant.primary.withAlpha(90)),
+              boxShadow: isEnabled
+                  ? [
+                      BoxShadow(
+                        color: variant.primary.withAlpha(70),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            // A Material icon: the Font Awesome one did not show in the
+            // deployed web build.
+            child: Icon(
+              Icons.restart_alt,
+              size: 18,
+              color: isEnabled ? Colors.white : variant.primary.withAlpha(140),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -17,6 +17,7 @@ import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:vardhman_b2b/common/adaptive_dialog.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class InvoiceReviewDialog extends StatelessWidget {
   const InvoiceReviewDialog({
@@ -424,7 +425,7 @@ class _PaymentSummaryTable extends StatelessWidget {
               dataRowMaxHeight: 36,
               columnSpacing: 20,
               horizontalMargin: 12,
-              headingRowColor: WidgetStatePropertyAll(colorScheme.secondary),
+              headingRowColor: TableHeader.color,
               columns: [
                 column('#', numeric: true),
                 column('Invoice No.'),

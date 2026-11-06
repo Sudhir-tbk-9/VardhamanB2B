@@ -5,6 +5,7 @@ import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 /// Payment section field: selects every payable open invoice of a PO.
 class SelectByPoField extends StatefulWidget {
@@ -165,8 +166,7 @@ class PaymentKnockOffView extends StatelessWidget {
                       dataRowMaxHeight: 40,
                       columnSpacing: 16,
                       horizontalMargin: 10,
-                      headingRowColor:
-                          WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                      headingRowColor: TableHeader.color,
                       columns: [
                         column('Invoice'),
                         column('PO No.'),

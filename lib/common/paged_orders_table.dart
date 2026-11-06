@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/constants.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 /// Order list table that builds only the rows of the page on screen: a
 /// customer can have well over a thousand orders, and building them all at
@@ -103,7 +104,7 @@ class _PagedOrdersTableState extends State<PagedOrdersTable> {
       horizontalMargin: 16,
       headingRowHeight: 40,
       dataRowHeight: 40,
-      headingRowColor: WidgetStatePropertyAll(Colors.grey),
+      headingRowDecoration: TableHeader.decoration,
       headingTextStyle: TextStyle(
         fontSize: 13,
         color: Colors.white,

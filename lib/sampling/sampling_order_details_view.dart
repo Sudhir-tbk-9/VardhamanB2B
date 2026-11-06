@@ -15,6 +15,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/sampling/sampling_feedback_dialog.dart';
 import 'package:vardhman_b2b/sampling/sampling_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class SamplingOrderDetailsView extends StatelessWidget {
   const SamplingOrderDetailsView({
@@ -138,8 +139,7 @@ class SamplingOrderDetailsView extends StatelessWidget {
                           showCheckboxColumn: false,
                           headingRowHeight: 60,
                           dataRowHeight: 60,
-                          headingRowColor:
-                              WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                          headingRowDecoration: TableHeader.decoration,
                           headingTextStyle: TextStyle(
                             color: Colors.white,
                             fontSize: 13,

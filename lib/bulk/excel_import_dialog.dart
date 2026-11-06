@@ -4,6 +4,7 @@ import 'package:vardhman_b2b/bulk/excel_line.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 /// Shows every imported line in a grid with error lines highlighted in red,
 /// lists the errors in a panel, lets the user fix an error line (which is
@@ -152,8 +153,7 @@ class _LinesGrid extends StatelessWidget {
             dataRowMaxHeight: 34,
             columnSpacing: 16,
             horizontalMargin: 10,
-            headingRowColor:
-                WidgetStatePropertyAll(VardhmanColors.darkGrey),
+            headingRowColor: TableHeader.color,
             columns: [
               column('Row', numeric: true),
               column('PO No.'),

@@ -11,6 +11,7 @@ import 'package:vardhman_b2b/common/vardhman_loader.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/dtm/dtm_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
+import 'package:vardhman_b2b/common/table_header.dart';
 
 class DtmOrderDetailsView extends StatelessWidget {
   const DtmOrderDetailsView({
@@ -107,8 +108,7 @@ class DtmOrderDetailsView extends StatelessWidget {
                           showCheckboxColumn: false,
                           headingRowHeight: 60,
                           dataRowHeight: 60,
-                          headingRowColor:
-                              WidgetStatePropertyAll(VardhmanColors.darkGrey),
+                          headingRowDecoration: TableHeader.decoration,
                           headingTextStyle: TextStyle(
                             color: Colors.white,
                             fontSize: 13,
