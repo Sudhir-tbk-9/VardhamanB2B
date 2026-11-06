@@ -56,6 +56,9 @@ class BulkOrderDetailsView extends StatelessWidget {
                   orderHeaderLine:
                       bulkController.rxSelectedOrderHeaderLine.value!,
                   lineStatusCounts: bulkController.lineStatusCounts,
+                  selectedLineStatus: bulkController.lineStatusFilter,
+                  onLineStatusSelected: (status) =>
+                      bulkController.rxLineStatusFilter.value = status,
                 ),
               const Divider(height: 1, thickness: 1),
               Flexible(
@@ -189,7 +192,9 @@ class BulkOrderDetailsView extends StatelessWidget {
                               headingRowAlignment: MainAxisAlignment.end,
                             ),
                           ],
-                          rows: bulkController.primaryOrderDetailLines.indexed.map(
+                          // Filtered by the status chips; striped by
+                          // position, so stripes still alternate.
+                          rows: bulkController.visibleOrderDetailLines.indexed.map(
                             ((int, OrderDetailLine) entry) {
                               final (index, orderDetail) = entry;
 

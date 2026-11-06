@@ -137,6 +137,9 @@ class BulkController extends GetxController with OrderListFilters {
   Future<void> selectOrder(OrderHeaderLine orderHeaderLine) async {
     rxSelectedOrderHeaderLine.value = orderHeaderLine;
 
+    // Each order opens showing all its lines.
+    rxLineStatusFilter.value = null;
+
     refreshSelectedOrderDetails();
   }
 
@@ -213,6 +216,32 @@ class BulkController extends GetxController with OrderListFilters {
     }
 
     return counts;
+  }
+
+  /// Line status the Order Details table is filtered to (a status chip);
+  /// null for All. Back to All whenever another order is opened.
+  final rxLineStatusFilter = RxnString();
+
+  /// The status filter in effect: null (All) also when the picked status
+  /// no longer has lines, e.g. after the order was refreshed.
+  String? get lineStatusFilter {
+    final status = rxLineStatusFilter.value;
+
+    return status != null && lineStatusCounts.containsKey(status)
+        ? status
+        : null;
+  }
+
+  /// The lines shown in the Order Details table: [primaryOrderDetailLines]
+  /// with the status chip filter applied, on the lines already loaded.
+  List<OrderDetailLine> get visibleOrderDetailLines {
+    final status = lineStatusFilter;
+
+    final lines = primaryOrderDetailLines;
+
+    return status == null
+        ? lines
+        : lines.where((line) => displayStatusOf(line) == status).toList();
   }
 
   @override
