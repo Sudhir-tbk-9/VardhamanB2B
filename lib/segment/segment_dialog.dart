@@ -41,8 +41,13 @@ Future<void> showSegmentDialog() async {
       : 'Showing the segment selection dialog');
 
   try {
+    // Changing it: orders in progress lock the segment.
+    final draftOrders = canCancel
+        ? await segmentController.draftOrders()
+        : const <DraftOrder>[];
+
     await Get.dialog(
-      SegmentDialog(canCancel: canCancel),
+      SegmentDialog(canCancel: canCancel, draftOrders: draftOrders),
       barrierDismissible: canCancel,
       barrierColor: Colors.black.withAlpha(150),
     );
@@ -132,7 +137,15 @@ class SegmentDialog extends StatefulWidget {
   /// Whether it can be closed without picking: a segment is already set.
   final bool canCancel;
 
-  const SegmentDialog({super.key, this.canCancel = false});
+  /// Orders with lines not yet submitted. Any, and only the current
+  /// segment can be picked: the dialog says why.
+  final List<DraftOrder> draftOrders;
+
+  const SegmentDialog({
+    super.key,
+    this.canCancel = false,
+    this.draftOrders = const [],
+  });
 
   @override
   State<SegmentDialog> createState() => _SegmentDialogState();
@@ -144,7 +157,19 @@ class _SegmentDialogState extends State<SegmentDialog> {
   /// Starts on the current segment when changing it.
   late OrderSegment? _picked = _segmentController.segment;
 
+  bool get _isLocked => widget.draftOrders.isNotEmpty;
+
+  bool _canPick(OrderSegment segment) =>
+      !_isLocked || segment == _segmentController.segment;
+
   void _pick(OrderSegment segment) {
+    if (!_canPick(segment)) {
+      logSegment('Pick of ${segment.title} blocked: orders in progress '
+          '(${widget.draftOrders.join(', ')})');
+
+      return;
+    }
+
     if (_picked == segment) {
       return;
     }
@@ -235,16 +260,26 @@ class _SegmentDialogState extends State<SegmentDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Heading(variant: variant),
+          if (_isLocked) ...[
+            const SizedBox(height: 20),
+            _LockedAlert(
+              variant: variant,
+              segment: _segmentController.segment!,
+              draftOrders: widget.draftOrders,
+            ),
+          ],
           const SizedBox(height: 24),
           _SegmentGrid(
             variant: variant,
             picked: _picked,
+            canPick: _canPick,
             onPick: _pick,
           ),
           const SizedBox(height: 24),
           _Footer(
             variant: variant,
             picked: _picked,
+            isLocked: _isLocked,
             onConfirm: _confirm,
           ),
         ],
@@ -382,11 +417,14 @@ class _SegmentGrid extends StatelessWidget {
 
   final OrderSegment? picked;
 
+  final bool Function(OrderSegment segment) canPick;
+
   final ValueChanged<OrderSegment> onPick;
 
   const _SegmentGrid({
     required this.variant,
     required this.picked,
+    required this.canPick,
     required this.onPick,
   });
 
@@ -396,6 +434,7 @@ class _SegmentGrid extends StatelessWidget {
           segment: segment,
           variant: variant,
           isPicked: picked == segment,
+          isEnabled: canPick(segment),
           onTap: () => onPick(segment),
         );
 
@@ -456,12 +495,16 @@ class _SegmentCard extends StatefulWidget {
 
   final bool isPicked;
 
+  /// False while orders in progress lock the segment: dimmed, no hover.
+  final bool isEnabled;
+
   final VoidCallback onTap;
 
   const _SegmentCard({
     required this.segment,
     required this.variant,
     required this.isPicked,
+    required this.isEnabled,
     required this.onTap,
   });
 
@@ -480,6 +523,10 @@ class _SegmentCardState extends State<_SegmentCard> {
 
     final isPicked = widget.isPicked;
 
+    final isEnabled = widget.isEnabled;
+
+    final isHovered = _isHovered && isEnabled;
+
     final isAll = segment == OrderSegment.all;
 
     final textColor = isPicked ? variant.accent : Colors.white;
@@ -490,131 +537,137 @@ class _SegmentCardState extends State<_SegmentCard> {
     return Semantics(
       button: true,
       selected: isPicked,
+      enabled: isEnabled,
       label: '${segment.title} segment',
       child: MouseRegion(
-        cursor: SystemMouseCursors.click,
+        cursor:
+            isEnabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
         child: GestureDetector(
           onTap: widget.onTap,
-          child: AnimatedScale(
-            scale: _isHovered && !isPicked ? 1.025 : 1,
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: isEnabled ? 1 : 0.4,
+            child: AnimatedScale(
+              scale: isHovered && !isPicked ? 1.025 : 1,
+              duration: const Duration(milliseconds: 160),
               curve: Curves.easeOut,
-              // Room for the gradient ring.
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: isPicked
-                    ? variant.primaryFill(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: isPicked
-                    ? null
-                    : Colors.white.withAlpha(_isHovered ? 90 : 55),
-                boxShadow: [
-                  if (isPicked || _isHovered)
-                    BoxShadow(
-                      color: (isPicked ? variant.primary : Colors.black)
-                          .withAlpha(isPicked ? 110 : 60),
-                      blurRadius: isPicked ? 22 : 14,
-                      offset: const Offset(0, 6),
-                    ),
-                ],
-              ),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                curve: Curves.easeOut,
+                // Room for the gradient ring.
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: isPicked
+                      ? variant.primaryFill(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
                   color: isPicked
-                      ? Colors.white
-                      : Color.alphaBlend(
-                          Colors.white.withAlpha(_isHovered ? 38 : 22),
-                          variant.accent.withAlpha(150),
-                        ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SegmentIcon(
-                      icon: segment.icon,
-                      variant: variant,
-                      isPicked: isPicked,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _CodeChip(
-                            text: segment.code,
-                            variant: variant,
-                            isPicked: isPicked,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            segment.title,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isAll
-                                ? '${segment.subtitle} '
-                                    '(${segment.categories.join(' + ')})'
-                                : segment.subtitle,
-                            style: TextStyle(
-                              color: mutedColor,
-                              fontSize: 12,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
+                      ? null
+                      : Colors.white.withAlpha(isHovered ? 90 : 55),
+                  boxShadow: [
+                    if (isPicked || isHovered)
+                      BoxShadow(
+                        color: (isPicked ? variant.primary : Colors.black)
+                            .withAlpha(isPicked ? 110 : 60),
+                        blurRadius: isPicked ? 22 : 14,
+                        offset: const Offset(0, 6),
                       ),
-                    ),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      transitionBuilder: (child, animation) =>
-                          ScaleTransition(scale: animation, child: child),
-                      child: isPicked
-                          ? Container(
-                              key: const ValueKey('picked'),
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: variant.primaryFill(),
+                  ],
+                ),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: isPicked
+                        ? Colors.white
+                        : Color.alphaBlend(
+                            Colors.white.withAlpha(isHovered ? 38 : 22),
+                            variant.accent.withAlpha(150),
+                          ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SegmentIcon(
+                        icon: segment.icon,
+                        variant: variant,
+                        isPicked: isPicked,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _CodeChip(
+                              text: segment.code,
+                              variant: variant,
+                              isPicked: isPicked,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              segment.title,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
                               ),
-                              child: const Icon(
-                                Icons.check,
-                                size: 15,
-                                color: Colors.white,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isAll
+                                  ? '${segment.subtitle} '
+                                      '(${segment.categories.join(' + ')})'
+                                  : segment.subtitle,
+                              style: TextStyle(
+                                color: mutedColor,
+                                fontSize: 12,
+                                height: 1.3,
                               ),
-                            )
-                          : Container(
-                              key: const ValueKey('not picked'),
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withAlpha(140),
-                                  width: 1.5,
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(scale: animation, child: child),
+                        child: isPicked
+                            ? Container(
+                                key: const ValueKey('picked'),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: variant.primaryFill(),
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 15,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Container(
+                                key: const ValueKey('not picked'),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withAlpha(140),
+                                    width: 1.5,
+                                  ),
                                 ),
                               ),
-                            ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -701,17 +754,122 @@ class _CodeChip extends StatelessWidget {
   }
 }
 
-/// What the pick means, and Continue.
+/// Why the segment cannot be changed now: the orders in progress, and what
+/// to do about them.
+class _LockedAlert extends StatelessWidget {
+  final AppThemeVariant variant;
+
+  final OrderSegment segment;
+
+  final List<DraftOrder> draftOrders;
+
+  const _LockedAlert({
+    required this.variant,
+    required this.segment,
+    required this.draftOrders,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Color.alphaBlend(
+          variant.warning.withAlpha(40),
+          Colors.black.withAlpha(110),
+        ),
+        border: Border.all(color: variant.warning.withAlpha(170)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: variant.warning,
+            ),
+            child:
+                const Icon(Icons.lock_outline, size: 18, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Segment locked to ${segment.title} (${segment.code})',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'You have order lines in progress. An order cannot mix '
+                  'articles of two segments, so submit or delete these '
+                  'lines before switching:',
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(215),
+                    fontSize: 12.5,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final draftOrder in draftOrders)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white.withAlpha(30),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(70),
+                          ),
+                        ),
+                        child: Text(
+                          '$draftOrder',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the pick means, and Continue (OK while the segment is locked).
 class _Footer extends StatelessWidget {
   final AppThemeVariant variant;
 
   final OrderSegment? picked;
+
+  final bool isLocked;
 
   final VoidCallback onConfirm;
 
   const _Footer({
     required this.variant,
     required this.picked,
+    required this.isLocked,
     required this.onConfirm,
   });
 
@@ -721,13 +879,16 @@ class _Footer extends StatelessWidget {
 
     final hint = picked == null
         ? 'Pick a segment to continue'
-        : picked == OrderSegment.all
-            ? 'Articles of every segment will be offered'
-            : 'Only ${picked.categories.join(' and ')} articles will be '
-                'offered';
+        : isLocked
+            ? 'Submit or delete the lines above to switch segment'
+            : picked == OrderSegment.all
+                ? 'Articles of every segment will be offered'
+                : 'Only ${picked.categories.join(' and ')} articles will be '
+                    'offered';
 
     final button = _ContinueButton(
       variant: variant,
+      text: isLocked ? 'OK' : 'Continue',
       onPressed: picked == null ? null : onConfirm,
     );
 
@@ -735,7 +896,11 @@ class _Footer extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          picked == null ? Icons.touch_app_outlined : Icons.info_outline,
+          picked == null
+              ? Icons.touch_app_outlined
+              : isLocked
+                  ? Icons.lock_outline
+                  : Icons.info_outline,
           size: 16,
           color: Colors.white.withAlpha(200),
         ),
@@ -780,9 +945,15 @@ class _Footer extends StatelessWidget {
 class _ContinueButton extends StatelessWidget {
   final AppThemeVariant variant;
 
+  final String text;
+
   final VoidCallback? onPressed;
 
-  const _ContinueButton({required this.variant, required this.onPressed});
+  const _ContinueButton({
+    required this.variant,
+    required this.text,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -809,23 +980,26 @@ class _ContinueButton extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: onPressed,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28, vertical: 13),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Continue',
-                    style: TextStyle(
+                    text,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.3,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward, size: 18, color: Colors.white),
+                  if (text == 'Continue') ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward,
+                        size: 18, color: Colors.white),
+                  ],
                 ],
               ),
             ),

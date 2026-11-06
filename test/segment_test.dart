@@ -120,4 +120,44 @@ void main() {
     expect(controller.segment, OrderSegment.domestic);
     expect(find.text('DOM · Domestic'), findsOneWidget);
   });
+
+  testWidgets('orders in progress lock the segment and say why',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final controller = Get.put(
+      SegmentController(
+        draftOrdersLoader: () async => const [
+          DraftOrder(orderType: 'BK', orderNumber: 1024, lineCount: 3),
+          DraftOrder(orderType: 'DT', orderNumber: 77, lineCount: 1),
+        ],
+      ),
+    )..select(OrderSegment.industry);
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          appBar: AppBar(actions: const [SegmentHeaderButton()]),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('IND · Industry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Segment locked to Industry (IND)'), findsOneWidget);
+    expect(find.text('Bulk draft #1024 (3 lines)'), findsOneWidget);
+    expect(find.text('DTM draft #77 (1 line)'), findsOneWidget);
+
+    // Other cards cannot be picked; OK closes without a change.
+    await tester.tap(find.text('Domestic'));
+    await tester.pump();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
+    expect(controller.segment, OrderSegment.industry);
+  });
 }

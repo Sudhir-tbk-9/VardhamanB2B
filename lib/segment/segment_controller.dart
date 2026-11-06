@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/user/user_controller.dart';
 
 /// Business segment the user orders in, picked once after login. Articles
 /// are matched on their JDE category code (F4101.SRP1, `Category` in the
@@ -67,6 +69,35 @@ enum OrderSegment {
       OrderSegment.values.firstWhereOrNull((segment) => segment.name == name);
 }
 
+/// An order in progress: draft lines saved but not yet submitted.
+class DraftOrder {
+  /// DraftTable order type: BK, DT or LD (Labdip and Sampling both).
+  final String orderType;
+
+  final int orderNumber;
+
+  final int lineCount;
+
+  const DraftOrder({
+    required this.orderType,
+    required this.orderNumber,
+    required this.lineCount,
+  });
+
+  String get typeName => switch (orderType) {
+        'BK' => 'Bulk',
+        'DT' => 'DTM',
+        'LD' => 'Labdip / Sampling',
+        _ => orderType,
+      };
+
+  @override
+  String toString() =>
+      '$typeName draft #$orderNumber ($lineCount line${lineCount == 1 ? '' : 's'})';
+}
+
+typedef DraftOrdersLoader = Future<List<DraftOrder>> Function();
+
 /// Console log of the segment flow, tagged `[SEGMENT]` so it can be
 /// filtered in the browser console (debugPrint, so release builds log too).
 void logSegment(String message) => debugPrint('[SEGMENT] $message');
@@ -83,7 +114,11 @@ class SegmentController extends GetxController {
   /// Whether the segment dialog is on screen, so it is not opened twice.
   bool isDialogOpen = false;
 
-  SegmentController() {
+  final DraftOrdersLoader _draftOrdersLoader;
+
+  /// [draftOrdersLoader] replaces the DraftTable read, for tests.
+  SegmentController({DraftOrdersLoader? draftOrdersLoader})
+      : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders {
     rxSegment.value = OrderSegment.byName(_readStorage());
 
     if (rxSegment.value == null) {
@@ -116,6 +151,59 @@ class SegmentController extends GetxController {
       'dropdowns, shade / UOM lookups and Excel upload now use only '
       'these categories',
     );
+  }
+
+  /// The customer's orders with lines not yet submitted. While there are
+  /// any the segment cannot be changed, so an order never mixes articles
+  /// of two segments.
+  Future<List<DraftOrder>> draftOrders() async {
+    try {
+      final draftOrders = await _draftOrdersLoader();
+
+      logSegment(draftOrders.isEmpty
+          ? 'No order lines in progress: segment can be changed'
+          : 'Segment switch locked by ${draftOrders.length} order(s) in '
+              'progress: ${draftOrders.join(', ')}');
+
+      return draftOrders;
+    } catch (e) {
+      logSegment('Could not check order lines in progress: $e');
+
+      return const [];
+    }
+  }
+
+  static Future<List<DraftOrder>> _loadDraftOrders() async {
+    final soldTo = Get.find<UserController>(tag: 'userController')
+        .rxUserDetail
+        .value
+        .soldToNumber;
+
+    final draftLines = await Get.find<Database>()
+        .managers
+        .draftTable
+        .filter((f) => f.soldTo.equals(soldTo))
+        .get();
+
+    final lineCounts = <(String, int), int>{};
+
+    for (final line in draftLines) {
+      lineCounts.update(
+        (line.orderType, line.orderNumber),
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    return [
+      for (final MapEntry(key: (orderType, orderNumber), value: lineCount)
+          in lineCounts.entries)
+        DraftOrder(
+          orderType: orderType,
+          orderNumber: orderNumber,
+          lineCount: lineCount,
+        ),
+    ];
   }
 
   /// Forgets the segment; the next login asks again.
