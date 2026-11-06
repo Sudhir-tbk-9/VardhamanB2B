@@ -16,10 +16,11 @@ import 'package:vardhman_b2b/bulk/spreadsheet_reader.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class BulkEntryController extends GetxController {
+class BulkEntryController extends GetxController with DirectDeliveryTc {
   final OrderReviewController orderReviewController = Get.find();
 
   final int orderNumber;
@@ -75,6 +76,7 @@ class BulkEntryController extends GetxController {
 
   final rxTex = ''.obs;
 
+  @override
   final rxArticle = ''.obs;
 
   final rxUom = ''.obs;
@@ -89,6 +91,7 @@ class BulkEntryController extends GetxController {
 
   final rxB = ''.obs;
 
+  @override
   final rxRemark = ''.obs;
 
   final rxQuantity = ''.obs;
@@ -99,31 +102,10 @@ class BulkEntryController extends GetxController {
 
   final _rxBuyerInfos = <BuyerInfo>[].obs;
 
+  @override
   final rxBillingType = 'Branch'.obs;
 
   final billingTypes = ['Branch', 'Plant'];
-
-  static const tcRequiredRemark = 'TC Required';
-
-  /// "Direct delivery - TC required", offered for recycled ("R"-prefix)
-  /// articles only. A ticked line is direct billed: DraftTable billingType
-  /// 'Plant', sent as BillingType 'D' like the F00092 BT/D customers.
-  final rxTcRequired = false.obs;
-
-  bool get isRecycledArticle =>
-      rxArticle.value.trim().toUpperCase().startsWith('R');
-
-  bool get _isTcLine => rxTcRequired.value && isRecycledArticle;
-
-  String get _lineBillingType => _isTcLine ? 'Plant' : rxBillingType.value;
-
-  String get _lineRemark => [
-        if (rxRemark.value.trim().isNotEmpty) rxRemark.value.trim(),
-        if (_isTcLine) tcRequiredRemark,
-      ].join(' | ');
-
-  static bool isTcRequiredLine(DraftTableData line) =>
-      line.billingType == 'Plant';
 
   final rxRequestType = ''.obs;
 
@@ -232,6 +214,9 @@ class BulkEntryController extends GetxController {
 
     rxShade.listen(shadeListener);
 
+
+    initDirectDeliveryTc();
+
     _shipToWorker = ever(
       _userController.rxDeliveryAddress,
       (_) => _repriceForShipTo(),
@@ -268,10 +253,6 @@ class BulkEntryController extends GetxController {
   /// has a single item, and re-runs the Article + Shade UOM lookup (Sno 14)
   /// for the shade already entered.
   void articleListener(String newArticle) {
-    if (!isRecycledArticle) {
-      rxTcRequired.value = false;
-    }
-
     final shade = rxShade.value;
 
     _unlockUom();
@@ -857,7 +838,7 @@ class BulkEntryController extends GetxController {
         if (rxSecondLightSource.value.trim().isNotEmpty)
           rxSecondLightSource.value,
         if (rxRemark.value.trim().isNotEmpty) rxRemark.value,
-        if (_isTcLine) tcRequiredRemark,
+        if (isTcLine) DirectDeliveryTc.tcRequiredRemark,
         if (rxL.value.trim().isNotEmpty) rxL.value,
         if (rxRequestType.value.isNotEmpty) rxRequestType.value,
         if (rxEndUse.value.isNotEmpty) rxEndUse.value,
@@ -928,12 +909,12 @@ class BulkEntryController extends GetxController {
       _database.managers.draftTable.create(
         (o) => o(
           article: rxArticle.value,
-          billingType: _lineBillingType,
+          billingType: lineBillingType,
           brand: rxBrand.value,
           buyer: buyerOrOtherName,
           buyerCode: _rxBuyerCode.value,
           colorName: rxColor.value,
-          remark: _lineRemark,
+          remark: lineRemark,
           endUse: rxEndUse.value,
           firstLightSource: rxFirstLightSource.value,
           lab: '${rxL.value},${rxA.value},${rxB.value}',
@@ -996,12 +977,12 @@ class BulkEntryController extends GetxController {
           .update(
             (o) => o(
               article: drift.Value(rxArticle.value),
-              billingType: drift.Value(_lineBillingType),
+              billingType: drift.Value(lineBillingType),
               brand: drift.Value(rxBrand.value),
               buyer: drift.Value(buyerOrOtherName),
               buyerCode: drift.Value(_rxBuyerCode.value),
               colorName: drift.Value(rxColor.value),
-              remark: drift.Value(_lineRemark),
+              remark: drift.Value(lineRemark),
               endUse: drift.Value(rxEndUse.value),
               firstLightSource: drift.Value(rxFirstLightSource.value),
               lineNumber: drift.Value(selectedBulkOrderLine.lineNumber),
@@ -1545,11 +1526,7 @@ class BulkEntryController extends GetxController {
     rxPoNumber.value = bulkOrderLine.poNumber;
     rxPoFileBytes.value = bulkOrderLine.poFileBytes;
     rxUnitPrice.value = bulkOrderLine.unitPrice?.toString() ?? '';
-    rxTcRequired.value = isTcRequiredLine(bulkOrderLine);
-    rxRemark.value = bulkOrderLine.remark
-        .split(' | ')
-        .where((part) => part != tcRequiredRemark)
-        .join(' | ');
+    populateTc(bulkOrderLine);
   }
 
   bool get merchandiserHasError => inputsInError.contains(rxMerchandiser);

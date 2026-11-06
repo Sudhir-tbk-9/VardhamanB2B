@@ -12,10 +12,11 @@ import 'package:vardhman_b2b/api/item_catalog_info.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class DtmEntryController extends GetxController {
+class DtmEntryController extends GetxController with DirectDeliveryTc {
   final OrderReviewController orderReviewController = Get.find();
 
   final int orderNumber;
@@ -71,6 +72,7 @@ class DtmEntryController extends GetxController {
 
   final rxTex = ''.obs;
 
+  @override
   final rxArticle = ''.obs;
 
   final rxUom = ''.obs;
@@ -85,6 +87,7 @@ class DtmEntryController extends GetxController {
 
   final rxB = ''.obs;
 
+  @override
   final rxRemark = ''.obs;
 
   final rxQuantity = ''.obs;
@@ -95,6 +98,7 @@ class DtmEntryController extends GetxController {
 
   final _rxBuyerInfos = <BuyerInfo>[].obs;
 
+  @override
   final rxBillingType = 'Branch'.obs;
 
   final billingTypes = ['Branch', 'Plant'];
@@ -203,6 +207,9 @@ class DtmEntryController extends GetxController {
     });
 
     rxShade.listen(shadeListener);
+
+
+    initDirectDeliveryTc();
 
     rxArticle.listen(
       (_) {
@@ -656,6 +663,7 @@ class DtmEntryController extends GetxController {
           rxSecondLightSource.value,
         if (rxColor.value.trim().isNotEmpty) rxColor.value,
         if (rxRemark.value.trim().isNotEmpty) rxRemark.value,
+        if (isTcLine) DirectDeliveryTc.tcRequiredRemark,
         if (rxL.value.trim().isNotEmpty) rxL.value,
         if (rxRequestType.value.isNotEmpty) rxRequestType.value,
         if (rxEndUse.value.isNotEmpty) rxEndUse.value,
@@ -730,12 +738,12 @@ class DtmEntryController extends GetxController {
       _database.managers.draftTable.create(
         (o) => o(
           article: rxArticle.value,
-          billingType: rxBillingType.value,
+          billingType: lineBillingType,
           brand: rxBrand.value,
           buyer: buyerOrOtherName,
           buyerCode: _rxBuyerCode.value,
           colorName: rxColor.value,
-          remark: rxRemark.value,
+          remark: lineRemark,
           endUse: rxEndUse.value,
           firstLightSource: rxFirstLightSource.value,
           lab: '${rxL.value},${rxA.value},${rxB.value}',
@@ -797,12 +805,12 @@ class DtmEntryController extends GetxController {
           .update(
             (o) => o(
               article: drift.Value(rxArticle.value),
-              billingType: drift.Value(rxBillingType.value),
+              billingType: drift.Value(lineBillingType),
               brand: drift.Value(rxBrand.value),
               buyer: drift.Value(buyerOrOtherName),
               buyerCode: drift.Value(_rxBuyerCode.value),
               colorName: drift.Value(rxColor.value),
-              remark: drift.Value(rxRemark.value),
+              remark: drift.Value(lineRemark),
               endUse: drift.Value(rxEndUse.value),
               firstLightSource: drift.Value(rxFirstLightSource.value),
               lineNumber: drift.Value(selectedDtmOrderLine.lineNumber),
@@ -865,6 +873,8 @@ class DtmEntryController extends GetxController {
       rxPoFileName.value != '';
 
   void clearAllInputs({List<int> skipHashCodes = const []}) {
+    rxTcRequired.value = false;
+
     if (!skipHashCodes.contains(rxMerchandiser.hashCode)) {
       rxMerchandiser.value = '';
     }
@@ -1066,7 +1076,7 @@ class DtmEntryController extends GetxController {
     rxPoFileName.value = dtmOrderLine.poFileName;
     rxPoNumber.value = dtmOrderLine.poNumber;
     rxPoFileBytes.value = dtmOrderLine.poFileBytes;
-    rxRemark.value = dtmOrderLine.remark;
+    populateTc(dtmOrderLine);
   }
 
   bool get merchandiserHasError => inputsInError.contains(rxMerchandiser);

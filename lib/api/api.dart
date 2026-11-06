@@ -3073,7 +3073,10 @@ class Api {
                 '$merchandiserName|$b2bOrderNumber-${dtmEntryLine.poNumber}',
             "LightSourceRemark": dtmEntryLine.firstLightSource,
             "ColorRemark": dtmEntryLine.colorRemark,
-            "BillingType": billingType,
+            // A "Direct delivery - TC required" line (billingType 'Plant')
+            // is direct billed even when the Sold-To is not BT/D.
+            "BillingType":
+                dtmEntryLine.billingType == 'Plant' ? 'D' : billingType,
             "EndUse": isOtherBuyer ? 'OTH' : dtmEntryLine.buyerCode,
             "RelatedOrder":
                 "| | | |${isOtherBuyer ? 'OTH-${dtmEntryLine.buyer}' : ''}",

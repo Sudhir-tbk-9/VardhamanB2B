@@ -16,6 +16,7 @@ import 'package:vardhman_b2b/common/catalog_search_field.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/bulk/bulk_entry_controller.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
+import 'package:vardhman_b2b/common/direct_delivery_tc_box.dart';
 import 'package:vardhman_b2b/common/form_section.dart';
 import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
@@ -621,6 +622,8 @@ class CreateBulkOrderView extends StatelessWidget {
                                           // under it: a row of its own made
                                           // the form scroll.
                                           Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
                                             children: [
                                               Expanded(
                                                 child: NewOrderTextField(
@@ -630,51 +633,17 @@ class CreateBulkOrderView extends StatelessWidget {
                                                       .rxUnitPrice,
                                                 ),
                                               ),
+                                              // Only for an article with an
+                                              // "R" in it.
                                               if (bulkEntryController
-                                                  .isRecycledArticle) ...[
+                                                  .offersTc) ...[
                                                 SizedBox(
                                                   width: 4,
                                                 ),
                                                 Expanded(
-                                                  child: InkWell(
-                                                    onTap: () => bulkEntryController
-                                                            .rxTcRequired.value =
-                                                        !bulkEntryController
-                                                            .rxTcRequired.value,
-                                                    child: Row(
-                                                      children: [
-                                                        Checkbox(
-                                                          value: bulkEntryController
-                                                              .rxTcRequired.value,
-                                                          visualDensity:
-                                                              VisualDensity
-                                                                  .compact,
-                                                          materialTapTargetSize:
-                                                              MaterialTapTargetSize
-                                                                  .shrinkWrap,
-                                                          onChanged: (value) =>
-                                                              bulkEntryController
-                                                                      .rxTcRequired
-                                                                      .value =
-                                                                  value ?? false,
-                                                        ),
-                                                        Flexible(
-                                                          child: Text(
-                                                            'Direct delivery - TC required',
-                                                            maxLines: 2,
-                                                            overflow: TextOverflow
-                                                                .ellipsis,
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              fontWeight:
-                                                                  FontWeight.bold,
-                                                              color: VardhmanColors
-                                                                  .darkGrey,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
+                                                  child: DirectDeliveryTcBox(
+                                                    controller:
+                                                        bulkEntryController,
                                                   ),
                                                 ),
                                               ],

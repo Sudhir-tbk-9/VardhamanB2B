@@ -15,6 +15,7 @@ import 'package:vardhman_b2b/common/catalog_search_field.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/dtm/dtm_entry_controller.dart';
 import 'package:vardhman_b2b/common/new_order_text_field.dart';
+import 'package:vardhman_b2b/common/direct_delivery_tc_box.dart';
 import 'package:vardhman_b2b/common/form_section.dart';
 import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
@@ -546,11 +547,38 @@ class CreateDtmOrderView extends StatelessWidget {
                                               ),
                                             ],
                                           ),
-                                          NewOrderTextField(
-                                            inputFormatters: [capitalFormatter],
-                                            labelText: 'Remark',
-                                            rxString: dtmEntryController.rxRemark,
-                                            hintText: 'Enter Remark',
+                                          // TC beside Remark rather than under
+                                          // it, so the form does not grow.
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Expanded(
+                                                child: NewOrderTextField(
+                                                  inputFormatters: [
+                                                    capitalFormatter
+                                                  ],
+                                                  labelText: 'Remark',
+                                                  rxString: dtmEntryController
+                                                      .rxRemark,
+                                                  hintText: 'Enter Remark',
+                                                ),
+                                              ),
+                                              // Only for an article with an
+                                              // "R" in it.
+                                              if (dtmEntryController
+                                                  .offersTc) ...[
+                                                SizedBox(
+                                                  width: 4,
+                                                ),
+                                                Expanded(
+                                                  child: DirectDeliveryTcBox(
+                                                    controller:
+                                                        dtmEntryController,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                         ],
                                       ),
