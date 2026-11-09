@@ -3412,9 +3412,10 @@ class Api {
       final request = {
         "walletClientCode": "WT-2519",
         "apiReqFor": "status",
-        "ReceiptNumber": {
-          "txn-id": receiptNumber,
-        }
+        // "ReceiptNumber": {
+        //   "txn-id": receiptNumber,
+        // }
+        "ReceiptNumber": "txn-id=$receiptNumber|"
       };
 
       logPayment(
