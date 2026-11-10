@@ -6,7 +6,7 @@ Source of tasks: `docs/SOW MAPP and B2B-Priority (1).xlsx`, sheet **B2B**.
 - No mock, hardcoded or sample data was added.
 - Every value comes from an existing JDE endpoint in `docs/ARCHITECTURE_AND_API.md` §6 or from a JDE dataservice call.
 - Items without a JDE source were stopped and reported (Sno 7, and the receipt email in Sno 13).
-- Nothing has been committed.
+- Committed on branch `fix/py-bugs`. Fixes made after the PY deployment are listed under [PY fixes and improvements](#py-fixes-and-improvements-branch-fixpy-bugs).
 
 **Build status**
 - `flutter analyze`: 21 issues, all already there before this work. None comes from the new code.
@@ -26,8 +26,8 @@ Source of tasks: `docs/SOW MAPP and B2B-Priority (1).xlsx`, sheet **B2B**.
 | 13 | Payment: PO field and search, knock-off, SMS | Done except receipt email (no JDE endpoint) | Left rail **Open** / **Paid** |
 | 10 | Keep Article/UOM after Add Line, cursor back to Shade | Done (Bulk) | Bulk New Order → **Add Line** |
 | 6 | Order status on top, invoice date, Shade/Buyer search, scrollbars | Done | ORDERS → Bulk → click an order |
-| 11 | UI colour options | Done (9 themes incl. 3 gradient) | Hover **Welcome! name** → **Theme** |
-| 7 | Segment popup after login | **Blocked**: no JDE source | — |
+| 11 | UI colour options | Done (12 themes, each with a pattern and background photo; default Thread Spectrum) | Account menu → **Theme** |
+| 7 | Segment popup after login | Done segment-wise; **customer-wise mapping pending** (no JDE source) | Popup after login; segment button in the top bar |
 | Extra | Loading indicator for slow JDE calls | Done | Everywhere (top bar + table spinner) |
 
 ---
@@ -318,10 +318,16 @@ Lab Dip and Sampling: a single UOM is still filled in automatically, but not loc
 ## Sno 11 — UI colour options (theme switcher)
 
 ### What changed
-- **Themes**: 9 themes in `lib/app/theme_variants.dart`, each defining primary, accent, surface, success, warning and error colours.
-  - **Vardhman Red** (default, the original look)
+- **Themes**: 12 themes in `lib/app/theme_variants.dart`, each defining primary, accent, surface, success, warning and error colours, plus a fabric pattern.
+  - **Thread Spectrum** (default)
+  - Vardhman Red (the original look)
   - Indigo Navy, Ocean Teal, Royal Purple, Charcoal Gold, Forest Green
-  - **Gradient**: Sunset Blaze, Ocean Aurora, Royal Twilight. Gradients apply to primary buttons, the left nav rail and the top bar.
+  - Sunset Blaze, Ocean Aurora, Royal Twilight, Silk Weave, Midnight Stars
+  - Gradients apply to primary buttons, the left nav rail and the top bar.
+- **Background photos**: each theme has its own thread or fabric photo behind the nav rail, the top bar, the theme preview and the segment dialog.
+  - The photos are in `assets/themes/` (free Pexels photos); Thread Spectrum uses `assets/home_background.jpg`.
+  - Over a photo the dark gradient is about 60% opaque, so the photo shows through.
+- **Table headers and the filter reset button** follow the theme too (`lib/common/table_header.dart`).
 - **Switcher**: a dialog of preview tiles (`lib/app/theme_switcher.dart`).
 - **Saved choice**: kept in SharedPreferences (`themeVariant`) per device and browser.
 - **Whole app follows the theme**: `VardhmanColors` now reads from the selected theme. `const` was removed from about 60 expressions that used it; no other code changed.
@@ -330,7 +336,7 @@ Lab Dip and Sampling: a single UOM is still filled in automatically, but not loc
 
 | # | Where / what to click | Expected result |
 |---|---|---|
-| 1 | Hover over **Welcome! name** (top right) | Profile menu: *(Order Summary)*, **Status Report**, **Theme**, **Logout** |
+| 1 | Click the account menu next to **Welcome! …** (top right) | Profile menu: *(Order Summary)*, **Status Report**, **Theme**, **Logout** |
 | 2 | Click **Theme** | Dialog with **9 preview tiles**; current one ticked; gradient tiles show a gradient icon |
 | 3 | Click **Indigo Navy** | Whole app recolours immediately: nav rail, top bar, buttons, headers, tables, loader |
 | 4 | Click **Sunset Blaze** | Buttons, nav rail and top bar show gradients |
@@ -339,11 +345,27 @@ Lab Dip and Sampling: a single UOM is still filled in automatically, but not loc
 
 ---
 
-## Sno 7 — Segment selection after login — BLOCKED (no JDE source)
+## Sno 7 — Segment selection after login — segment-wise done, customer-wise pending
 
 SOW text: *"prevent cross-segmental order placement, with proper customer-wise and segment-wise mapping. After login a Segment selection popup, and order placement as per the selected segment only."*
 
-**Nothing was built**: no JDE source gives a user's or customer's segments, so there is nothing to check on the UI.
+### What changed (segment-wise)
+- **Popup after login**: a segment dialog opens right after login (`lib/segment/segment_dialog.dart`). It cannot be closed until a segment is picked:
+  - Industry (IND)
+  - Domestic (DOM)
+  - Speciality (SPE)
+  - Industry & Speciality
+  - All Segments
+- **Ordering limited to the segment**: the pick filters articles by JDE category (F4101.SRP1) in:
+  - the article dropdowns of all order screens;
+  - the shade and UOM lookups;
+  - the Bulk Excel upload, which rejects rows of another segment.
+- **Cross-segment lock**: while the customer has unsubmitted draft lines, other segments cannot be picked, and an alert lists the orders in progress. So one order never mixes articles of two segments.
+- **Kept per session**: the pick survives a page refresh (sessionStorage) and is cleared on logout. The top bar shows the segment and reopens the dialog.
+- **Logs**: `[SEGMENT]` in the browser console.
+
+### Still pending (customer-wise)
+Every customer can pick any of the five segments, because no JDE source gives a customer's segments:
 
 | Source checked | What the app reads | Segment? |
 |---|---|---|
@@ -380,6 +402,60 @@ SOW text: *"prevent cross-segmental order placement, with proper customer-wise a
 
 ---
 
+## PY fixes and improvements (branch `fix/py-bugs`)
+
+Changes made after the PY deployment, newest first. Each row names the problem, the fix and how to check it.
+
+### Order lists
+
+| Problem | Fix | Where | How to check |
+|---|---|---|---|
+| A new order did not appear until ⟳ was pressed or the user logged in again | After a successful submit the order lists reload. They reload again every 10 s, up to 4 reloads, until JDE returns the order (matched on its B2B number, e.g. `B2BB30041`). Covers Bulk, DTM, Sampling, Labdip and rematch orders. | `OrdersController.refreshUntilListed`; called from `order_review_controller.dart`, `labdip_controller.dart`, `sampling_controller.dart` | Place an order and stay on the list: it appears without ⟳. Console: `[ORDERS] B2BB… listed after reload N` |
+| Order 26111668 was in the `GetOrderStatus` response but on no list, not even under Today | JDE returned it with `OrTy` `SO`; the lists only took `SW`. Bulk and DTM now take `SW` and `SO`, split on the DTM flag. | `bulk_controller.dart`, `dtm_controller.dart` `isListOrder` | 26111668 / B2BB30041 shows under Bulk |
+| A new order with an empty field (`null`) was skipped without a trace | Order rows are read leniently; a row is skipped only for an unusable order number or date, and then logged | `Api.fetchOrders` | Console `[ORDERS] fetchOrders skipped …` if it happens |
+| With the portal left open past midnight, the To date stayed on the opening day and hid the new day's orders | A To date left on today follows the clock on every reload; a picked date is kept | `order_list_filters.dart` `_keepToDateOnToday` | Covered by `test/welcome_and_to_date_test.dart` |
+| Bulk Order Details had status and quantity chips that did not filter anything | Status / Ordered / Shipped / Cancelled chips removed. The **Lines** chips (All N, In Progress N, Dispatched N, …) filter the line table, one at a time, keyboard accessible, back to All when another order opens. | `lib/common/order_status_panel.dart`, `bulk_controller.dart` | Open a Bulk order and click the line chips |
+
+How the lists load and when the API is called is described in `docs/ARCHITECTURE_AND_API.md` §3.5.
+
+### Header, themes and look
+
+| Change | Where | How to check |
+|---|---|---|
+| Header greets **Welcome! RISHIK (105911)**: login ID with the customer number in brackets, instead of the JDE user name alone | `home_scaffold.dart` `welcomeText` | Top right after login |
+| Each theme has its own background photo; the bar over it is lighter so the photo shows | `assets/themes/`, `theme_variants.dart` `ThemeBackdrop` | Account menu → Theme, switch themes |
+| Thread Spectrum is the default theme | `ThemeVariants.defaultVariant` | New browser / cleared site data |
+| Table headers and the filter reset button follow the theme (they were grey) | `lib/common/table_header.dart`, `order_filters_panel.dart` | Any list, after switching themes |
+
+### Payment and SMS
+
+| Change | Where |
+|---|---|
+| Payment status request sends `ReceiptNumber` as the string `txn-id=<receipt>\|` | `api.dart`, payment status call |
+| Order SMS stays on the `ORCH55_SendSMSNotification_B2B` orchestration. A direct Airtel IQ call, as in the mobile app, was tried and reverted: Airtel blocks it from the browser (CORS) and it exposes the credentials. The orchestration team is to make the orchestration send the SMS. | `Api.sendOrderEntrySMS` |
+
+### Segment (Sno 7)
+
+| Change | Where |
+|---|---|
+| Segment popup after login, ordering limited to the picked segment | `lib/segment/` |
+| DOM articles included in All Segments | `segment_controller.dart` |
+| Segment locked while the customer has unsubmitted lines | `segment_dialog.dart` |
+
+### Browser console errors
+
+| Error | Fix | Where |
+|---|---|---|
+| "Refused to set unsafe header" on every request | `Connection` and `Accept-Encoding` removed from the request headers; browsers set these themselves | `api.dart` `_dio` |
+| Crash (red error and a TypeError) when the window was resized with a dropdown open | An open dropdown popup closes when the window size changes | `lib/common/close_popup_on_resize.dart` |
+
+### Still open
+1. **JDE team**: why was order 26111668 created as `SO` and not `SW`? Check that its Order Details shows its lines.
+2. **Orchestration team**: SMS on order placement through `ORCH55_SendSMSNotification_B2B`.
+3. **Customer-to-segment mapping** (Sno 7): needed from Vardhman to limit each customer to their segments.
+
+---
+
 ## Files changed
 
 **New**
@@ -391,7 +467,7 @@ SOW text: *"prevent cross-segmental order placement, with proper customer-wise a
 - `lib/common/vardhman_loader.dart`: spinner, table overlay, top activity bar
 - `lib/api/api_activity.dart`: running-call counter
 - `lib/open/payment_knock_off_view.dart`: Select by PO field, knock-off table
-- `lib/app/theme_variants.dart`: 9 themes, `ThemeController`
+- `lib/app/theme_variants.dart`: 12 themes with patterns and background photos, `ThemeController`
 - `lib/app/theme_switcher.dart`: theme dialog with preview tiles
 - `docs/SOW_B2B_CHANGES.md`: this file
 

@@ -268,6 +268,32 @@ JDE reads this back as three space-separated segments
 
 - `Api.fetchOrders(soldToNumber)` → `ORCH5542001_GetOrderStatus`, 180-day window.
 - `Api.fetchOrderDetails(...)` → `ORCH5542002_GetOrderDetail`.
+
+**Order lists: loading, splitting and refresh**
+
+- **One call feeds all four lists.** `OrdersController` (`orders_controller.dart`) calls `fetchOrders`, sorts the rows newest first (JDE does not sort them), and assigns them to `rxOrderHeaderLines` in one update.
+- **Lenient parsing.** `fetchOrders` reads empty (`null`) text fields as blank and numbers sent as text as numbers. A row is skipped only when its order number or date is unusable, and the skip is logged as `[ORDERS] fetchOrders skipped …` in the browser console.
+- **Split by `OrTy` and `DTMOrderYN`** (`isListOrder` in each list controller):
+
+  | List | Order type | DTM flag |
+  |---|---|---|
+  | Bulk | `SW` or `SO` | blank / `N` |
+  | DTM | `SW` or `SO` | `Y`, `1`, `2`, `3` |
+  | Sampling | `SA` | `Y`, `1`, `2`, `3` |
+  | Labdip | `LD` | any |
+
+  `SO` was added because JDE created portal Bulk order 26111668 (`B2BB30041`) as `SO`, which hid it from every list.
+- **Filters** (`lib/orders/order_list_filters.dart`) turn each list's orders into `rxFilteredOrders`.
+  - On every reload the From date returns to the oldest order.
+  - A To date left on today follows the clock, so a portal left open past midnight still lists the new day's orders. A To date the user picked is kept.
+  - A quick range (Today, Last 7 Days, …) is applied again.
+- **When `fetchOrders` is called for the lists:**
+  1. after login, when `OrdersController` is created;
+  2. on a customer switch (listener on `rxCustomerDetail`);
+  3. on the ⟳ button of the Bulk, DTM, Sampling or Labdip list;
+  4. **after an order is placed**: `OrdersController.refreshUntilListed(b2bOrderNumber)` reloads straight away. While JDE has not returned the order yet (matched on `OrderReference`), it reloads again every 10 s, up to 4 reloads. This covers new Bulk, DTM, Sampling and Labdip orders and Labdip/Sampling rematch orders.
+- **A tap while a load for the same customer is running** waits for that load instead of starting another. A failed load keeps the orders on screen and shows a toast.
+- **Switching tabs makes no API call.** Home keeps visited tabs mounted in `LazyIndexedStack` (`lib/home/lazy_indexed_stack.dart`). Hidden tabs still listen to `rxOrderHeaderLines`, so a reload updates every list, not only the visible one.
 - `order_review_controller.dart:40` classifies each line into
   `OrderStatus.shipped / cancelled / pending` (`constants.dart:109`).
 
@@ -890,6 +916,9 @@ validates xlsx item numbers.
 | `submitBulkOrder` | `:231` | — |
 | `sendOrderEntrySMS` | `:256` | `canSendSMS` |
 | `sendOrderEntryWhatsApp` | `:263` | `canSendWhatsApp` |
+| `fetchOrders` (via `OrdersController.refreshUntilListed`) | after each successful submit above, and after the Labdip / Sampling rematch order | order placed |
+
+Order SMS goes through the `ORCH55_SendSMSNotification_B2B` orchestration. A direct call to the Airtel IQ SMS API, as the mobile app makes, was tried and reverted. From the browser, Airtel's server answers the CORS preflight with 404, and the call would put the Airtel credentials in the web build.
 
 ### Order tracking
 
@@ -1047,3 +1076,9 @@ Ordered by severity.
 10. **Environment switching is a source edit.** There is no `--dart-define` or
     flavor; moving between `erptest`/`erp` and PD/PY payments requires editing
     tracked files.
+
+11. **Order type can come back as `SO`.** Portal orders are expected as `SW`
+    (Bulk / DTM), but JDE returned order 26111668 (`B2BB30041`) as `SO`. The
+    lists now accept both. Still to ask the JDE team why it was created as
+    `SO`. If JDE made no work order for it, its Bulk details table can be
+    empty, because that table lists only lines with a work order.
