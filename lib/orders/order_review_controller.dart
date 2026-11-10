@@ -4,6 +4,7 @@ import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
 class OrderReviewController extends GetxController {
@@ -33,6 +34,14 @@ class OrderReviewController extends GetxController {
         }
       },
     );
+  }
+
+  /// Order lists reload only on request: show the placed order without
+  /// the user pressing refresh. Not awaited; it may retry for a while.
+  void _showPlacedOrder(String b2bOrderNumber) {
+    if (Get.isRegistered<OrdersController>()) {
+      Get.find<OrdersController>().refreshUntilListed(b2bOrderNumber);
+    }
   }
 
   String getUomDescription(String uom) {
@@ -85,6 +94,8 @@ class OrderReviewController extends GetxController {
       }
 
       fetchDraftOrderNumber();
+
+      _showPlacedOrder(b2bOrderNumber);
     } else {
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),
@@ -142,6 +153,8 @@ class OrderReviewController extends GetxController {
       }
 
       fetchDraftOrderNumber();
+
+      _showPlacedOrder(b2bOrderNumber);
     } else {
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),
@@ -196,6 +209,8 @@ class OrderReviewController extends GetxController {
       }
 
       fetchDraftOrderNumber();
+
+      _showPlacedOrder(b2bOrderNumber);
     } else {
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),
@@ -249,6 +264,8 @@ class OrderReviewController extends GetxController {
       }
 
       fetchDraftOrderNumber();
+
+      _showPlacedOrder(b2bOrderNumber);
     } else {
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),

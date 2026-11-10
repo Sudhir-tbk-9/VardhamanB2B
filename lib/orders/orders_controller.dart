@@ -69,6 +69,46 @@ class OrdersController extends GetxController
     }
   }
 
+  /// Reloads the orders after [b2bOrderNumber] (e.g. B2BB30041) was placed,
+  /// so it shows without a manual refresh. JDE can take a few seconds to
+  /// create the order, so while it is not listed yet the reload is tried
+  /// again every [retryDelay], up to [attempts] reloads in all.
+  Future<void> refreshUntilListed(
+    String b2bOrderNumber, {
+    int attempts = 4,
+    Duration retryDelay = const Duration(seconds: 10),
+  }) async {
+    final customerSoldToNumber =
+        _userController.rxCustomerDetail.value.soldToNumber;
+
+    for (int attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) {
+        await Future.delayed(retryDelay);
+      }
+
+      // Logged out, or another customer picked meanwhile.
+      if (isClosed ||
+          customerSoldToNumber !=
+              _userController.rxCustomerDetail.value.soldToNumber) {
+        return;
+      }
+
+      await refreshOrders();
+
+      if (rxOrderHeaderLines.any(
+        (orderHeaderLine) =>
+            orderHeaderLine.orderReference.trim() == b2bOrderNumber.trim(),
+      )) {
+        debugPrint('[ORDERS] $b2bOrderNumber listed after reload $attempt');
+
+        return;
+      }
+    }
+
+    debugPrint(
+        '[ORDERS] $b2bOrderNumber not returned by JDE after $attempts reloads');
+  }
+
   Future<void> _refreshOrders(String customerSoldToNumber) async {
     _rxLoadCount.value++;
 

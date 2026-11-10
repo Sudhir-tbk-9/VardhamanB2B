@@ -273,6 +273,9 @@ class SamplingController extends GetxController with OrderListFilters {
             mobileNumber: userController.rxCustomerDetail.value.mobileNumber,
           );
         }
+
+        // Lists the rematch order without a manual refresh.
+        ordersController.refreshUntilListed(b2bRejectionOrderNumber);
       } else {
         toastification.show(
           autoCloseDuration: Duration(seconds: 3),
