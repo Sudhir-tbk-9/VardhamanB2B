@@ -190,9 +190,34 @@ mixin OrderListFilters on GetxController {
   /// Takes this list's orders out of all the customer's [orderHeaderLines];
   /// call whenever those are (re)loaded, before reading [rxOrders].
   void assignListOrders(List<OrderHeaderLine> orderHeaderLines) {
+    _keepToDateOnToday();
+
     rxOrders.assignAll(orderHeaderLines.where(isListOrder));
 
     _onHeaderFiltersChanged();
+  }
+
+  /// The To date the list last set to today, or null before the first load.
+  DateTime? _todayToDate;
+
+  /// A To date left on today follows the clock. Otherwise, with the portal
+  /// open past midnight, it stays on the day it was opened, and orders placed
+  /// since then are filtered out although JDE returns them. A date the user
+  /// picked is kept.
+  void _keepToDateOnToday() {
+    final now = DateTime.now();
+
+    final toDate = rxOrderToDate.value;
+
+    final todayToDate = _todayToDate;
+
+    if (todayToDate == null ||
+        areDatesEqual(toDate, todayToDate) ||
+        areDatesEqual(toDate, now)) {
+      _todayToDate = now;
+
+      rxOrderToDate.value = now;
+    }
   }
 
   void _onHeaderFiltersChanged() {

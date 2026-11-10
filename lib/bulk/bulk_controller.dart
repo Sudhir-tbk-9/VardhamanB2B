@@ -62,7 +62,9 @@ class BulkController extends GetxController with OrderListFilters {
 
   @override
   bool isListOrder(OrderHeaderLine orderHeaderLine) =>
-      orderHeaderLine.orderType == 'SW' && !orderHeaderLine.isDTM;
+      // JDE can create a portal Bulk order as SO instead of SW (e.g. 26111668).
+      const {'SW', 'SO'}.contains(orderHeaderLine.orderType) &&
+      !orderHeaderLine.isDTM;
 
   final rxDraftOrders = <DraftTableData>[].obs;
 

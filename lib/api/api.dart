@@ -1564,38 +1564,51 @@ class Api {
       );
 
       if (response.statusCode == 200) {
+        // A just placed order can come with fields still empty (null) or
+        // numbers as text; read them leniently so it is not skipped.
+        String text(Object? value) => value?.toString() ?? '';
+
+        num number(Object? value) =>
+            value is num ? value : num.tryParse(text(value).trim()) ?? 0;
+
         for (var orderStatus in response.data["GetOrderStatus"]) {
           // One malformed row must not drop every order after it.
           try {
+            final orderNumber = orderStatus['OrderNumber'];
+
             final OrderHeaderLine orderHeaderLine = OrderHeaderLine(
-              orderNumber: orderStatus['OrderNumber'],
-              orderType: orderStatus['OrTy'],
-              orderCompany: orderStatus['OrderCo'],
+              // Without an order number or date the row is unusable.
+              orderNumber: orderNumber is int
+                  ? orderNumber
+                  : int.parse(text(orderNumber).trim()),
+              orderType: text(orderStatus['OrTy']),
+              orderCompany: text(orderStatus['OrderCo']),
               orderDate: DateFormat('MM/dd/yyyy').parse(
-                orderStatus['OrderDate'],
+                text(orderStatus['OrderDate']).trim(),
               ),
-              orderReference: orderStatus['OrderReference'],
-              holdCode: orderStatus['HoldCode'],
-              shipTo: orderStatus['ShipTo'],
-              quantityOrdered: orderStatus['QuantityOrdered'],
-              quantityShipped: orderStatus['QuantityShipped'],
-              quantityCancelled: orderStatus['QuantityCanceled'],
-              orderStatus: orderStatus['OrderStatus'],
-              orderAmount:
-                  double.tryParse(orderStatus['OrderAmount'].toString()) ?? 0.0,
+              orderReference: text(orderStatus['OrderReference']),
+              holdCode: text(orderStatus['HoldCode']),
+              shipTo: number(orderStatus['ShipTo']).toInt(),
+              quantityOrdered: number(orderStatus['QuantityOrdered']),
+              quantityShipped: number(orderStatus['QuantityShipped']),
+              quantityCancelled: number(orderStatus['QuantityCanceled']),
+              orderStatus: text(orderStatus['OrderStatus']),
+              orderAmount: number(orderStatus['OrderAmount']).toDouble(),
               isDTM: (orderStatus['DTMOrderYN'].toString().trim() == 'Y' ||
                   orderStatus['DTMOrderYN'].toString().trim() == '1' ||
                   orderStatus['DTMOrderYN'].toString().trim() == '2' ||
                   orderStatus['DTMOrderYN'].toString().trim() == '3'),
               canIndent: orderStatus['InderntOrderYN'].toString().trim() == 'Y',
-              quantityBackOrdered: orderStatus['QuantityBackOrder'],
-              poNumber: orderStatus['CustomerPO'],
-              merchandiser: orderStatus['MerchandiserName'],
+              quantityBackOrdered: number(orderStatus['QuantityBackOrder']),
+              poNumber: text(orderStatus['CustomerPO']),
+              merchandiser: text(orderStatus['MerchandiserName']),
             );
 
             orderHeaderLines.add(orderHeaderLine);
           } catch (e) {
-            log('fetchOrders skipped ${orderStatus['OrderNumber']} - $e');
+            // debugPrint, not log(): log() never reaches the browser console.
+            debugPrint(
+                '[ORDERS] fetchOrders skipped ${orderStatus['OrderNumber']} - $e');
           }
         }
       } else {
