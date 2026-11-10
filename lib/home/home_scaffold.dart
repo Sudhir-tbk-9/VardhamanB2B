@@ -20,6 +20,7 @@ import 'package:vardhman_b2b/dtm/dtm_view.dart';
 import 'package:vardhman_b2b/home/order_summary_controller.dart';
 import 'package:vardhman_b2b/home/order_summary_view.dart';
 import 'package:vardhman_b2b/labdip/labdip_view.dart';
+import 'package:vardhman_b2b/login/login_controller.dart';
 import 'package:vardhman_b2b/open/open_view.dart';
 import 'package:vardhman_b2b/paid/paid_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_view.dart';
@@ -400,7 +401,15 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                                 const SizedBox(width: 12),
                                 Flexible(
                                   child: Text(
-                                    'Welcome! ${userController.rxUserDetail.value.name}',
+                                    welcomeText(
+                                      loginId: Get.find<LoginController>()
+                                          .rxUserId
+                                          .value,
+                                      userName: userController
+                                          .rxUserDetail.value.name,
+                                      soldToNumber: userController
+                                          .rxUserDetail.value.soldToNumber,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -499,4 +508,26 @@ class _HomeScaffoldState extends State<HomeScaffold> {
       ),
     );
   }
+}
+
+/// Header greeting: the login ID, or the JDE user name when the login ID is
+/// the customer number itself, with the customer number in brackets, e.g.
+/// "Welcome! RISHIK (105911)". Just the number when there is no other name.
+@visibleForTesting
+String welcomeText({
+  required String loginId,
+  required String userName,
+  required String soldToNumber,
+}) {
+  final number = soldToNumber.trim();
+
+  final name = [loginId.trim(), userName.trim()].firstWhereOrNull(
+    (name) => name.isNotEmpty && name != number,
+  );
+
+  if (name == null) {
+    return 'Welcome! $number';
+  }
+
+  return number.isEmpty ? 'Welcome! $name' : 'Welcome! $name ($number)';
 }
