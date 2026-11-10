@@ -118,6 +118,7 @@ class ThemeVariants {
     error: Color(0xFFE61E31),
     primaryGradient: [Color(0xFFE61E31), Color(0xFFFF5A5F)],
     accentGradient: [Color(0xFF333333), Color(0xFF4A4A4A)],
+    backgroundImage: 'assets/themes/vardhman_red.jpg',
   );
 
   static const threadSpectrum = AppThemeVariant(
@@ -154,6 +155,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFF283593), Color(0xFF3F51B5)],
       accentGradient: [Color(0xFF141E30), Color(0xFF243B55)],
       pattern: ThemePattern.twill,
+      backgroundImage: 'assets/themes/indigo_navy.jpg',
     ),
     AppThemeVariant(
       id: 'ocean_teal',
@@ -168,6 +170,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFF00897B), Color(0xFF26C6DA)],
       accentGradient: [Color(0xFF1F2D33), Color(0xFF134E4A)],
       pattern: ThemePattern.stitch,
+      backgroundImage: 'assets/themes/ocean_teal.jpg',
     ),
     AppThemeVariant(
       id: 'royal_purple',
@@ -182,6 +185,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFF6A1B9A), Color(0xFFAB47BC)],
       accentGradient: [Color(0xFF2D2438), Color(0xFF4A2C5E)],
       pattern: ThemePattern.jacquard,
+      backgroundImage: 'assets/themes/royal_purple.jpg',
     ),
     AppThemeVariant(
       id: 'charcoal_gold',
@@ -196,6 +200,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFF9C6B0E), Color(0xFFD4A537)],
       accentGradient: [Color(0xFF1A1A1A), Color(0xFF3A3226)],
       pattern: ThemePattern.pinstripe,
+      backgroundImage: 'assets/themes/charcoal_gold.jpg',
       patternColor: Color(0xFFD4A537),
     ),
     AppThemeVariant(
@@ -211,6 +216,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
       accentGradient: [Color(0xFF14261A), Color(0xFF2C4A32)],
       pattern: ThemePattern.herringbone,
+      backgroundImage: 'assets/themes/forest_green.jpg',
     ),
     AppThemeVariant(
       id: 'sunset_blaze',
@@ -225,6 +231,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
       accentGradient: [Color(0xFF2B1B2E), Color(0xFF5A1E44)],
       pattern: ThemePattern.knit,
+      backgroundImage: 'assets/themes/sunset_blaze.jpg',
     ),
     AppThemeVariant(
       id: 'ocean_aurora',
@@ -243,6 +250,7 @@ class ThemeVariants {
         Color(0xFF2C5364),
       ],
       pattern: ThemePattern.tartan,
+      backgroundImage: 'assets/themes/ocean_aurora.jpg',
     ),
     AppThemeVariant(
       id: 'royal_twilight',
@@ -261,6 +269,7 @@ class ThemeVariants {
         Color(0xFF24243E),
       ],
       pattern: ThemePattern.crossStitch,
+      backgroundImage: 'assets/themes/royal_twilight.jpg',
     ),
     // The first themes with a pattern; the ones above got theirs later.
     AppThemeVariant(
@@ -276,6 +285,7 @@ class ThemeVariants {
       primaryGradient: [Color(0xFFAD1457), Color(0xFFEC407A)],
       accentGradient: [Color(0xFF3E1F35), Color(0xFF6A2C55)],
       pattern: ThemePattern.weave,
+      backgroundImage: 'assets/themes/silk_weave.jpg',
     ),
     AppThemeVariant(
       id: 'midnight_stars',
@@ -294,6 +304,7 @@ class ThemeVariants {
         Color(0xFF2B1F4A),
       ],
       pattern: ThemePattern.stars,
+      backgroundImage: 'assets/themes/midnight_stars.jpg',
     ),
     threadSpectrum,
   ];
@@ -517,7 +528,16 @@ class ThemeBackdrop extends StatelessWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            gradient: variant.accentFill(begin: begin, end: end),
+            gradient: LinearGradient(
+              begin: begin,
+              end: end,
+              colors: [
+                // Let the photo show through an opaque gradient; Thread
+                // Spectrum's is translucent already.
+                for (final color in variant.accentGradient)
+                  image != null && color.a == 1 ? color.withAlpha(150) : color,
+              ],
+            ),
           ),
           child: CustomPaint(
             painter: variant.pattern == ThemePattern.none

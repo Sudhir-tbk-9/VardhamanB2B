@@ -288,7 +288,7 @@ class _SegmentDialogState extends State<SegmentDialog> {
   }
 }
 
-/// The thread photo under the theme's accent gradient and pattern, with a
+/// The theme's photo under its accent gradient and pattern, with a
 /// glow of the primary colour in the top corner.
 class _Backdrop extends StatelessWidget {
   final AppThemeVariant variant;
@@ -300,11 +300,13 @@ class _Backdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         image: DecorationImage(
           // The asset is several megapixels; decode a small copy.
           image: ResizeImage(
-            AssetImage('assets/home_background.jpg'),
+            AssetImage(
+              variant.backgroundImage ?? 'assets/home_background.jpg',
+            ),
             width: 1000,
           ),
           fit: BoxFit.cover,
@@ -316,7 +318,7 @@ class _Backdrop extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              for (final color in variant.accentGradient) color.withAlpha(215),
+              for (final color in variant.accentGradient) color.withAlpha(170),
             ],
           ),
         ),
