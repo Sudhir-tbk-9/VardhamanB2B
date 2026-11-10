@@ -294,6 +294,11 @@ JDE reads this back as three space-separated segments
   4. **after an order is placed**: `OrdersController.refreshUntilListed(b2bOrderNumber)` reloads straight away. While JDE has not returned the order yet (matched on `OrderReference`), it reloads again every 10 s, up to 4 reloads. This covers new Bulk, DTM, Sampling and Labdip orders and Labdip/Sampling rematch orders.
 - **A tap while a load for the same customer is running** waits for that load instead of starting another. A failed load keeps the orders on screen and shows a toast.
 - **Switching tabs makes no API call.** Home keeps visited tabs mounted in `LazyIndexedStack` (`lib/home/lazy_indexed_stack.dart`). Hidden tabs still listen to `rxOrderHeaderLines`, so a reload updates every list, not only the visible one.
+- **Order Details** (right-hand pane): clicking an order calls `fetchOrderDetails` (`ORCH5542002_GetOrderDetail`) for it.
+  - Lines are read leniently; a line that cannot be read is skipped and logged. Each call logs `[ORDERS] fetchOrderDetails <order> <type>: X of Y lines`.
+  - A reload of the lists keeps the open order open while the list still holds it (`isSameOrder` in `order_list_filters.dart` compares order number, type and company, since a reload brings updated copies). Lines that finish loading after another order was clicked are dropped.
+  - Bulk shows the lines whose `OrderLineReference` (trimmed) is the order's B2B number and that have a work order; Sampling shows the lines without a catalog name that have a work order. Until JDE has made the work orders, both show those lines without one.
+  - With no lines from JDE the table says "No lines from JDE for this order yet".
 - `order_review_controller.dart:40` classifies each line into
   `OrderStatus.shipped / cancelled / pending` (`constants.dart:109`).
 
