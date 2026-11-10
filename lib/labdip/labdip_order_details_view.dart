@@ -93,6 +93,9 @@ class LabdipOrderDetailsView extends StatelessWidget {
                           child: Text('No Order Selected'),
                         )
                       : DataTable2(
+                          empty: const Center(
+                            child: Text('No lines from JDE for this order yet'),
+                          ),
                           minWidth: 1200,
                           columnSpacing: 0,
                           showBottomBorder: true,

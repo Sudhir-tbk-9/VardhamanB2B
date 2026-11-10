@@ -164,7 +164,8 @@ class SamplingController extends GetxController with OrderListFilters {
       }
 
       // Deselected, or another order picked, while these loaded.
-      if (rxSelectedOrderHeaderLine.value == selectedOrderHeaderLine) {
+      if (isSameOrder(
+          rxSelectedOrderHeaderLine.value, selectedOrderHeaderLine)) {
         rxOrderDetailLines.assignAll(orderDetailLines);
       }
     }
@@ -292,13 +293,21 @@ class SamplingController extends GetxController with OrderListFilters {
     Get.back();
   }
 
+  /// The sample lines (not the permanent shade lines, which carry a
+  /// catalog name). Until JDE has made their work orders, e.g. just after
+  /// the order is placed, they are shown without one rather than none.
   List<OrderDetailLine> get primaryOrderDetailLines {
-    return rxOrderDetailLines.where(
-      (orderDetailLine) {
-        return orderDetailLine.workOrderNumber > 0 &&
-            orderDetailLine.catalogName.trim().isEmpty;
-      },
-    ).toList();
+    final sampleLines = rxOrderDetailLines
+        .where(
+          (orderDetailLine) => orderDetailLine.catalogName.trim().isEmpty,
+        )
+        .toList();
+
+    final workOrderLines = sampleLines
+        .where((orderDetailLine) => orderDetailLine.workOrderNumber > 0)
+        .toList();
+
+    return workOrderLines.isNotEmpty ? workOrderLines : sampleLines;
   }
 
   OrderDetailLine? getPermanentShadeLine(int workOrderNumber) {

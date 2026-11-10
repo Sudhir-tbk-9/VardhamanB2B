@@ -260,10 +260,26 @@ mixin OrderListFilters on GetxController {
       ),
     );
 
-    // A reload or new filter starts with no order open: the details pane
-    // empties rather than showing an order the list may no longer hold.
-    rxSelectedOrderHeaderLine.value = null;
+    // The open order stays open while the list still holds it, so a reload
+    // (e.g. the one after an order is placed) does not empty the details
+    // pane under the user. Otherwise the pane empties.
+    final selected = rxSelectedOrderHeaderLine.value;
+
+    if (selected != null) {
+      rxSelectedOrderHeaderLine.value = rxFilteredOrders.firstWhereOrNull(
+        (orderHeaderLine) => isSameOrder(orderHeaderLine, selected),
+      );
+    }
   }
+
+  /// Whether [a] and [b] are the same JDE order. A reload brings new copies
+  /// whose status or quantities may differ, so `==` is not enough.
+  bool isSameOrder(OrderHeaderLine? a, OrderHeaderLine? b) =>
+      a != null &&
+      b != null &&
+      a.orderNumber == b.orderNumber &&
+      a.orderType == b.orderType &&
+      a.orderCompany == b.orderCompany;
 
   Future<void> _searchByLine() async {
     // A newer search (or clearing shade / buyer) makes this one stop.

@@ -173,20 +173,38 @@ class BulkController extends GetxController with OrderListFilters {
       }
 
       // Deselected, or another order picked, while these loaded.
-      if (rxSelectedOrderHeaderLine.value == selectedOrderHeaderLine) {
+      if (isSameOrder(
+          rxSelectedOrderHeaderLine.value, selectedOrderHeaderLine)) {
         rxOrderDetailLines.assignAll(orderDetailLines);
       }
     }
   }
 
-  List<OrderDetailLine> get primaryOrderDetailLines => rxOrderDetailLines.where(
-        (orderDetailLine) {
-          return orderDetailLine.workOrderNumber > 0 &&
-              orderDetailLine.workOrderType.isNotEmpty &&
-              rxSelectedOrderHeaderLine.value!.orderReference ==
-                  orderDetailLine.orderLineReference;
-        },
-      ).toList();
+  /// The order's own lines, which JDE gives a work order. Lines are
+  /// matched on the B2B order number with spaces trimmed, as JDE can pad text.
+  /// Until JDE has made the work orders, e.g. just after the order is
+  /// placed, its lines are shown without one rather than none.
+  List<OrderDetailLine> get primaryOrderDetailLines {
+    final orderReference =
+        rxSelectedOrderHeaderLine.value?.orderReference.trim() ?? '';
+
+    final orderLines = rxOrderDetailLines
+        .where(
+          (orderDetailLine) =>
+              orderDetailLine.orderLineReference.trim() == orderReference,
+        )
+        .toList();
+
+    final workOrderLines = orderLines
+        .where(
+          (orderDetailLine) =>
+              orderDetailLine.workOrderNumber > 0 &&
+              orderDetailLine.workOrderType.trim().isNotEmpty,
+        )
+        .toList();
+
+    return workOrderLines.isNotEmpty ? workOrderLines : orderLines;
+  }
 
   List<OrderHeaderLine> get bulkOrders => rxOrders;
 

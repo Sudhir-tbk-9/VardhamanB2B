@@ -134,4 +134,38 @@ void main() {
       expect(list.rxFilteredOrders, [olderOrder]);
     });
   });
+
+  group('Open order', () {
+    final today = DateTime.now();
+
+    final order = _order(1, today);
+
+    test('stays open when a reload brings an updated copy', () {
+      final list = _OrderList(today)..initOrderListFilters();
+
+      list.assignListOrders([order]);
+
+      list.rxSelectedOrderHeaderLine.value = order;
+
+      final updated = order.copyWith(orderStatus: 'Dispatched');
+
+      list.assignListOrders([_order(2, today), updated]);
+
+      expect(list.rxSelectedOrderHeaderLine.value, updated);
+      expect(list.isSameOrder(list.rxSelectedOrderHeaderLine.value, order),
+          isTrue);
+    });
+
+    test('closes when the reload no longer lists it', () {
+      final list = _OrderList(today)..initOrderListFilters();
+
+      list.assignListOrders([order]);
+
+      list.rxSelectedOrderHeaderLine.value = order;
+
+      list.assignListOrders([_order(2, today)]);
+
+      expect(list.rxSelectedOrderHeaderLine.value, isNull);
+    });
+  });
 }

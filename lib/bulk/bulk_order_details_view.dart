@@ -69,6 +69,9 @@ class BulkOrderDetailsView extends StatelessWidget {
                           child: Text('No Order Selected'),
                         )
                       : DataTable2(
+                          empty: const Center(
+                            child: Text('No lines from JDE for this order yet'),
+                          ),
                           minWidth: 1400,
                           columnSpacing: 0,
                           showBottomBorder: true,

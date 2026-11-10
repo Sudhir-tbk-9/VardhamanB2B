@@ -181,7 +181,8 @@ class LabdipController extends GetxController with OrderListFilters {
       }
 
       // Deselected, or another order picked, while these loaded.
-      if (rxSelectedOrderHeaderLine.value == selectedOrderHeaderLine) {
+      if (isSameOrder(
+          rxSelectedOrderHeaderLine.value, selectedOrderHeaderLine)) {
         rxOrderDetailLines.assignAll(orderDetailLines);
       }
     }

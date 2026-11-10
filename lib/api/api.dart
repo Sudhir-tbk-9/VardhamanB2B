@@ -447,7 +447,7 @@ class Api {
       {required String orderNumber, required String mobileNumber}) async {
     try {
       await _dio.post(
-        '/orchestrator/ORCH55_SendSMSNotification_B2B',
+        '/orchestrator/ORCH55_SendSMSNotification',
         data: {
           "OrderNumber": orderNumber,
           "Mobilenumber": mobileNumber,
@@ -1643,56 +1643,82 @@ class Api {
       );
 
       if (response.statusCode == 200) {
-        for (var orderDetailData in response.data["OrderDetail"]) {
-          orderDetailLines.add(
-            OrderDetailLine(
-              company: orderDetailData['Company'],
-              orderNumber: orderDetailData['Order'],
-              orderType: orderDetailData['Type'],
-              lineNumber:
-                  double.parse(orderDetailData['Line Number'].toString()),
-              dateShipped: orderDetailData['Date Shipped'] != "null"
-                  ? DateFormat('MM/dd/yyyy')
-                      .parse(orderDetailData['Date Shipped'])
-                  : null,
-              dateInvoiced: orderDetailData['Date Invoiced'] != "null"
-                  ? DateFormat('MM/dd/yyyy')
-                      .parse(orderDetailData['Date Invoiced'])
-                  : null,
-              item: orderDetailData['Item'],
-              itemDescription: orderDetailData['Item Description'],
-              userComment: orderDetailData['Description2'],
-              nextStatus: orderDetailData['Next Status'],
-              nextStatusDescription: orderDetailData['Next Status Desc'],
-              lastStatus: orderDetailData['Last Status'],
-              lastStatusDescription: orderDetailData['Last Status Desc'],
-              quantityOrdered: orderDetailData['Quantity Ordered'],
-              quantityShipped: orderDetailData['Quantity Shipped'],
-              quantityCancelled: orderDetailData['Quantity Canceled'],
-              quantityBackordered: orderDetailData['Quantity Backordered'],
-              invoiceNumber: orderDetailData['Invoice'],
-              invoiceType: orderDetailData['Invoice Type'],
-              invoiceCompany: orderDetailData['Invoice Company'],
-              workOrderNumber: int.tryParse(orderDetailData['WorkOrder']) ?? 0,
-              catalogName: orderDetailData['Catalog Name'],
-              woStatus: orderDetailData['WOStatus'],
-              orderLineReference: orderDetailData['OrderLineReference'],
-              workOrderType: orderDetailData['WorkOrderType'],
-              buyerCode: orderDetailData['End Use'],
-              unitPrice:
-                  double.tryParse(orderDetailData['Unit Price'].toString()) ??
-                      0.0,
-              extendedPrice: double.tryParse(
-                      orderDetailData['Extended Price'].toString()) ??
-                  0.0,
-              lightSource1: orderDetailData['Print Message'],
-              shipToAttention: orderDetailData['ShipToAttention'],
-            ),
-          );
+        // A new order's lines can come with fields still empty (null) or
+        // numbers as text; one such field used to throw and empty the whole
+        // Order Details pane.
+        String text(Object? value) => value?.toString() ?? '';
+
+        num number(Object? value) =>
+            value is num ? value : num.tryParse(text(value).trim()) ?? 0;
+
+        DateTime? date(Object? value) {
+          final dateText = text(value).trim();
+
+          return dateText.isEmpty || dateText == 'null'
+              ? null
+              : DateFormat('MM/dd/yyyy').tryParse(dateText);
         }
+
+        final orderDetailDatas = response.data["OrderDetail"] as List? ?? [];
+
+        for (var orderDetailData in orderDetailDatas) {
+          // One malformed line must not drop the other lines.
+          try {
+            orderDetailLines.add(
+              OrderDetailLine(
+                company: text(orderDetailData['Company']),
+                orderNumber: number(orderDetailData['Order']).toInt(),
+                orderType: text(orderDetailData['Type']),
+                lineNumber: number(orderDetailData['Line Number']).toDouble(),
+                dateShipped: date(orderDetailData['Date Shipped']),
+                dateInvoiced: date(orderDetailData['Date Invoiced']),
+                item: text(orderDetailData['Item']),
+                itemDescription: text(orderDetailData['Item Description']),
+                userComment: text(orderDetailData['Description2']),
+                nextStatus: text(orderDetailData['Next Status']),
+                nextStatusDescription:
+                    text(orderDetailData['Next Status Desc']),
+                lastStatus: text(orderDetailData['Last Status']),
+                lastStatusDescription:
+                    text(orderDetailData['Last Status Desc']),
+                quantityOrdered:
+                    number(orderDetailData['Quantity Ordered']).toInt(),
+                quantityShipped:
+                    number(orderDetailData['Quantity Shipped']).toInt(),
+                quantityCancelled:
+                    number(orderDetailData['Quantity Canceled']).toInt(),
+                quantityBackordered:
+                    number(orderDetailData['Quantity Backordered']).toInt(),
+                invoiceNumber: number(orderDetailData['Invoice']).toInt(),
+                invoiceType: text(orderDetailData['Invoice Type']),
+                invoiceCompany: text(orderDetailData['Invoice Company']),
+                workOrderNumber: number(orderDetailData['WorkOrder']).toInt(),
+                catalogName: text(orderDetailData['Catalog Name']),
+                woStatus: text(orderDetailData['WOStatus']),
+                orderLineReference: text(orderDetailData['OrderLineReference']),
+                workOrderType: text(orderDetailData['WorkOrderType']),
+                buyerCode: text(orderDetailData['End Use']),
+                unitPrice: number(orderDetailData['Unit Price']).toDouble(),
+                extendedPrice:
+                    number(orderDetailData['Extended Price']).toDouble(),
+                lightSource1: text(orderDetailData['Print Message']),
+                shipToAttention: text(orderDetailData['ShipToAttention']),
+              ),
+            );
+          } catch (e) {
+            debugPrint(
+                '[ORDERS] fetchOrderDetails $orderNumber skipped a line: $e');
+          }
+        }
+
+        debugPrint('[ORDERS] fetchOrderDetails $orderNumber $orderType: '
+            '${orderDetailLines.length} of ${orderDetailDatas.length} lines');
+      } else {
+        debugPrint('[ORDERS] fetchOrderDetails $orderNumber: '
+            'HTTP ${response.statusCode}');
       }
     } catch (e) {
-      log('fetchOrderDetails error - $e');
+      debugPrint('[ORDERS] fetchOrderDetails $orderNumber error - $e');
     }
 
     return orderDetailLines;
