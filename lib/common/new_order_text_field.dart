@@ -15,11 +15,15 @@ class FieldBox extends StatelessWidget {
 
   final Widget child;
 
+  /// Height of the box; null to fit a multi-line field (at least 36).
+  final double? height;
+
   const FieldBox({
     super.key,
     required this.isEnabled,
     required this.hasError,
     required this.child,
+    this.height = 36,
   });
 
   @override
@@ -35,7 +39,8 @@ class FieldBox extends StatelessWidget {
           final isFocused = Focus.of(context).hasFocus;
 
           return Container(
-            height: 36,
+            height: height,
+            constraints: const BoxConstraints(minHeight: 36),
             // Keeps clear / Choose File buttons off the right border.
             padding: const EdgeInsets.only(right: 4),
             decoration: BoxDecoration(
@@ -105,6 +110,9 @@ class NewOrderTextField extends StatelessWidget {
 
   final TextEditingController textEditingController = TextEditingController();
 
+  /// More than one line: a text area.
+  bool get _isTextArea => (minLines ?? 1) > 1;
+
   final border = OutlineInputBorder(
     borderSide: BorderSide.none,
   );
@@ -155,6 +163,8 @@ class NewOrderTextField extends StatelessWidget {
                 isEnabled: isEnabled,
                 hasError:
                     isEnabled && hasError && rxString.value.trim().isEmpty,
+                // A text area grows to its lines.
+                height: _isTextArea ? null : 36,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -164,7 +174,20 @@ class NewOrderTextField extends StatelessWidget {
                         obscureText: obscureText,
                         maxLength: maxLength,
                         textAlignVertical: TextAlignVertical.center,
-                        inputFormatters: inputFormatters,
+                        // A text area wraps long text over its lines; Enter
+                        // does not start a new line and pasted line breaks
+                        // become spaces (remarks are sent as one line).
+                        keyboardType: _isTextArea ? TextInputType.text : null,
+                        textInputAction:
+                            _isTextArea ? TextInputAction.done : null,
+                        inputFormatters: [
+                          if (_isTextArea)
+                            FilteringTextInputFormatter.deny(
+                              RegExp(r'[\r\n]+'),
+                              replacementString: ' ',
+                            ),
+                          ...inputFormatters,
+                        ],
                         style: TextStyle(
                           color: VardhmanColors.darkGrey,
                           fontSize: 13,
@@ -187,7 +210,9 @@ class NewOrderTextField extends StatelessWidget {
                             color: VardhmanColors.darkGrey,
                             fontSize: 13,
                           ),
-                          contentPadding: EdgeInsets.only(left: 8),
+                          contentPadding: _isTextArea
+                              ? EdgeInsets.fromLTRB(8, 8, 0, 8)
+                              : EdgeInsets.only(left: 8),
                           border: border,
                           enabledBorder: border,
                           focusedBorder: border,

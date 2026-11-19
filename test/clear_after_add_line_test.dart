@@ -14,6 +14,7 @@ import 'package:vardhman_b2b/api/user_address.dart';
 import 'package:vardhman_b2b/bulk/bulk_entry_controller.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/drift/database.dart';
+import 'package:vardhman_b2b/dtm/create_dtm_order_view.dart';
 import 'package:vardhman_b2b/dtm/dtm_entry_controller.dart';
 import 'package:vardhman_b2b/labdip/labdip_entry_controller.dart';
 import 'package:vardhman_b2b/sampling/sampling_entry_controller.dart';
@@ -303,4 +304,47 @@ void main() {
       expect(c.rxB.value, '');
     });
   }
+
+  for (final size in [const Size(1920, 1080), const Size(1536, 730)]) {
+    testWidgets('DTM Remark is a 3 line text area at $size', (tester) async {
+      await _pumpDtmForm(tester, size);
+
+      final remark = find.ancestor(
+        of: find.textContaining('A long remark'),
+        matching: find.byType(FieldBox),
+      );
+
+      expect(remark, findsOneWidget);
+      // Taller than a one line field (36).
+      expect(tester.getSize(remark).height, greaterThan(60));
+
+      // ignore: avoid_print
+      print('Remark box at $size: ${tester.getSize(remark)}');
+
+      // Lets the form's timers run out before the test ends.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 10));
+    });
+  }
+}
+
+/// The DTM form with a 3 line Remark text area: no overflow at [size].
+Future<void> _pumpDtmForm(WidgetTester tester, Size size) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  final c = Get.put(DtmEntryController(orderNumber: 6));
+
+  await tester.pumpWidget(
+    const GetMaterialApp(home: Scaffold(body: CreateDtmOrderView())),
+  );
+
+  await tester.runAsync(() async {
+    c.rxArticle.value = 'RS826';
+    c.rxRemark.value = 'A long remark that should wrap over more than one '
+        'line of the Remark text area on the DTM form';
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  });
+  await tester.pump();
 }

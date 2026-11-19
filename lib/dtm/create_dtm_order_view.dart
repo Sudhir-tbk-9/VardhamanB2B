@@ -575,6 +575,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                   rxString: dtmEntryController
                                                       .rxRemark,
                                                   hintText: 'Enter Remark',
+                                                  // A text area: long remarks wrap over 3 lines.
+                                                  minLines: 3,
                                                 ),
                                               ),
                                               // Only for an article with an
