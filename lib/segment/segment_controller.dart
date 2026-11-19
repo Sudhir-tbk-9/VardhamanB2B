@@ -73,12 +73,31 @@ class DraftOrder {
         _ => orderType,
       };
 
+  /// The tab whose list shows this draft. LD drafts are listed on both
+  /// Labdip and Sampling; Labdip is named.
+  String get tabName => switch (orderType) {
+        'BK' => 'Bulk',
+        'DT' => 'DTM',
+        'LD' => 'Labdip',
+        _ => orderType,
+      };
+
+  /// URL of [tabName]'s tab (see homeTabPaths).
+  String? get tabPath => switch (orderType) {
+        'BK' => '/bulk',
+        'DT' => '/dtm',
+        'LD' => '/labdip',
+        _ => null,
+      };
+
   @override
   String toString() =>
       '$typeName draft #$orderNumber ($lineCount line${lineCount == 1 ? '' : 's'})';
 }
 
 typedef DraftOrdersLoader = Future<List<DraftOrder>> Function();
+
+typedef DraftOrderOpener = Future<void> Function(DraftOrder draftOrder);
 
 /// Console log of the segment flow, tagged `[SEGMENT]` so it can be
 /// filtered in the browser console (debugPrint, so release builds log too).
@@ -98,9 +117,14 @@ class SegmentController extends GetxController {
 
   final DraftOrdersLoader _draftOrdersLoader;
 
+  /// Replaces openDraftOrder (segment dialog lock warning), for tests.
+  final DraftOrderOpener? draftOrderOpener;
+
   /// [draftOrdersLoader] replaces the DraftTable read, for tests.
-  SegmentController({DraftOrdersLoader? draftOrdersLoader})
-      : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders {
+  SegmentController({
+    DraftOrdersLoader? draftOrdersLoader,
+    this.draftOrderOpener,
+  }) : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders {
     rxSegment.value = OrderSegment.byName(_readStorage());
 
     if (rxSegment.value == null) {

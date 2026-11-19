@@ -140,12 +140,19 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    final opened = <DraftOrder>[];
+
     final controller = Get.put(
       SegmentController(
         draftOrdersLoader: () async => const [
           DraftOrder(orderType: 'BK', orderNumber: 1024, lineCount: 3),
           DraftOrder(orderType: 'DT', orderNumber: 77, lineCount: 1),
         ],
+        draftOrderOpener: (draftOrder) async {
+          opened.add(draftOrder);
+
+          Get.back();
+        },
       ),
     )..select(OrderSegment.industry);
 
@@ -160,9 +167,16 @@ void main() {
     await tester.tap(find.text('IND · Industry'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Segment locked to Industry (IND)'), findsOneWidget);
-    expect(find.text('Bulk draft #1024 (3 lines)'), findsOneWidget);
-    expect(find.text('DTM draft #77 (1 line)'), findsOneWidget);
+    // Why it is locked, and where each draft is.
+    expect(find.text('WARNING'), findsOneWidget);
+    expect(
+      find.text("An order can't mix segments. Submit or delete these "
+          'drafts to switch.'),
+      findsOneWidget,
+    );
+    expect(find.text('Bulk draft #1024'), findsOneWidget);
+    expect(find.text('DTM draft #77'), findsOneWidget);
+    expect(find.textContaining('lines'), findsNothing);
 
     // Other cards cannot be picked; OK closes without a change.
     await tester.tap(find.text('Speciality'));
@@ -172,5 +186,26 @@ void main() {
 
     expect(find.text('Choose your segment'), findsNothing);
     expect(controller.segment, OrderSegment.industry);
+
+    // Clicking a draft opens it.
+    await tester.tap(find.text('IND · Industry'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DTM draft #77'));
+    await tester.pumpAndSettle();
+
+    expect(opened.single.orderNumber, 77);
+    expect(find.text('Choose your segment'), findsNothing);
+    expect(controller.segment, OrderSegment.industry);
+  });
+
+  test('drafts name the tab that lists them', () {
+    const labdip = DraftOrder(orderType: 'LD', orderNumber: 5, lineCount: 2);
+
+    expect(labdip.tabName, 'Labdip');
+    expect(labdip.tabPath, '/labdip');
+    expect(
+      const DraftOrder(orderType: 'BK', orderNumber: 1, lineCount: 1).tabPath,
+      '/bulk',
+    );
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/common/breakpoints.dart';
+import 'package:vardhman_b2b/segment/open_draft_order.dart';
 import 'package:vardhman_b2b/segment/segment_controller.dart';
 
 /// Shows the segment dialog when the logged in user has not picked a
@@ -266,6 +267,7 @@ class _SegmentDialogState extends State<SegmentDialog> {
               variant: variant,
               segment: _segmentController.segment!,
               draftOrders: widget.draftOrders,
+              onOpen: _segmentController.draftOrderOpener ?? openDraftOrder,
             ),
           ],
           const SizedBox(height: 24),
@@ -681,8 +683,8 @@ class _CodeBadge extends StatelessWidget {
   }
 }
 
-/// Why the segment cannot be changed now: the orders in progress, and what
-/// to do about them.
+/// Why the segment cannot be changed now, where the unsubmitted drafts are,
+/// and a link to each one to submit or delete it.
 class _LockedAlert extends StatelessWidget {
   final AppThemeVariant variant;
 
@@ -690,14 +692,20 @@ class _LockedAlert extends StatelessWidget {
 
   final List<DraftOrder> draftOrders;
 
+  /// Opens a draft in its order screen (closing the segment dialog).
+  final DraftOrderOpener onOpen;
+
   const _LockedAlert({
     required this.variant,
     required this.segment,
     required this.draftOrders,
+    required this.onOpen,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isOne = draftOrders.length == 1;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
@@ -726,58 +734,125 @@ class _LockedAlert extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Segment locked to ${segment.title} (${segment.code})',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: variant.warning,
+                  ),
+                  child: const Text(
+                    'WARNING',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
-                  'You have order lines in progress. An order cannot mix '
-                  'articles of two segments, so submit or delete these '
-                  'lines before switching:',
+                  isOne
+                      ? "An order can't mix segments. Submit or delete this "
+                          'draft to switch.'
+                      : "An order can't mix segments. Submit or delete these "
+                          'drafts to switch.',
                   style: TextStyle(
                     color: Colors.white.withAlpha(215),
                     fontSize: 12.5,
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final draftOrder in draftOrders)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: Colors.white.withAlpha(30),
-                          border: Border.all(
-                            color: Colors.white.withAlpha(70),
-                          ),
-                        ),
-                        child: Text(
-                          '$draftOrder',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                const SizedBox(height: 10),
+                for (final draftOrder in draftOrders) ...[
+                  _DraftOrderLink(
+                    draftOrder: draftOrder,
+                    onTap: () => onOpen(draftOrder),
+                  ),
+                  if (draftOrder != draftOrders.last) const SizedBox(height: 6),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One draft in the lock warning: its type and number, where it is listed
+/// and how many lines it has; clicking it opens the draft.
+class _DraftOrderLink extends StatefulWidget {
+  final DraftOrder draftOrder;
+
+  final VoidCallback onTap;
+
+  const _DraftOrderLink({required this.draftOrder, required this.onTap});
+
+  @override
+  State<_DraftOrderLink> createState() => _DraftOrderLinkState();
+}
+
+class _DraftOrderLinkState extends State<_DraftOrderLink> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final draftOrder = widget.draftOrder;
+
+    return Semantics(
+      button: true,
+      label: 'Open ${draftOrder.typeName} draft #${draftOrder.orderNumber}',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withAlpha(_isHovered ? 50 : 26),
+              border: Border.all(
+                color: Colors.white.withAlpha(_isHovered ? 130 : 70),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${draftOrder.typeName} draft #${draftOrder.orderNumber}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Open draft',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    decoration: _isHovered
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
+                    decorationColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -807,7 +882,7 @@ class _Footer extends StatelessWidget {
     final hint = picked == null
         ? 'Pick a segment to continue'
         : isLocked
-            ? 'Submit or delete the lines above to switch segment'
+            ? 'Submit or delete the drafts above to switch segment'
             : picked == OrderSegment.all
                 ? 'Articles of every segment will be offered'
                 : 'Only ${picked.categories.join(' and ')} articles will be '
