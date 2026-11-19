@@ -725,6 +725,12 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       //   primaryColor: VardhmanColors.red,
       //   title: Text('Please fill all the required fields'),
       // );
+    } else if (!allowsArticle(rxArticle.value)) {
+      toastification.show(
+        autoCloseDuration: Duration(seconds: 4),
+        primaryColor: VardhmanColors.red,
+        title: Text(DirectDeliveryTc.onlyRArticlesMessage),
+      );
     } else if (rxDtmOrderLines.any(
       (dtmOrderLine) =>
           dtmOrderLine.article == rxArticle.value &&
@@ -788,6 +794,12 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       //   primaryColor: VardhmanColors.red,
       //   title: Text('Please fill all the required fields'),
       // );
+    } else if (!allowsArticle(rxArticle.value)) {
+      toastification.show(
+        autoCloseDuration: Duration(seconds: 4),
+        primaryColor: VardhmanColors.red,
+        title: Text(DirectDeliveryTc.onlyRArticlesMessage),
+      );
     } else if (rxDtmOrderLines.any(
       (dtmOrderLine) =>
           dtmOrderLine != selectedDtmOrderLine &&
@@ -958,6 +970,13 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
+  @override
+  List<DraftTableData> get tcOrderLines => rxDtmOrderLines;
+
+  @override
+  List<DraftTableData> get tcSelectedLines => rxSelectedDtmOrderLines;
+
+  /// Articles for the Article field; "R" articles only in a TC order.
   List<String> get uniqueFilteredArticles => catalogController.orderItems
       .where(
         (itemCatalogInfo) => (rxUom.value.isNotEmpty
@@ -965,6 +984,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
             : true),
       )
       .map((e) => e.article)
+      .where(allowsArticle)
       .toSet()
       .toList();
 

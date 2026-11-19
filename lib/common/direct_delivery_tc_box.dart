@@ -16,24 +16,33 @@ class DirectDeliveryTcBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Padding(
+    return Obx(() {
+      // A TC order: every line is TC, the box cannot be unticked.
+      final locked = controller.isTcLocked;
+
+      return Tooltip(
+        message: locked ? 'TC Required order: every line is TC Required' : '',
+        child: Padding(
         // Lines up with the 36 px box of the field beside it.
         padding: const EdgeInsets.all(4),
         child: SizedBox(
           height: 36,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: () => controller.rxTcRequired.value =
-                !controller.rxTcRequired.value,
+            onTap: locked
+                ? null
+                : () => controller.rxTcRequired.value =
+                    !controller.rxTcRequired.value,
             child: Row(
               children: [
                 Checkbox(
-                  value: controller.rxTcRequired.value,
+                  value: locked || controller.rxTcRequired.value,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onChanged: (value) =>
-                      controller.rxTcRequired.value = value ?? false,
+                  onChanged: locked
+                      ? null
+                      : (value) =>
+                          controller.rxTcRequired.value = value ?? false,
                 ),
                 Flexible(
                   child: Text(
@@ -52,6 +61,7 @@ class DirectDeliveryTcBox extends StatelessWidget {
           ),
         ),
       ),
-    );
+      );
+    });
   }
 }

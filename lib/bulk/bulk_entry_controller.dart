@@ -898,6 +898,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       //   primaryColor: VardhmanColors.red,
       //   title: Text('Please fill all the required fields'),
       // );
+    } else if (!allowsArticle(rxArticle.value)) {
+      toastification.show(
+        autoCloseDuration: Duration(seconds: 4),
+        primaryColor: VardhmanColors.red,
+        title: Text(DirectDeliveryTc.onlyRArticlesMessage),
+      );
     } else if (rxBulkOrderLines.any(
       (bulkOrderLine) =>
           bulkOrderLine.article == rxArticle.value &&
@@ -962,6 +968,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       //   primaryColor: VardhmanColors.red,
       //   title: Text('Please fill all the required fields'),
       // );
+    } else if (!allowsArticle(rxArticle.value)) {
+      toastification.show(
+        autoCloseDuration: Duration(seconds: 4),
+        primaryColor: VardhmanColors.red,
+        title: Text(DirectDeliveryTc.onlyRArticlesMessage),
+      );
     } else if (rxBulkOrderLines.any(
       (bulkOrderLine) =>
           bulkOrderLine != selectedBulkOrderLine &&
@@ -1134,6 +1146,13 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
+  @override
+  List<DraftTableData> get tcOrderLines => rxBulkOrderLines;
+
+  @override
+  List<DraftTableData> get tcSelectedLines => rxSelectedBulkOrderLines;
+
+  /// Articles for the Article field; "R" articles only in a TC order.
   List<String> get uniqueFilteredArticles => catalogController.orderItems
       .where(
         (itemCatalogInfo) => (rxUom.value.isNotEmpty
@@ -1141,6 +1160,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
             : true),
       )
       .map((e) => e.article)
+      .where(allowsArticle)
       .toSet()
       .toList();
 
@@ -1392,6 +1412,9 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
                 orderLine.shade == row.line.shade,
           )) {
         row.error = 'Duplicate item number';
+      } else if (!allowsArticle(row.line.article)) {
+        // A TC Required order takes "R" articles only.
+        row.error = 'TC Required order: only articles with an "R"';
       } else if (_segmentErrorOf(row.line.article) case final segmentError?) {
         row.error = segmentError;
       } else {
@@ -1489,6 +1512,10 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   Future<void> _insertImportRows(List<ExcelImportRow> importRows) async {
     var lineNumber = _lastLineNumber;
 
+    // Lines imported into a TC Required order are TC lines ("R" articles
+    // only, see _validateImportRows); otherwise normal lines.
+    final tcOrder = isTcLocked;
+
     for (final importRow in importRows) {
       final excelLine = importRow.line;
 
@@ -1537,8 +1564,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           ticket: catalogItem?.ticket ?? '',
           tex: catalogItem?.tex ?? '',
           unitPrice: drift.Value(importRow.unitPrice),
-          billingType: '',
-          remark: '',
+          billingType: tcOrder ? 'Plant' : '',
+          remark: tcOrder ? DirectDeliveryTc.tcRequiredRemark : '',
           endUse: '',
           lab: '',
           lineNumber: lineNumber,
@@ -1546,7 +1573,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           orderType: 'BK',
           requestType: '',
           soldTo: _userController.rxUserDetail.value.soldToNumber,
-          colorRemark: '',
+          colorRemark: tcOrder ? DirectDeliveryTc.tcRequiredRemark : '',
           lastUpdated: DateTime.now(),
           qtxFileName: '',
           requestedDate: drift.Value(rxRequestedDate.value),
