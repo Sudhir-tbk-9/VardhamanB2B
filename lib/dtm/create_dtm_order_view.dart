@@ -146,12 +146,12 @@ class CreateDtmOrderView extends StatelessWidget {
                           Spacer(),
                           PrimaryButton(
                             text: 'Delete',
-                            onPressed:
-                                dtmEntryController.rxSelectedDtmOrderLines.isEmpty
-                                    ? null
-                                    : () async {
-                                        dtmEntryController.deleteSelectedLines();
-                                      },
+                            onPressed: dtmEntryController
+                                    .rxSelectedDtmOrderLines.isEmpty
+                                ? null
+                                : () async {
+                                    dtmEntryController.deleteSelectedLines();
+                                  },
                           ),
                           Spacer(),
                         ],
@@ -190,7 +190,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                       child: NewOrderTextField(
                                         isEnabled: false,
                                         labelText: 'Upload PO Document',
-                                        rxString: dtmEntryController.rxPoFileName,
+                                        rxString:
+                                            dtmEntryController.rxPoFileName,
                                         hintText: 'no file chosen',
                                         trailingWidget: dtmEntryController
                                                 .rxPoFileName.isEmpty
@@ -211,9 +212,11 @@ class CreateDtmOrderView extends StatelessWidget {
                                                     readSequential: true,
                                                   );
 
-                                                  if (filePickerResult != null) {
-                                                    final file = filePickerResult
-                                                        .files.single;
+                                                  if (filePickerResult !=
+                                                      null) {
+                                                    final file =
+                                                        filePickerResult
+                                                            .files.single;
 
                                                     dtmEntryController
                                                         .rxPoFileName
@@ -234,7 +237,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                       .rxPoFileName.value = '';
 
                                                   dtmEntryController
-                                                      .rxPoFileBytes.value = null;
+                                                      .rxPoFileBytes
+                                                      .value = null;
                                                 },
                                               ),
                                       ),
@@ -245,7 +249,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                   isRequired: true,
                                   labelText: 'Merchandiser',
                                   rxString: dtmEntryController.rxMerchandiser,
-                                  searchList: dtmEntryController.rxMerchandisers,
+                                  searchList:
+                                      dtmEntryController.rxMerchandisers,
                                   shouldEnforceList: false,
                                   hasError:
                                       dtmEntryController.merchandiserHasError,
@@ -255,12 +260,14 @@ class CreateDtmOrderView extends StatelessWidget {
                                   children: <Widget>[
                                     Expanded(
                                       child: CatalogSearchField(
-                                        hasError:
-                                            dtmEntryController.buyerNameHasError,
+                                        hasError: dtmEntryController
+                                            .buyerNameHasError,
                                         labelText: 'Buyer',
                                         isRequired: true,
-                                        rxString: dtmEntryController.rxBuyerName,
-                                        searchList: dtmEntryController.buyerNames,
+                                        rxString:
+                                            dtmEntryController.rxBuyerName,
+                                        searchList:
+                                            dtmEntryController.buyerNames,
                                         inputFormatters: [capitalFormatter],
                                       ),
                                     ),
@@ -275,8 +282,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                               .otherBuyerNameHasError,
                                           labelText: 'Name',
                                           isRequired: true,
-                                          rxString:
-                                              dtmEntryController.rxOtherBuyerName,
+                                          rxString: dtmEntryController
+                                              .rxOtherBuyerName,
                                         ),
                                       ),
                                     ]
@@ -293,10 +300,10 @@ class CreateDtmOrderView extends StatelessWidget {
                                         isEnabled: dtmEntryController
                                             .isLightSource1Enabled,
                                         labelText: 'Light Source 1',
-                                        rxString:
-                                            dtmEntryController.rxFirstLightSource,
-                                        searchList:
-                                            dtmEntryController.firstLightSources,
+                                        rxString: dtmEntryController
+                                            .rxFirstLightSource,
+                                        searchList: dtmEntryController
+                                            .firstLightSources,
                                         inputFormatters: [capitalFormatter],
                                       ),
                                     ),
@@ -311,8 +318,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                         labelText: 'Light Source 2',
                                         rxString: dtmEntryController
                                             .rxSecondLightSource,
-                                        searchList:
-                                            dtmEntryController.secondLightSources,
+                                        searchList: dtmEntryController
+                                            .secondLightSources,
                                         inputFormatters: [capitalFormatter],
                                       ),
                                     ),
@@ -377,12 +384,13 @@ class CreateDtmOrderView extends StatelessWidget {
                                                   isRequired: true,
                                                   isEnabled: dtmEntryController
                                                       .rxArticle.isNotEmpty,
-                                                  rxString:
-                                                      dtmEntryController.rxShade,
-                                                  dropdownKey: dtmEntryController
-                                                      .shadeDropdownKey,
-                                                  searchList:
-                                                      dtmEntryController.rxShades,
+                                                  rxString: dtmEntryController
+                                                      .rxShade,
+                                                  dropdownKey:
+                                                      dtmEntryController
+                                                          .shadeDropdownKey,
+                                                  searchList: dtmEntryController
+                                                      .rxShades,
                                                 ),
                                               ),
                                             ],
@@ -397,8 +405,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                   ],
                                                   isEnabled: false,
                                                   labelText: 'Ticket',
-                                                  rxString:
-                                                      dtmEntryController.rxTicket,
+                                                  rxString: dtmEntryController
+                                                      .rxTicket,
                                                   searchList: [],
                                                 ),
                                               ),
@@ -412,8 +420,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                     capitalFormatter
                                                   ],
                                                   labelText: 'Brand',
-                                                  rxString:
-                                                      dtmEntryController.rxBrand,
+                                                  rxString: dtmEntryController
+                                                      .rxBrand,
                                                   searchList: [],
                                                   isEnabled: false,
                                                 ),
@@ -477,14 +485,17 @@ class CreateDtmOrderView extends StatelessWidget {
                                                       .uomHasError,
                                                   // Article -> Shade -> UOM: UOM follows
                                                   // from the shade (Sno 14).
-                                                  isEnabled:
-                                                      !dtmEntryController.rxUomLocked.value &&
-                                                          (dtmEntryController.rxShade
-                                                                  .isNotEmpty ||
-                                                              dtmEntryController.rxUom
-                                                                  .isNotEmpty),
-                                                  dropdownKey: dtmEntryController
-                                                      .uomDropdownKey,
+                                                  isEnabled: !dtmEntryController
+                                                          .rxUomLocked.value &&
+                                                      (dtmEntryController
+                                                              .rxShade
+                                                              .isNotEmpty ||
+                                                          dtmEntryController
+                                                              .rxUom
+                                                              .isNotEmpty),
+                                                  dropdownKey:
+                                                      dtmEntryController
+                                                          .uomDropdownKey,
                                                   labelText: 'UOM',
                                                   rxString: dtmEntryController
                                                       .rxUomWithDesc,
@@ -508,8 +519,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                   hasError: dtmEntryController
                                                       .colorHasError,
                                                   labelText: 'Color Name',
-                                                  rxString:
-                                                      dtmEntryController.rxColor,
+                                                  rxString: dtmEntryController
+                                                      .rxColor,
                                                   isRequired: true,
                                                 ),
                                               ),
@@ -539,7 +550,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                               ),
                                               Expanded(
                                                 child: NewOrderDateField(
-                                                  labelText: 'Expected Delivery Date (EDD)',
+                                                  labelText:
+                                                      'Expected Delivery Date',
                                                   rxDate: dtmEntryController
                                                       .rxRequestedDate,
                                                   hintText: 'select',
@@ -697,7 +709,8 @@ class CreateDtmOrderView extends StatelessWidget {
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
                 DataColumn2(
-                  label: OrderDetailColumnLabel(labelText: 'Expected Delivery Date (EDD)'),
+                  label: OrderDetailColumnLabel(
+                      labelText: 'Expected Delivery Date'),
                   size: ColumnSize.S,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),

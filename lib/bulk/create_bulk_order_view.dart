@@ -610,7 +610,7 @@ class CreateBulkOrderView extends StatelessWidget {
                                               ),
                                               Expanded(
                                                 child: NewOrderDateField(
-                                                  labelText: 'Expected Delivery Date (EDD)',
+                                                  labelText: 'Expected Delivery Date',
                                                   rxDate: bulkEntryController
                                                       .rxRequestedDate,
                                                   hintText: 'select',
@@ -771,7 +771,7 @@ class CreateBulkOrderView extends StatelessWidget {
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
                 DataColumn2(
-                  label: OrderDetailColumnLabel(labelText: 'Expected Delivery Date (EDD)'),
+                  label: OrderDetailColumnLabel(labelText: 'Expected Delivery Date'),
                   size: ColumnSize.S,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
