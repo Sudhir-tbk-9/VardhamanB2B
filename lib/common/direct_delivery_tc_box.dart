@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
 
-/// The "Direct delivery - TC required" tick box of the DTM and Bulk forms,
+/// The "Tick if TC Required" box (direct delivery) of the DTM and Bulk forms,
 /// sized to sit beside a form field (aligned with its input box). Show it
 /// only while [DirectDeliveryTc.offersTc].
 class DirectDeliveryTcBox extends StatelessWidget {
@@ -37,7 +37,7 @@ class DirectDeliveryTcBox extends StatelessWidget {
                 ),
                 Flexible(
                   child: Text(
-                    'Direct delivery - TC required',
+                    'Tick if TC Required',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
