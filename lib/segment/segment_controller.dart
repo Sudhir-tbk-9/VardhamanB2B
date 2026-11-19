@@ -6,49 +6,32 @@ import 'package:vardhman_b2b/user/user_controller.dart';
 
 /// Business segment the user orders in, picked once after login. Articles
 /// are matched on their JDE category code (F4101.SRP1, `Category` in the
-/// item catalog).
+/// item catalog). Only IND, SPE and ALL (IND + SPE + DOM) are offered: DOM
+/// on its own and IND + SPE were dropped after the VYTL review.
 enum OrderSegment {
   industry(
     code: 'IND',
     title: 'Industry',
-    subtitle: 'Industrial threads',
-    icon: Icons.precision_manufacturing_outlined,
+    icon: Icons.settings_outlined,
     categories: ['IND'],
-  ),
-  domestic(
-    code: 'DOM',
-    title: 'Domestic',
-    subtitle: 'Domestic threads',
-    icon: Icons.storefront_outlined,
-    categories: ['DOM'],
   ),
   speciality(
     code: 'SPE',
     title: 'Speciality',
-    subtitle: 'Speciality threads',
-    icon: Icons.auto_awesome_outlined,
+    icon: Icons.star_outline_rounded,
     categories: ['SPE'],
-  ),
-  industryAndSpeciality(
-    code: 'IND + SPE',
-    title: 'Industry & Speciality',
-    subtitle: 'Both IND and SPE articles',
-    icon: Icons.join_inner_outlined,
-    categories: ['IND', 'SPE'],
   ),
 
   /// No segment restriction: articles of every segment.
   all(
     code: 'ALL',
     title: 'All Segments',
-    subtitle: 'Articles of every segment',
-    icon: Icons.all_inclusive,
+    icon: Icons.layers_outlined,
     categories: ['IND', 'SPE', 'DOM'],
   );
 
   final String code;
   final String title;
-  final String subtitle;
   final IconData icon;
 
   /// JDE category codes (F4101.SRP1) of the articles offered.
@@ -57,7 +40,6 @@ enum OrderSegment {
   const OrderSegment({
     required this.code,
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.categories,
   });

@@ -412,8 +412,8 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// IND, DOM and SPE on the first row; IND + SPE and All Segments, wider, on
-/// the second. One card per row on a narrow window.
+/// IND, SPE and All Segments side by side. One card per row on a narrow
+/// window.
 class _SegmentGrid extends StatelessWidget {
   final AppThemeVariant variant;
 
@@ -456,32 +456,17 @@ class _SegmentGrid extends StatelessWidget {
           );
         }
 
-        return Column(
-          children: [
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: card(OrderSegment.industry)),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final segment in OrderSegment.values) ...[
+                Expanded(child: card(segment)),
+                if (segment != OrderSegment.values.last)
                   const SizedBox(width: gap),
-                  Expanded(child: card(OrderSegment.domestic)),
-                  const SizedBox(width: gap),
-                  Expanded(child: card(OrderSegment.speciality)),
-                ],
-              ),
-            ),
-            const SizedBox(height: gap),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: card(OrderSegment.industryAndSpeciality)),
-                  const SizedBox(width: gap),
-                  Expanded(child: card(OrderSegment.all)),
-                ],
-              ),
-            ),
-          ],
+              ],
+            ],
+          ),
         );
       },
     );
@@ -529,12 +514,7 @@ class _SegmentCardState extends State<_SegmentCard> {
 
     final isHovered = _isHovered && isEnabled;
 
-    final isAll = segment == OrderSegment.all;
-
     final textColor = isPicked ? variant.accent : Colors.white;
-
-    final mutedColor =
-        isPicked ? variant.accent.withAlpha(170) : Colors.white.withAlpha(185);
 
     return Semantics(
       button: true,
@@ -594,46 +574,21 @@ class _SegmentCardState extends State<_SegmentCard> {
                           ),
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SegmentIcon(
-                        icon: segment.icon,
+                      _CodeBadge(
+                        text: segment.code,
                         variant: variant,
                         isPicked: isPicked,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _CodeChip(
-                              text: segment.code,
-                              variant: variant,
-                              isPicked: isPicked,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              segment.title,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isAll
-                                  ? '${segment.subtitle} '
-                                      '(${segment.categories.join(' + ')})'
-                                  : segment.subtitle,
-                              style: TextStyle(
-                                color: mutedColor,
-                                fontSize: 12,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          segment.title,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       AnimatedSwitcher(
@@ -680,15 +635,16 @@ class _SegmentCardState extends State<_SegmentCard> {
   }
 }
 
-class _SegmentIcon extends StatelessWidget {
-  final IconData icon;
+/// The segment code (IND, SPE, ALL) in a rounded box: the card's logo.
+class _CodeBadge extends StatelessWidget {
+  final String text;
 
   final AppThemeVariant variant;
 
   final bool isPicked;
 
-  const _SegmentIcon({
-    required this.icon,
+  const _CodeBadge({
+    required this.text,
     required this.variant,
     required this.isPicked,
   });
@@ -697,43 +653,12 @@ class _SegmentIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 42,
-      height: 42,
+      height: 36,
+      constraints: const BoxConstraints(minWidth: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: isPicked
-            ? variant.primaryFill(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: isPicked ? null : Colors.white.withAlpha(36),
-        border: isPicked ? null : Border.all(color: Colors.white.withAlpha(60)),
-      ),
-      child: Icon(icon, size: 22, color: Colors.white),
-    );
-  }
-}
-
-class _CodeChip extends StatelessWidget {
-  final String text;
-
-  final AppThemeVariant variant;
-
-  final bool isPicked;
-
-  const _CodeChip({
-    required this.text,
-    required this.variant,
-    required this.isPicked,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(10),
         color: isPicked
             ? variant.primary.withAlpha(28)
             : Colors.white.withAlpha(30),
@@ -747,8 +672,8 @@ class _CodeChip extends StatelessWidget {
         text,
         style: TextStyle(
           color: isPicked ? variant.primary : Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
         ),
       ),

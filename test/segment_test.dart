@@ -10,10 +10,15 @@ void main() {
   tearDown(Get.reset);
 
   test('each segment limits the JDE categories', () {
+    // Only IND, SPE and ALL are offered.
+    expect(OrderSegment.values, [
+      OrderSegment.industry,
+      OrderSegment.speciality,
+      OrderSegment.all,
+    ]);
+
     expect(OrderSegment.industry.categories, ['IND']);
-    expect(OrderSegment.domestic.categories, ['DOM']);
     expect(OrderSegment.speciality.categories, ['SPE']);
-    expect(OrderSegment.industryAndSpeciality.categories, ['IND', 'SPE']);
 
     expect(OrderSegment.all.categories, ['IND', 'SPE', 'DOM']);
 
@@ -27,10 +32,10 @@ void main() {
     expect(controller.hasSegment, isFalse);
     expect(controller.categories, OrderSegment.all.categories);
 
-    controller.select(OrderSegment.domestic);
+    controller.select(OrderSegment.speciality);
 
-    expect(controller.segment, OrderSegment.domestic);
-    expect(controller.categories, ['DOM']);
+    expect(controller.segment, OrderSegment.speciality);
+    expect(controller.categories, ['SPE']);
   });
 
   testWidgets('the dialog stays open until a segment is picked',
@@ -49,6 +54,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Choose your segment'), findsOneWidget);
+
+    // Three cards, no label under the title.
+    expect(find.text('Industry'), findsOneWidget);
+    expect(find.text('Speciality'), findsOneWidget);
+    expect(find.text('All Segments'), findsOneWidget);
+    expect(find.text('Domestic'), findsNothing);
+    expect(find.text('Industry & Speciality'), findsNothing);
+    expect(find.text('Industrial threads'), findsNothing);
 
     // Back / Escape and a tap outside do not close it.
     await tester.binding.handlePopRoute();
@@ -112,13 +125,13 @@ void main() {
 
     await tester.tap(find.text('IND · Industry'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Domestic'));
+    await tester.tap(find.text('All Segments'));
     await tester.pump();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(controller.segment, OrderSegment.domestic);
-    expect(find.text('DOM · Domestic'), findsOneWidget);
+    expect(controller.segment, OrderSegment.all);
+    expect(find.text('ALL · All Segments'), findsOneWidget);
   });
 
   testWidgets('orders in progress lock the segment and say why',
@@ -152,7 +165,7 @@ void main() {
     expect(find.text('DTM draft #77 (1 line)'), findsOneWidget);
 
     // Other cards cannot be picked; OK closes without a change.
-    await tester.tap(find.text('Domestic'));
+    await tester.tap(find.text('Speciality'));
     await tester.pump();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
