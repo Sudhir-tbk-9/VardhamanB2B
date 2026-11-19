@@ -478,6 +478,9 @@ class CreateLabdipOrderView extends StatelessWidget {
                                     Expanded(
                                       child: NewOrderTextField(
                                         labelText: 'L',
+                                        // SWT shades only.
+                                        isEnabled:
+                                            labdipEntryController.isLEnabled,
                                         rxString: labdipEntryController.rxL,
                                         inputFormatters: [
                                           FilteringTextInputFormatter.allow(
@@ -495,7 +498,7 @@ class CreateLabdipOrderView extends StatelessWidget {
                                         hasError:
                                             labdipEntryController.rxAHasError,
                                         isEnabled:
-                                            labdipEntryController.rxL.isNotEmpty,
+                                            labdipEntryController.isAEnabled,
                                         isRequired:
                                             labdipEntryController.rxL.isNotEmpty,
                                         rxString: labdipEntryController.rxA,
@@ -515,7 +518,7 @@ class CreateLabdipOrderView extends StatelessWidget {
                                         hasError:
                                             labdipEntryController.rxBHasError,
                                         isEnabled:
-                                            labdipEntryController.rxA.isNotEmpty,
+                                            labdipEntryController.isBEnabled,
                                         isRequired:
                                             labdipEntryController.rxA.isNotEmpty,
                                         rxString: labdipEntryController.rxB,

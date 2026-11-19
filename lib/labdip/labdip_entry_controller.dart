@@ -487,6 +487,13 @@ class LabdipEntryController extends GetxController {
   void shadeListener(String newShade) {
     rxColor.value = '';
 
+    // L / A / B are for SWT (swatch) shades only: cleared for any other
+    // shade, so a disabled field never keeps a value. Clearing L clears A
+    // and B (labListener).
+    if (!newShade.startsWith('SWT')) {
+      rxL.value = '';
+    }
+
     if (_shadeToKeep != null && newShade != _shadeToKeep) {
       _shadeToKeep = null;
     }
@@ -566,6 +573,13 @@ class LabdipEntryController extends GetxController {
 
   bool get isSwatchShade =>
       rxShade.value.isNotEmpty && rxShade.value.startsWith('SWT');
+
+  /// L is entered only for a SWT shade; A after L, B after A.
+  bool get isLEnabled => isSwatchShade;
+
+  bool get isAEnabled => isSwatchShade && rxL.isNotEmpty;
+
+  bool get isBEnabled => isSwatchShade && rxA.isNotEmpty;
 
   bool get isOtherBuyer => rxBuyerName.value == 'OTHER';
 

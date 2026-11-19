@@ -496,6 +496,9 @@ class CreateSamplingOrderView extends StatelessWidget {
                                     Expanded(
                                       child: NewOrderTextField(
                                         labelText: 'L',
+                                        // SWT shades only.
+                                        isEnabled:
+                                            samplingEntryController.isLEnabled,
                                         rxString: samplingEntryController.rxL,
                                         inputFormatters: [
                                           FilteringTextInputFormatter.allow(
@@ -512,8 +515,8 @@ class CreateSamplingOrderView extends StatelessWidget {
                                         labelText: 'A',
                                         hasError:
                                             samplingEntryController.rxAHasError,
-                                        isEnabled: samplingEntryController
-                                            .rxL.isNotEmpty,
+                                        isEnabled:
+                                            samplingEntryController.isAEnabled,
                                         isRequired: samplingEntryController
                                             .rxL.isNotEmpty,
                                         rxString: samplingEntryController.rxA,
@@ -532,8 +535,8 @@ class CreateSamplingOrderView extends StatelessWidget {
                                         labelText: 'B',
                                         hasError:
                                             samplingEntryController.rxBHasError,
-                                        isEnabled: samplingEntryController
-                                            .rxA.isNotEmpty,
+                                        isEnabled:
+                                            samplingEntryController.isBEnabled,
                                         isRequired: samplingEntryController
                                             .rxA.isNotEmpty,
                                         rxString: samplingEntryController.rxB,
