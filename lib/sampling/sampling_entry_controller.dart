@@ -786,7 +786,7 @@ class SamplingEntryController extends GetxController {
         mode: drift.InsertMode.insertOrReplace,
       );
 
-      // Every field keeps its value for the next line.
+      _clearForNextLine();
     }
   }
 
@@ -851,9 +851,31 @@ class SamplingEntryController extends GetxController {
             ),
           );
 
-      // Back to adding; every field keeps the updated line's value.
+      // Back to adding.
       rxSelectedSamplingOrderLines.clear();
+
+      _clearForNextLine();
     }
+  }
+
+  /// After a line is added or updated the user picks a shade again for the
+  /// same article: Shade, UOM, Ticket, Color Name and L / A / B go blank and
+  /// the shade list is reloaded for the article. The Article and what it
+  /// maps to (Brand, Tex, Substrate) stay, as do the order-level fields.
+  void _clearForNextLine() {
+    // The shade listener clears Color and L / A / B (not an SWT shade).
+    rxShade.value = '';
+
+    // As when the user clears the shade: UOM and Ticket go blank without
+    // the UOM listener clearing the Article; the shade list is reloaded.
+    onShadePicked('');
+
+    rxColor.value = '';
+
+    rxL.value = '';
+
+    debugPrint('[ORDERS] Sampling line saved: Shade, UOM, Ticket, Color and '
+        'L/A/B cleared for the next line of ${rxArticle.value}');
   }
 
   void deleteSelectedLines() {

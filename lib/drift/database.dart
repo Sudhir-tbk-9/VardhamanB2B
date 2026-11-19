@@ -23,6 +23,9 @@ part 'database.g.dart';
 class Database extends _$Database {
   Database() : super(_openConnection());
 
+  /// An in-memory or other [executor], for tests.
+  Database.forTesting(super.executor);
+
   @override
   int get schemaVersion => 1;
 
