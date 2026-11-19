@@ -23,7 +23,13 @@ class _Form extends GetxController with DirectDeliveryTc {
   @override
   List<DraftTableData> get tcSelectedLines => selectedLines;
 
-  _Form() {
+  /// True for a form with a Remark field (DTM), false for Bulk.
+  final bool remarkField;
+
+  @override
+  bool get hasRemarkField => remarkField;
+
+  _Form({this.remarkField = false}) {
     initDirectDeliveryTc();
   }
 }
@@ -87,7 +93,7 @@ void main() {
 
     expect(form.isTcLine, isTrue);
     expect(form.lineBillingType, 'Plant');
-    expect(form.lineRemark, 'URGENT | TC Required');
+    expect(form.lineRemark, 'TC Required, URGENT');
   });
 
   test('not ticked: a normal order', () {
@@ -200,6 +206,92 @@ void main() {
 
       expect(form.orderIsTc, isNull);
       expect(form.allowsArticle('A100'), isTrue);
+    });
+  });
+
+  group('TC Required in the Remark', () {
+    test('with a Remark field: ticking writes "TC Required" in it', () {
+      final form = _Form(remarkField: true)..rxArticle.value = 'RS826';
+
+      form.rxTcRequired.value = true;
+      expect(form.rxRemark.value, 'TC Required');
+
+      // The user adds their remark after the comma.
+      form.rxRemark.value = 'TC Required, URGENT';
+      expect(form.lineRemark, 'TC Required, URGENT');
+
+      // Unticked: "TC Required" goes, the user's remark stays.
+      form.rxTcRequired.value = false;
+      expect(form.rxRemark.value, 'URGENT');
+      expect(form.lineRemark, 'URGENT');
+    });
+
+    test('a remark typed before ticking goes after "TC Required, "', () {
+      final form = _Form(remarkField: true)
+        ..rxArticle.value = 'RS826'
+        ..rxRemark.value = 'URGENT';
+
+      form.rxTcRequired.value = true;
+      expect(form.rxRemark.value, 'TC Required, URGENT');
+    });
+
+    test('"TC Required" deleted from the field is put back on save', () {
+      final form = _Form(remarkField: true)
+        ..rxArticle.value = 'RS826'
+        ..rxTcRequired.value = true
+        ..rxRemark.value = 'URGENT';
+
+      expect(form.lineRemark, 'TC Required, URGENT');
+    });
+
+    test('an article without an R drops the tick and the TC remark', () {
+      final form = _Form(remarkField: true)
+        ..rxArticle.value = 'RS826'
+        ..rxTcRequired.value = true;
+
+      form.rxArticle.value = 'A100';
+      expect(form.rxRemark.value, '');
+    });
+
+    test('TC order: an R article gets "TC Required" without a tick', () {
+      final form = _Form(remarkField: true)
+        ..lines.add(_line(1, 'RS826', tc: true));
+
+      form.rxArticle.value = 'MAR235';
+      expect(form.rxRemark.value, 'TC Required');
+    });
+
+    test('a saved TC line shows "TC Required, <remark>" in the field', () {
+      final form = _Form(remarkField: true);
+      final saved = _line(1, 'RS826', tc: true);
+
+      form.populateTc(
+        DraftTableData.fromJson({
+          ...saved.toJson(),
+          'remark': 'TC Required, URGENT',
+        }),
+      );
+      expect(form.rxRemark.value, 'TC Required, URGENT');
+
+      // Saved before this change as "<remark> | TC Required".
+      form.populateTc(
+        DraftTableData.fromJson({
+          ...saved.toJson(),
+          'remark': 'URGENT | TC Required',
+        }),
+      );
+      expect(form.rxRemark.value, 'TC Required, URGENT');
+    });
+
+    test('without a Remark field (Bulk): the line remark is "TC Required"',
+        () {
+      final form = _Form()
+        ..rxArticle.value = 'RS826'
+        ..rxTcRequired.value = true;
+
+      // No field to fill: the Remark column shows the line's remark.
+      expect(form.rxRemark.value, '');
+      expect(form.lineRemark, 'TC Required');
     });
   });
 }

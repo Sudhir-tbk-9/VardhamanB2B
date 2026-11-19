@@ -67,33 +67,98 @@ mixin DirectDeliveryTc on GetxController {
   /// DraftTable billingType of the line being entered.
   String get lineBillingType => isTcLine ? 'Plant' : rxBillingType.value;
 
-  /// Remark saved with the line: the one typed, then "TC Required".
-  String get lineRemark => [
-        if (rxRemark.value.trim().isNotEmpty) rxRemark.value.trim(),
-        if (isTcLine) tcRequiredRemark,
-      ].join(' | ');
+  /// Whether the form shows a Remark field (DTM). With one, a TC line's
+  /// Remark field itself reads "TC Required", then the user's remark after
+  /// a comma; without one (Bulk), the line's remark is "TC Required".
+  bool get hasRemarkField => false;
+
+  /// [remark] without a leading "TC Required" (and the comma after it).
+  /// Remarks saved before as "<remark> | TC Required" lose that part too.
+  static String withoutTcRemark(String remark) {
+    final parts = remark
+        .split(' | ')
+        .where((part) => part.trim() != tcRequiredRemark)
+        .join(' | ')
+        .trim();
+
+    if (!parts.startsWith(tcRequiredRemark)) {
+      return parts;
+    }
+
+    final rest = parts.substring(tcRequiredRemark.length).trimLeft();
+
+    return (rest.startsWith(',') ? rest.substring(1) : rest).trim();
+  }
+
+  /// "TC Required", then [remark] after a comma: "TC Required, <remark>".
+  static String withTcRemark(String remark) {
+    final userRemark = withoutTcRemark(remark);
+
+    return userRemark.isEmpty
+        ? tcRequiredRemark
+        : '$tcRequiredRemark, $userRemark';
+  }
+
+  /// Remark saved with the line (and sent in ColorRemark): "TC Required,
+  /// <remark>" for a TC line, otherwise the remark typed.
+  String get lineRemark => isTcLine
+      ? withTcRemark(rxRemark.value)
+      : withoutTcRemark(rxRemark.value);
 
   static bool isTcRequiredLine(DraftTableData line) =>
       line.billingType == 'Plant';
 
-  /// Fills the tick box and Remark from a saved [line], without the
-  /// "TC Required" note [lineRemark] added.
+  /// Fills the tick box and Remark from a saved [line]: the Remark field
+  /// shows "TC Required, <remark>" for a TC line.
   void populateTc(DraftTableData line) {
     rxTcRequired.value = isTcRequiredLine(line);
 
-    rxRemark.value = line.remark
-        .split(' | ')
-        .where((part) => part != tcRequiredRemark)
-        .join(' | ');
+    rxRemark.value = hasRemarkField && isTcRequiredLine(line)
+        ? withTcRemark(line.remark)
+        : withoutTcRemark(line.remark);
+  }
+
+  /// With a Remark field: "TC Required" put at the front of the Remark when
+  /// the line becomes a TC line, taken off when it stops being one. The
+  /// user's own remark after the comma stays.
+  void syncTcRemark() {
+    if (!hasRemarkField) {
+      return;
+    }
+
+    final remark = isTcLine
+        ? withTcRemark(rxRemark.value)
+        : withoutTcRemark(rxRemark.value);
+
+    if (remark != rxRemark.value) {
+      rxRemark.value = remark;
+    }
   }
 
   /// Call once from the controller's constructor: an article without an
-  /// "R" drops the tick.
+  /// "R" drops the tick; the Remark follows the tick ([syncTcRemark]).
   void initDirectDeliveryTc() {
     ever(rxArticle, (_) {
       if (!offersTc) {
         rxTcRequired.value = false;
       }
+
+      syncTcRemark();
     });
+
+    ever(rxTcRequired, (_) => syncTcRemark());
+
+    // A TC order ticks every R line: follows lines added and deleted.
+    final lines = tcOrderLines;
+
+    if (lines is RxList<DraftTableData>) {
+      ever(lines, (_) => syncTcRemark());
+    }
+
+    final selectedLines = tcSelectedLines;
+
+    if (selectedLines is RxList<DraftTableData>) {
+      ever(selectedLines, (_) => syncTcRemark());
+    }
   }
 }

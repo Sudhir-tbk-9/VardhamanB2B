@@ -840,8 +840,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   String get _colorRemark => [
         if (rxSecondLightSource.value.trim().isNotEmpty)
           rxSecondLightSource.value,
-        if (rxRemark.value.trim().isNotEmpty) rxRemark.value,
-        if (isTcLine) DirectDeliveryTc.tcRequiredRemark,
+        // The remark typed, with "TC Required" for a TC line.
+        if (lineRemark.isNotEmpty) lineRemark,
         if (rxL.value.trim().isNotEmpty) rxL.value,
         if (rxRequestType.value.isNotEmpty) rxRequestType.value,
         if (rxEndUse.value.isNotEmpty) rxEndUse.value,

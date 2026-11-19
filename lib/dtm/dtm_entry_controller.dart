@@ -663,8 +663,8 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
         if (rxSecondLightSource.value.trim().isNotEmpty)
           rxSecondLightSource.value,
         if (rxColor.value.trim().isNotEmpty) rxColor.value,
-        if (rxRemark.value.trim().isNotEmpty) rxRemark.value,
-        if (isTcLine) DirectDeliveryTc.tcRequiredRemark,
+        // The remark typed, with "TC Required" for a TC line.
+        if (lineRemark.isNotEmpty) lineRemark,
         if (rxL.value.trim().isNotEmpty) rxL.value,
         if (rxRequestType.value.isNotEmpty) rxRequestType.value,
         if (rxEndUse.value.isNotEmpty) rxEndUse.value,
@@ -975,6 +975,10 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
 
   @override
   List<DraftTableData> get tcSelectedLines => rxSelectedDtmOrderLines;
+
+  /// DTM has a Remark field: it reads "TC Required, <remark>" on a TC line.
+  @override
+  bool get hasRemarkField => true;
 
   /// Articles for the Article field; "R" articles only in a TC order.
   List<String> get uniqueFilteredArticles => catalogController.orderItems
