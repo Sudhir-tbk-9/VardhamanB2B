@@ -539,7 +539,7 @@ class CreateDtmOrderView extends StatelessWidget {
                                               ),
                                               Expanded(
                                                 child: NewOrderDateField(
-                                                  labelText: 'Requested Date',
+                                                  labelText: 'Expected Delivery Date (EDD)',
                                                   rxDate: dtmEntryController
                                                       .rxRequestedDate,
                                                   hintText: 'select',
@@ -697,7 +697,7 @@ class CreateDtmOrderView extends StatelessWidget {
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
                 DataColumn2(
-                  label: OrderDetailColumnLabel(labelText: 'Requested Date'),
+                  label: OrderDetailColumnLabel(labelText: 'Expected Delivery Date (EDD)'),
                   size: ColumnSize.S,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),

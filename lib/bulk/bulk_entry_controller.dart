@@ -1023,7 +1023,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   /// same article: Shade, UOM, Ticket, Color Name, unit price and Quantity
   /// go blank and the shade list is reloaded for the article. The Article
   /// and what it maps to (Brand, Tex, Substrate) stay, as do the order-level
-  /// fields (Merchandiser, Buyer, PO, Requested Date...).
+  /// fields (Merchandiser, Buyer, PO, Expected Delivery Date...).
   void _clearForNextLine() {
     rxShade.value = '';
 
