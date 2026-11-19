@@ -243,6 +243,27 @@ void main() {
     expect(c.rxQuantity.value, '');
   });
 
+  test('DTM EDD: 18 days from today, user can change it, Clear restores it',
+      () async {
+    final c = DtmEntryController(orderNumber: 5);
+    final today = DateTime.now();
+    final in18Days = DateTime(today.year, today.month, today.day + 18);
+
+    expect(c.rxRequestedDate.value, in18Days);
+    expect(c.canClearInputs, isFalse);
+
+    final picked = DateTime(today.year, today.month, today.day + 30);
+    c.rxRequestedDate.value = picked;
+    expect(c.rxRequestedDate.value, picked);
+    expect(c.canClearInputs, isTrue);
+
+    c.clearAllInputs();
+    expect(c.rxRequestedDate.value, in18Days);
+
+    // Lets the controller's draft line query finish before tearDown.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  });
+
   for (final kind in ['Labdip', 'Sampling']) {
     test('$kind Add Line keeps the article, clears Shade, UOM, Color, L/A/B',
         () async {

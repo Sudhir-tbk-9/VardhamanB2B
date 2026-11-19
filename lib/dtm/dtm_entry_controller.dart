@@ -40,11 +40,12 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
 
   final List<RxString> inputsInError = <RxString>[].obs;
 
-  final Rxn<DateTime> rxRequestedDate = Rxn<DateTime>(
-    DateTime.now().add(
-      Duration(days: 15),
-    ),
-  );
+  /// Expected Delivery Date (EDD) of a DTM line: 18 days from today unless
+  /// the user picks another date.
+  static DateTime get defaultEdd =>
+      DateUtils.dateOnly(DateTime.now()).add(Duration(days: 18));
+
+  final Rxn<DateTime> rxRequestedDate = Rxn<DateTime>(defaultEdd);
 
   final rxMerchandisers = <String>[].obs;
 
@@ -890,7 +891,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       rxShade.value != '' ||
       rxColor.value != '' ||
       rxQuantity.value != '' ||
-      rxRequestedDate.value != null ||
+      rxRequestedDate.value != defaultEdd ||
       rxRemark.value != '' ||
       rxPoNumber.value != '' ||
       rxPoFileName.value != '';
@@ -943,7 +944,8 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       rxQuantity.value = '';
     }
     if (!skipHashCodes.contains(rxRequestedDate.hashCode)) {
-      rxRequestedDate.value = null;
+      // Back to the default EDD, not blank.
+      rxRequestedDate.value = defaultEdd;
     }
     if (!skipHashCodes.contains(rxRemark.hashCode)) {
       rxRemark.value = '';
