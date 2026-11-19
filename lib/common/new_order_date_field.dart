@@ -2,8 +2,23 @@ import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
+
+/// Days from today, today included, that cannot be picked as the Expected
+/// Delivery Date (EDD): today and the next 10 days.
+const blockedEddDays = 11;
+
+/// Earliest Expected Delivery Date (EDD) on the Bulk and DTM forms: today
+/// and the next 10 days cannot be picked.
+DateTime get earliestEdd => DateUtils.dateOnly(DateTime.now())
+    .add(const Duration(days: blockedEddDays));
+
+/// Note in the EDD calendar on why some dates are greyed out.
+String get earliestEddNote =>
+    'Today and the next ${blockedEddDays - 1} days are not available. '
+    'Earliest delivery date: ${DateFormat('d MMM yyyy').format(earliestEdd)}';
 
 class NewOrderDateField extends StatelessWidget {
   NewOrderDateField({
@@ -16,7 +31,12 @@ class NewOrderDateField extends StatelessWidget {
     this.isRequired = false,
     this.hasError = false,
     this.firstDate,
+    this.pickerNote,
   });
+
+  /// Shown under the calendar, e.g. why dates before [firstDate] are greyed
+  /// out ([earliestEddNote]).
+  final String? pickerNote;
 
   final String labelText;
   final String hintText;
@@ -111,7 +131,23 @@ class NewOrderDateField extends StatelessWidget {
                           ),
                         ),
                         firstDate: firstDate,
-                        value: rxDate.value,
+                        // A date before firstDate (e.g. a draft saved days
+                        // ago) would make the picker fail: it opens on
+                        // firstDate instead. The field still shows the date.
+                        value: firstDate != null &&
+                                rxDate.value != null &&
+                                rxDate.value!.isBefore(firstDate!)
+                            ? null
+                            : rxDate.value,
+                        initialPickerDateTime: firstDate,
+                        // Calendar only: typing a date would resize the
+                        // dialog away from the note under it.
+                        materialDatePickerOptions: MaterialDatePickerOptions(
+                          initialEntryMode: pickerNote == null
+                              ? DatePickerEntryMode.calendar
+                              : DatePickerEntryMode.calendarOnly,
+                          builder: _buildPicker,
+                        ),
                         onChanged: (DateTime? date) {
                           if (date != null) {
                             rxDate.value = date;
@@ -133,6 +169,125 @@ class NewOrderDateField extends StatelessWidget {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  /// The calendar: dates before [firstDate] greyed out (grey circle, grey
+  /// number), and [pickerNote] in a card right under the dialog.
+  Widget _buildPicker(BuildContext context, Widget? child) {
+    final theme = Theme.of(context);
+
+    final disabledForeground = VardhmanColors.darkGrey.withAlpha(100);
+
+    final disabledBackground = VardhmanColors.dividerGrey.withAlpha(170);
+
+    final today = DateUtils.dateOnly(DateTime.now());
+
+    final isTodayBlocked = firstDate != null && firstDate!.isAfter(today);
+
+    Color? whenDisabled(Set<WidgetState> states, Color color) =>
+        states.contains(WidgetState.disabled) ? color : null;
+
+    final picker = Theme(
+      data: theme.copyWith(
+        datePickerTheme: theme.datePickerTheme.copyWith(
+          dayForegroundColor: WidgetStateProperty.resolveWith(
+            (states) => whenDisabled(states, disabledForeground),
+          ),
+          dayBackgroundColor: WidgetStateProperty.resolveWith(
+            (states) => whenDisabled(states, disabledBackground),
+          ),
+          todayForegroundColor: WidgetStateProperty.resolveWith(
+            (states) => whenDisabled(states, disabledForeground),
+          ),
+          todayBackgroundColor: WidgetStateProperty.resolveWith(
+            (states) => whenDisabled(states, disabledBackground),
+          ),
+          // Today is not highlighted when it cannot be picked.
+          todayBorder:
+              isTodayBlocked ? BorderSide(color: disabledForeground) : null,
+        ),
+      ),
+      child: child!,
+    );
+
+    final note = pickerNote;
+
+    if (note == null) {
+      return picker;
+    }
+
+    // The dialog is centred and sized as DatePickerDialog sizes it
+    // (calendar only), so the note goes right under it.
+    final orientation = MediaQuery.orientationOf(context);
+
+    final dialogSize = orientation == Orientation.landscape
+        ? const Size(496, 346)
+        : theme.useMaterial3
+            ? const Size(360, 568)
+            : const Size(330, 518);
+
+    final textScale =
+        MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 3).scale(14) /
+            14;
+
+    final variant = ThemeVariants.current;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dialogHeight = dialogSize.height * textScale;
+
+        return Stack(
+          children: [
+            Positioned.fill(child: picker),
+            Positioned(
+              top: constraints.maxHeight / 2 + dialogHeight / 2 + 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: dialogSize.width * textScale,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Color.alphaBlend(
+                        variant.warning.withAlpha(36),
+                        Colors.white,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: variant.warning.withAlpha(120)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: variant.warning,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            note,
+                            style: TextStyle(
+                              color: VardhmanColors.darkGrey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

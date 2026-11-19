@@ -614,7 +614,8 @@ class CreateBulkOrderView extends StatelessWidget {
                                                   rxDate: bulkEntryController
                                                       .rxRequestedDate,
                                                   hintText: 'select',
-                                                  firstDate: DateTime.now(),
+                                                  firstDate: earliestEdd,
+                                                  pickerNote: earliestEddNote,
                                                 ),
                                               ),
                                             ],
