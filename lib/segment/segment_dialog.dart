@@ -42,13 +42,29 @@ Future<void> showSegmentDialog() async {
       : 'Showing the segment selection dialog');
 
   try {
-    // Changing it: orders in progress lock the segment.
-    final draftOrders = canCancel
-        ? await segmentController.draftOrders()
-        : const <DraftOrder>[];
+    // Orders in progress lock the segment: when changing it, to the current
+    // one; after a login, to the one the drafts were made in (drafts stay
+    // in the browser past a logout, the session's segment does not).
+    final draftOrders = await segmentController.draftOrders();
+
+    final lockedSegment = draftOrders.isEmpty
+        ? null
+        : segmentController.segment ?? segmentController.draftSegment;
+
+    if (draftOrders.isNotEmpty && lockedSegment == null) {
+      logSegment('Orders in progress but their segment is not known '
+          '(saved before it was kept): any segment can be picked');
+    } else if (!canCancel && lockedSegment != null) {
+      logSegment('Login locked to ${lockedSegment.title}, the segment of '
+          'the orders in progress');
+    }
 
     await Get.dialog(
-      SegmentDialog(canCancel: canCancel, draftOrders: draftOrders),
+      SegmentDialog(
+        canCancel: canCancel,
+        draftOrders: lockedSegment == null ? const [] : draftOrders,
+        lockedSegment: lockedSegment,
+      ),
       barrierDismissible: canCancel,
       barrierColor: Colors.black.withAlpha(150),
     );
@@ -142,10 +158,15 @@ class SegmentDialog extends StatefulWidget {
   /// segment can be picked: the dialog says why.
   final List<DraftOrder> draftOrders;
 
+  /// The only segment that can be picked while there are [draftOrders]:
+  /// the one they were made in. Defaults to the current segment.
+  final OrderSegment? lockedSegment;
+
   const SegmentDialog({
     super.key,
     this.canCancel = false,
     this.draftOrders = const [],
+    this.lockedSegment,
   });
 
   @override
@@ -155,13 +176,31 @@ class SegmentDialog extends StatefulWidget {
 class _SegmentDialogState extends State<SegmentDialog> {
   final _segmentController = Get.find<SegmentController>();
 
-  /// Starts on the current segment when changing it.
-  late OrderSegment? _picked = _segmentController.segment;
+  /// Segment the drafts lock the dialog to, or null.
+  late final OrderSegment? _lockedSegment = widget.draftOrders.isEmpty
+      ? null
+      : widget.lockedSegment ?? _segmentController.segment;
 
-  bool get _isLocked => widget.draftOrders.isNotEmpty;
+  /// Starts on the current segment when changing it, or on the locked one.
+  late OrderSegment? _picked = _segmentController.segment ?? _lockedSegment;
+
+  bool get _isLocked => _lockedSegment != null;
 
   bool _canPick(OrderSegment segment) =>
-      !_isLocked || segment == _segmentController.segment;
+      !_isLocked || segment == _lockedSegment;
+
+  /// Opens a draft from the lock warning. After a login no segment is set
+  /// yet: the drafts' one is set first, so the order screen is not left
+  /// without one.
+  Future<void> _openDraft(DraftOrder draftOrder) async {
+    final lockedSegment = _lockedSegment;
+
+    if (lockedSegment != null && _segmentController.segment == null) {
+      _segmentController.select(lockedSegment);
+    }
+
+    await (_segmentController.draftOrderOpener ?? openDraftOrder)(draftOrder);
+  }
 
   void _pick(OrderSegment segment) {
     if (!_canPick(segment)) {
@@ -265,9 +304,9 @@ class _SegmentDialogState extends State<SegmentDialog> {
             const SizedBox(height: 20),
             _LockedAlert(
               variant: variant,
-              segment: _segmentController.segment!,
+              segment: _lockedSegment!,
               draftOrders: widget.draftOrders,
-              onOpen: _segmentController.draftOrderOpener ?? openDraftOrder,
+              onOpen: _openDraft,
             ),
           ],
           const SizedBox(height: 24),

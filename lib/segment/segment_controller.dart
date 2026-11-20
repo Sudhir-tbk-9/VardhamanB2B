@@ -109,6 +109,12 @@ void logSegment(String message) => debugPrint('[SEGMENT] $message');
 class SegmentController extends GetxController {
   static const _storageKey = 'orderSegment';
 
+  /// localStorage key prefix of the segment the drafts were made in, per
+  /// customer (sold-to). Drafts stay in this browser's database past a
+  /// logout, so their segment has to as well: the next login is then
+  /// locked to it while they are not submitted or deleted.
+  static const _draftSegmentKey = 'draftSegment';
+
   /// Null until the user picks one in the segment dialog.
   final rxSegment = Rxn<OrderSegment>();
 
@@ -120,11 +126,16 @@ class SegmentController extends GetxController {
   /// Replaces openDraftOrder (segment dialog lock warning), for tests.
   final DraftOrderOpener? draftOrderOpener;
 
-  /// [draftOrdersLoader] replaces the DraftTable read, for tests.
+  final String Function() _soldToReader;
+
+  /// [draftOrdersLoader] replaces the DraftTable read and [soldToReader]
+  /// the logged in customer's sold-to, for tests.
   SegmentController({
     DraftOrdersLoader? draftOrdersLoader,
     this.draftOrderOpener,
-  }) : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders {
+    String Function()? soldToReader,
+  })  : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders,
+        _soldToReader = soldToReader ?? _readSoldTo {
     rxSegment.value = OrderSegment.byName(_readStorage());
 
     if (rxSegment.value == null) {
@@ -150,6 +161,8 @@ class SegmentController extends GetxController {
     rxSegment.value = segment;
 
     _writeStorage(segment.name);
+
+    _writeDraftSegment(segment);
 
     logSegment(
       'Selected ${_describe(segment)}'
@@ -212,7 +225,40 @@ class SegmentController extends GetxController {
     ];
   }
 
-  /// Forgets the segment; the next login asks again.
+  /// Segment the customer's drafts in this browser were made in, or null
+  /// when not known (e.g. drafts saved before it was kept).
+  OrderSegment? get draftSegment {
+    try {
+      return OrderSegment.byName(
+        html.window.localStorage['$_draftSegmentKey.${_soldToReader()}'],
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _writeDraftSegment(OrderSegment segment) {
+    try {
+      html.window.localStorage['$_draftSegmentKey.${_soldToReader()}'] =
+          segment.name;
+    } catch (e) {
+      logSegment("Could not save the drafts' segment in localStorage: $e");
+    }
+  }
+
+  static String _readSoldTo() {
+    try {
+      return Get.find<UserController>(tag: 'userController')
+          .rxUserDetail
+          .value
+          .soldToNumber;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Forgets the segment; the next login asks again, locked to
+  /// [draftSegment] while there are drafts.
   static void clearStored() {
     try {
       html.window.sessionStorage.remove(_storageKey);
