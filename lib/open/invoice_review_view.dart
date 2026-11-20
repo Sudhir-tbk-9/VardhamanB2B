@@ -11,7 +11,8 @@ import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/open/invoice_review_dialog.dart';
 import 'package:vardhman_b2b/open/open_invoices_list.dart';
 import 'package:vardhman_b2b/open/payment_knock_off_view.dart';
-import 'package:vardhman_b2b/open/payment_log_dialog.dart';
+// Payment log button hidden (see leading below).
+// import 'package:vardhman_b2b/open/payment_log_dialog.dart';
 import 'package:vardhman_b2b/common/min_width_scroll.dart';
 
 class InvoiceReviewView extends StatelessWidget {
@@ -30,14 +31,17 @@ class InvoiceReviewView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
               HeaderView(
+                // Payment log button hidden for now (nothing shown until an
+                // invoice is picked); PaymentLogDialog is kept.
                 leading: invoicesController.rxSelectedInvoiceInfos.isEmpty
-                    ? SecondaryButton(
-                        iconData: Icons.receipt_long_outlined,
-                        text: 'Payment log',
-                        onPressed: () async {
-                          Get.dialog(const PaymentLogDialog());
-                        },
-                      )
+                    ? null
+                    // ? SecondaryButton(
+                    //     iconData: Icons.receipt_long_outlined,
+                    //     text: 'Payment log',
+                    //     onPressed: () async {
+                    //       Get.dialog(const PaymentLogDialog());
+                    //     },
+                    //   )
                     : SecondaryButton(
                         iconData: Icons.close,
                         text: 'Clear',
