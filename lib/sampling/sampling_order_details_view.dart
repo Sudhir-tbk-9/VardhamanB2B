@@ -9,6 +9,7 @@ import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
 import 'package:vardhman_b2b/common/order_detail_column_label.dart';
+import 'package:vardhman_b2b/common/order_status_panel.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/vardhman_loader.dart';
 import 'package:vardhman_b2b/constants.dart';
@@ -73,33 +74,24 @@ class SamplingOrderDetailsView extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: VardhmanColors.darkGrey,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Wrap(
-                      // Wrap: on a narrow window the order facts go onto a second line.
-                      alignment: WrapAlignment.spaceBetween,
-                      runSpacing: 4,
-                      children: [
-                        if (samplingController
-                                .rxSelectedOrderHeaderLine.value !=
-                            null) ...[
-                          Text(
-                            'Order Details for ${samplingController.rxSelectedOrderHeaderLine.value!.orderReference}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'JDE order no. ${samplingController.rxSelectedOrderHeaderLine.value!.orderNumber}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Dated ${DateFormat('dd/MM/yyyy').format(samplingController.rxSelectedOrderHeaderLine.value!.orderDate)}',
-                          ),
-                        ],
-                      ],
-                    ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('Order Details'),
                   ),
                 ),
               ),
+              // Order summary (ORCH5542001) and line status chips
+              // (ORCH5542002) of the order clicked, as in Bulk and DTM.
+              if (samplingController.rxSelectedOrderHeaderLine.value != null)
+                OrderStatusPanel(
+                  orderHeaderLine:
+                      samplingController.rxSelectedOrderHeaderLine.value!,
+                  lineStatusCounts: samplingController.lineStatusCounts,
+                  selectedLineStatus: samplingController.lineStatusFilter,
+                  onLineStatusSelected: (status) =>
+                      samplingController.rxLineStatusFilter.value = status,
+                ),
+              const Divider(height: 1, thickness: 1),
               Flexible(
                 child: LoadingOverlay(
                   isLoading: samplingController.isLoadingDetails,
@@ -255,7 +247,9 @@ class SamplingOrderDetailsView extends StatelessWidget {
                               headingRowAlignment: MainAxisAlignment.end,
                             ),
                           ],
-                          rows: samplingController.primaryOrderDetailLines.indexed.map(
+                          // Filtered by the status chips; striped by
+                          // position, so stripes still alternate.
+                          rows: samplingController.visibleOrderDetailLines.indexed.map(
                             ((int, OrderDetailLine) entry) {
                               final (index, orderDetailLine) = entry;
 

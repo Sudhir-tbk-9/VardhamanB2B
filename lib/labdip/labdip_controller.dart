@@ -10,10 +10,12 @@ import 'package:vardhman_b2b/api/order_header_line.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
+import 'package:vardhman_b2b/orders/order_line_status_filter.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class LabdipController extends GetxController with OrderListFilters {
+class LabdipController extends GetxController
+    with OrderListFilters, OrderLineStatusFilter {
   @override
   final OrdersController ordersController = Get.find<OrdersController>();
 
@@ -130,12 +132,24 @@ class LabdipController extends GetxController with OrderListFilters {
     );
   }
 
+  /// Every line JDE gives for the order, as the details table lists them.
+  @override
+  List<OrderDetailLine> get statusFilterLines => rxOrderDetailLines;
+
+  /// The line's own status (ORCH5542002 work order status).
+  @override
+  String displayStatusOf(OrderDetailLine orderDetailLine) =>
+      orderDetailLine.status;
+
   Future<void> refreshOrders() async {
     await ordersController.refreshOrders();
   }
 
   Future<void> selectOrder(OrderHeaderLine orderHeaderLine) async {
     rxSelectedOrderHeaderLine.value = orderHeaderLine;
+
+    // Each order opens showing all its lines.
+    resetLineStatusFilter();
 
     await refreshSelectedOrderDetails();
 

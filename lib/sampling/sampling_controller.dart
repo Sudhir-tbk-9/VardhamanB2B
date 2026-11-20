@@ -9,10 +9,12 @@ import 'package:vardhman_b2b/api/order_header_line.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
+import 'package:vardhman_b2b/orders/order_line_status_filter.dart';
 import 'package:vardhman_b2b/orders/orders_controller.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
-class SamplingController extends GetxController with OrderListFilters {
+class SamplingController extends GetxController
+    with OrderListFilters, OrderLineStatusFilter {
   @override
   final OrdersController ordersController = Get.find<OrdersController>();
 
@@ -133,6 +135,9 @@ class SamplingController extends GetxController with OrderListFilters {
 
   Future<void> selectOrder(OrderHeaderLine orderHeaderLine) async {
     rxSelectedOrderHeaderLine.value = orderHeaderLine;
+
+    // Each order opens showing all its lines.
+    resetLineStatusFilter();
 
     await refreshSelectedOrderDetails();
   }
@@ -332,6 +337,23 @@ class SamplingController extends GetxController with OrderListFilters {
               detailLine.item == itemNumber && detailLine.invoiceNumber > 0,
         )
         .toList();
+  }
+
+  /// The sample lines, as the details table lists them.
+  @override
+  List<OrderDetailLine> get statusFilterLines => primaryOrderDetailLines;
+
+  /// Status as the details table shows it: Dispatched once the line's final
+  /// (permanent) shade is invoiced, otherwise the line's own status.
+  @override
+  String displayStatusOf(OrderDetailLine orderDetailLine) {
+    final permanentShadeLine =
+        getPermanentShadeLine(orderDetailLine.workOrderNumber);
+
+    return permanentShadeLine != null &&
+            getInvoicedLines(permanentShadeLine.item).isNotEmpty
+        ? 'Dispatched'
+        : orderDetailLine.status;
   }
 
   List<OrderHeaderLine> get samplingOrders => rxOrders;

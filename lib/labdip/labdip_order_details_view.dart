@@ -1,12 +1,12 @@
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:vardhman_b2b/api/labdip_feedback.dart';
 import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
 import 'package:vardhman_b2b/common/order_detail_column_label.dart';
+import 'package:vardhman_b2b/common/order_status_panel.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/vardhman_loader.dart';
 import 'package:vardhman_b2b/api/order_detail_line.dart';
@@ -58,32 +58,24 @@ class LabdipOrderDetailsView extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: VardhmanColors.darkGrey,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Wrap(
-                      // Wrap: on a narrow window the order facts go onto a second line.
-                      alignment: WrapAlignment.spaceBetween,
-                      runSpacing: 4,
-                      children: [
-                        if (labdipController.rxSelectedOrderHeaderLine.value !=
-                            null) ...[
-                          Text(
-                            'Order Details for ${labdipController.rxSelectedOrderHeaderLine.value!.orderReference}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'JDE order no. ${labdipController.rxSelectedOrderHeaderLine.value!.orderNumber}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Dated ${DateFormat('dd/MM/yyyy').format(labdipController.rxSelectedOrderHeaderLine.value!.orderDate)}',
-                          ),
-                        ],
-                      ],
-                    ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('Order Details'),
                   ),
                 ),
               ),
+              // Order summary (ORCH5542001) and line status chips
+              // (ORCH5542002) of the order clicked, as in Bulk and DTM.
+              if (labdipController.rxSelectedOrderHeaderLine.value != null)
+                OrderStatusPanel(
+                  orderHeaderLine:
+                      labdipController.rxSelectedOrderHeaderLine.value!,
+                  lineStatusCounts: labdipController.lineStatusCounts,
+                  selectedLineStatus: labdipController.lineStatusFilter,
+                  onLineStatusSelected: (status) =>
+                      labdipController.rxLineStatusFilter.value = status,
+                ),
+              const Divider(height: 1, thickness: 1),
               Flexible(
                 child: LoadingOverlay(
                   isLoading: labdipController.isLoadingDetails,
@@ -209,7 +201,10 @@ class LabdipOrderDetailsView extends StatelessWidget {
                               headingRowAlignment: MainAxisAlignment.center,
                             ),
                           ],
-                          rows: labdipController.rxOrderDetailLines.indexed.map(
+                          // Filtered by the status chips; striped by
+                          // position, so stripes still alternate.
+                          rows: labdipController.visibleOrderDetailLines.indexed
+                              .map(
                             ((int, OrderDetailLine) entry) {
                               final (index, orderDetailLine) = entry;
 
