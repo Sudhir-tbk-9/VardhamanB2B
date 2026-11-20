@@ -9,6 +9,11 @@ class ExcelLine {
   final String buyer;
   final String styleNo;
   final int quantity;
+
+  /// Quantity as written in the file or the Fix modal, so an empty cell
+  /// ("Missing Quantity") and a 0 (or text) are told apart.
+  final String quantityText;
+
   final String lightSources;
 
   ExcelLine({
@@ -21,7 +26,8 @@ class ExcelLine {
     required this.styleNo,
     required this.quantity,
     required this.lightSources,
-  });
+    String? quantityText,
+  }) : quantityText = quantityText ?? (quantity == 0 ? '' : '$quantity');
 
   factory ExcelLine.fromCells(List<String> cells) {
     String cell(int index) => cells.elementAtOrNull(index)?.trim() ?? '';
@@ -36,6 +42,7 @@ class ExcelLine {
       shade: cell(6).toUpperCase(),
       styleNo: cell(7),
       quantity: parseQuantity(cell(8)),
+      quantityText: cell(8),
     );
   }
 
@@ -56,6 +63,7 @@ class ExcelLine {
     String? buyer,
     String? styleNo,
     int? quantity,
+    String? quantityText,
     String? lightSources,
   }) {
     return ExcelLine(
@@ -67,6 +75,8 @@ class ExcelLine {
       buyer: buyer ?? this.buyer,
       styleNo: styleNo ?? this.styleNo,
       quantity: quantity ?? this.quantity,
+      quantityText:
+          quantityText ?? (quantity == null ? this.quantityText : null),
       lightSources: lightSources ?? this.lightSources,
     );
   }
@@ -75,10 +85,17 @@ class ExcelLine {
   List<String> get missingRequiredFields => [
         if (article.isEmpty) 'Article',
         if (shade.isEmpty) 'Shade',
-        if (quantity < 1) 'Quantity',
+        if (quantityText.isEmpty) 'Quantity',
       ];
 
-  bool get hasError => missingRequiredFields.isNotEmpty;
+  /// Why a Quantity that is given cannot be ordered (0, negative, not a
+  /// whole number), or null. An order line needs at least 1.
+  String? get quantityError => quantityText.isNotEmpty && quantity < 1
+      ? 'Quantity must be at least 1 (is "$quantityText")'
+      : null;
+
+  bool get hasError =>
+      missingRequiredFields.isNotEmpty || quantityError != null;
 
   bool get isBlank =>
       merchandiser.isEmpty &&
@@ -88,7 +105,7 @@ class ExcelLine {
       shade.isEmpty &&
       buyer.isEmpty &&
       styleNo.isEmpty &&
-      quantity == 0 &&
+      quantityText.isEmpty &&
       lightSources.isEmpty;
 
   String get itemNumber =>

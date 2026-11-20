@@ -982,16 +982,17 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
   bool get hasRemarkField => true;
 
   /// Articles for the Article field; "R" articles only in a TC order.
-  List<String> get uniqueFilteredArticles => catalogController.orderItems
-      .where(
-        (itemCatalogInfo) => (rxUom.value.isNotEmpty
-            ? itemCatalogInfo.uom == (rxUom.value)
-            : true),
-      )
-      .map((e) => e.article)
-      .where(allowsArticle)
-      .toSet()
-      .toList();
+  /// Rx values read once, not once per catalog item (thousands), and the
+  /// TC rule applied once per article: the list is rebuilt with the form.
+  List<String> get uniqueFilteredArticles {
+    final uom = rxUom.value;
+
+    return allowedArticles(
+      catalogController.orderItems
+          .where((itemCatalogInfo) => uom.isEmpty || itemCatalogInfo.uom == uom)
+          .map((itemCatalogInfo) => itemCatalogInfo.article),
+    );
+  }
 
   List<String> get uniqueFilteredUoms => catalogController.orderItems
       .where(
@@ -1025,6 +1026,12 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
   }
 
   Future<void> _submitOrder() async {
+    // Nothing is sent (not even an order number taken) while a line has
+    // a quantity of 0.
+    if (!checkOrderLineQuantities(orderType: 'DTM', lines: rxDtmOrderLines)) {
+      return;
+    }
+
     final firstPoDocLine = rxDtmOrderLines.firstWhereOrNull(
       (dtmOrderLine) => dtmOrderLine.poFileName.isNotEmpty,
     );
@@ -1073,12 +1080,6 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
         fileType: 'PO Document',
       );
     }
-
-    logOrderLineQuantities(
-      orderType: 'DTM',
-      b2bOrderNumber: 'B2BD$submitDtmOrderNumber',
-      lines: rxDtmOrderLines,
-    );
 
     final isSubmitted = await orderReviewController.submitDtmOrder(
       b2bOrderNumber: 'B2BD$submitDtmOrderNumber',

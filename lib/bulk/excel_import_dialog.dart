@@ -507,6 +507,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                       _draft.quantity > 0 ? _draft.quantity.toString() : '',
                   onChanged: (value) => _draft = _draft.copyWith(
                     quantity: ExcelLine.parseQuantity(value),
+                    quantityText: value.trim(),
                   ),
                 ),
               ],

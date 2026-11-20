@@ -24,6 +24,33 @@ ExcelLine _line({
     );
 
 void main() {
+  test('a 0 quantity is its own error, not "Missing Quantity"', () {
+    final zero = ExcelLine.fromCells(
+      ['PO1', 'M', 'B', 'D65', 'A100', 'CN', 'S1', '', '0'],
+    );
+
+    expect(zero.isBlank, isFalse);
+    expect(zero.missingRequiredFields, isEmpty);
+    expect(zero.quantityError, 'Quantity must be at least 1 (is "0")');
+    expect(zero.hasError, isTrue);
+
+    final empty = ExcelLine.fromCells(
+      ['PO1', 'M', 'B', 'D65', 'A100', 'CN', 'S1', '', ''],
+    );
+
+    expect(empty.missingRequiredFields, ['Quantity']);
+    expect(empty.quantityError, isNull);
+
+    // Fixed in the Fix modal.
+    final fixed = zero.copyWith(quantity: 12, quantityText: '12');
+
+    expect(fixed.hasError, isFalse);
+    expect(fixed.quantityText, '12');
+
+    // A copy that leaves the quantity alone keeps its text.
+    expect(zero.copyWith(shade: 'S2').quantityError, isNotNull);
+  });
+
   test('Article, Shade and Quantity are the only required fields', () {
     expect(_line().hasError, isFalse);
     expect(_line(poNumber: '').hasError, isFalse);

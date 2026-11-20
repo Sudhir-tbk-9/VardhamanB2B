@@ -1154,16 +1154,17 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   List<DraftTableData> get tcSelectedLines => rxSelectedBulkOrderLines;
 
   /// Articles for the Article field; "R" articles only in a TC order.
-  List<String> get uniqueFilteredArticles => catalogController.orderItems
-      .where(
-        (itemCatalogInfo) => (rxUom.value.isNotEmpty
-            ? itemCatalogInfo.uom == (rxUom.value)
-            : true),
-      )
-      .map((e) => e.article)
-      .where(allowsArticle)
-      .toSet()
-      .toList();
+  /// Rx values read once, not once per catalog item (thousands), and the
+  /// TC rule applied once per article: the list is rebuilt with the form.
+  List<String> get uniqueFilteredArticles {
+    final uom = rxUom.value;
+
+    return allowedArticles(
+      catalogController.orderItems
+          .where((itemCatalogInfo) => uom.isEmpty || itemCatalogInfo.uom == uom)
+          .map((itemCatalogInfo) => itemCatalogInfo.article),
+    );
+  }
 
   List<String> get uniqueFilteredUoms {
     final List<String> uniqueFilteredUoms = catalogController.orderItems
@@ -1203,6 +1204,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   }
 
   Future<void> _submitOrder() async {
+    // Nothing is sent (not even an order number taken) while a line has
+    // a quantity of 0.
+    if (!checkOrderLineQuantities(orderType: 'Bulk', lines: rxBulkOrderLines)) {
+      return;
+    }
+
     final firstPoDocLine = rxBulkOrderLines.firstWhereOrNull(
       (bulkOrderLine) => bulkOrderLine.poFileName.isNotEmpty,
     );
@@ -1251,12 +1258,6 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         fileType: 'PO Document',
       );
     }
-
-    logOrderLineQuantities(
-      orderType: 'Bulk',
-      b2bOrderNumber: 'B2BB$submitBulkOrderNumber',
-      lines: rxBulkOrderLines,
-    );
 
     final isSubmitted = await orderReviewController.submitBulkOrder(
       b2bOrderNumber: 'B2BB$submitBulkOrderNumber',
@@ -1410,13 +1411,17 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} required fields: '
         'Article "${line.article}", UOM "${line.uom}", '
-        'Shade "${line.shade}", Quantity ${line.quantity} '
+        'Shade "${line.shade}", Quantity "${line.quantityText}" '
         '(must be at least 1: ${line.quantity >= 1 ? 'OK' : 'NOT OK'}) '
         '→ ${missingRequiredFields.isEmpty ? 'OK' : 'missing ${missingRequiredFields.join(', ')}'}',
       );
 
       if (missingRequiredFields.isNotEmpty) {
         row.error = 'Missing ${missingRequiredFields.join(', ')}';
+      } else if (line.quantityError case final quantityError?) {
+        // A 0 (or not a whole number): not uploaded, as an order line
+        // needs at least 1.
+        row.error = quantityError;
       } else if (!allowsArticle(line.article)) {
         // A TC Required order takes "R" articles only.
         row.error = 'TC Required order: only articles with an "R"';
