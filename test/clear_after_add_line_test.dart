@@ -216,6 +216,66 @@ void main() {
     );
   });
 
+  testWidgets('a new line shows in the lines table (its own Obx)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final c = Get.put(BulkEntryController(orderNumber: 1));
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: CreateBulkOrderView())),
+    );
+    await tester.pump();
+
+    expect(find.text('No Order Lines'), findsOneWidget);
+
+    // A line saved (as Add Line or the Excel upload do), with the form's
+    // own inputs untouched.
+    await tester.runAsync(() async {
+      await database.managers.draftTable.create(
+        (o) => o(
+          article: 'A100',
+          billingType: '',
+          brand: 'BR',
+          buyer: 'B',
+          buyerCode: '',
+          colorName: '',
+          remark: '',
+          endUse: '',
+          firstLightSource: 'D65',
+          lab: '',
+          lineNumber: 1,
+          orderNumber: 1,
+          orderType: 'BK',
+          quantity: 5,
+          requestType: '',
+          secondLightSource: '',
+          shade: 'S1',
+          soldTo: '1001',
+          substrate: '',
+          tex: '',
+          ticket: '',
+          uom: 'CN',
+          colorRemark: '',
+          lastUpdated: DateTime.now(),
+          merchandiser: 'M',
+          qtxFileName: '',
+          poNumber: 'PO1',
+          poFileName: '',
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    });
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(c.rxBulkOrderLines, hasLength(1));
+    expect(find.text('No Order Lines'), findsNothing);
+    expect(find.text('S1'), findsOneWidget);
+  });
+
   test('DTM Add Line keeps the article, clears the line fields', () async {
     final c = DtmEntryController(orderNumber: 2);
 

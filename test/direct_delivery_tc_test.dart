@@ -122,6 +122,24 @@ void main() {
     expect(form.isTcLine, isFalse);
   });
 
+  test('allowedArticles: R articles only in a TC order, each article once', () {
+    final form = _Form();
+
+    const catalog = ['A100', 'RS826', 'A100', 'B200', 'MAR235'];
+
+    expect(form.allowedArticles(catalog), ['A100', 'RS826', 'B200', 'MAR235']);
+
+    // A TC order (first line ticked): R articles only.
+    form.lines.add(_line(1, 'RS826', tc: true));
+    expect(form.allowedArticles(catalog), ['RS826', 'MAR235']);
+
+    // A normal order: every article.
+    form.lines
+      ..clear()
+      ..add(_line(1, 'A100'));
+    expect(form.allowedArticles(catalog), ['A100', 'RS826', 'B200', 'MAR235']);
+  });
+
   group('the first line decides: a TC order or a normal order', () {
     test('no lines yet: every article, the box for R articles', () {
       final form = _Form()..rxArticle.value = 'RS826';
@@ -283,8 +301,7 @@ void main() {
       expect(form.rxRemark.value, 'TC Required, URGENT');
     });
 
-    test('without a Remark field (Bulk): the line remark is "TC Required"',
-        () {
+    test('without a Remark field (Bulk): the line remark is "TC Required"', () {
       final form = _Form()
         ..rxArticle.value = 'RS826'
         ..rxTcRequired.value = true;

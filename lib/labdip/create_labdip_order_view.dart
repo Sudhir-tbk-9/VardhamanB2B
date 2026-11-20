@@ -30,8 +30,7 @@ class CreateLabdipOrderView extends StatelessWidget {
     final OrderReviewController orderReviewController =
         Get.find<OrderReviewController>();
 
-    return Obx(
-      () => Column(
+    return Column(
         children: <Widget>[
           HeaderView(
             elevation: 4,
@@ -53,11 +52,13 @@ class CreateLabdipOrderView extends StatelessWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
               ),
-              child: PrimaryButton(
+              child: Obx(
+                () => PrimaryButton(
                 text: 'Submit Order',
                 onPressed: labdipEntryController.rxLabdipOrderLines.isEmpty
                     ? null
                     : labdipEntryController.submitOrder,
+              ),
               ),
             ),
           ),
@@ -615,7 +616,10 @@ class CreateLabdipOrderView extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: DataTable2(
+            // Its own Obx: adding or selecting a line rebuilds the table
+            // only, not the form above it.
+            child: Obx(
+              () => DataTable2(
               isHorizontalScrollBarVisible: true,
               isVerticalScrollBarVisible: true,
               minWidth: 1600,
@@ -814,9 +818,9 @@ class CreateLabdipOrderView extends StatelessWidget {
                 },
               ).toList(),
             ),
+            ),
           ),
         ],
-      ),
     );
   }
 }

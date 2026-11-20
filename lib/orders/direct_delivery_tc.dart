@@ -38,13 +38,21 @@ mixin DirectDeliveryTc on GetxController {
 
   /// Whether the order is a TC order (true), a normal order (false), or not
   /// decided yet (null: no lines besides those selected for Update).
+  /// One pass over the lines (no copy or sort): it is read on every
+  /// rebuild of the form.
   bool? get orderIsTc {
-    final others = tcOrderLines
-        .where((line) => !tcSelectedLines.contains(line))
-        .toList()
-      ..sort((a, b) => a.lineNumber.compareTo(b.lineNumber));
+    final selectedLines = tcSelectedLines;
 
-    return others.isEmpty ? null : isTcRequiredLine(others.first);
+    DraftTableData? firstLine;
+
+    for (final line in tcOrderLines) {
+      if (!selectedLines.contains(line) &&
+          (firstLine == null || line.lineNumber < firstLine.lineNumber)) {
+        firstLine = line;
+      }
+    }
+
+    return firstLine == null ? null : isTcRequiredLine(firstLine);
   }
 
   /// The tick box is ticked and locked: a TC order.
@@ -53,6 +61,17 @@ mixin DirectDeliveryTc on GetxController {
   /// Whether [article] can be added to this order: a TC order takes "R"
   /// articles only.
   bool allowsArticle(String article) => !isTcLocked || isRArticle(article);
+
+  /// [articles] that can be added to this order. Works the order out once,
+  /// not once per article as [allowsArticle] would: the catalog has
+  /// thousands, and the article list is rebuilt with the form.
+  List<String> allowedArticles(Iterable<String> articles) {
+    final articleSet = articles.toSet();
+
+    return isTcLocked
+        ? articleSet.where(isRArticle).toList()
+        : articleSet.toList();
+  }
 
   /// Whether the article picked offers the tick box; never in a normal
   /// order.
@@ -101,9 +120,8 @@ mixin DirectDeliveryTc on GetxController {
 
   /// Remark saved with the line (and sent in ColorRemark): "TC Required,
   /// <remark>" for a TC line, otherwise the remark typed.
-  String get lineRemark => isTcLine
-      ? withTcRemark(rxRemark.value)
-      : withoutTcRemark(rxRemark.value);
+  String get lineRemark =>
+      isTcLine ? withTcRemark(rxRemark.value) : withoutTcRemark(rxRemark.value);
 
   static bool isTcRequiredLine(DraftTableData line) =>
       line.billingType == 'Plant';
