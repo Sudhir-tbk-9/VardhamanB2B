@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
 import 'package:vardhman_b2b/common/order_detail_column_label.dart';
@@ -53,12 +54,32 @@ class CreateLabdipOrderView extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               child: Obx(
-                () => PrimaryButton(
+                () => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Only once the draft has lines: deletes this draft
+                    // order and closes the screen.
+                    if (labdipEntryController.rxLabdipOrderLines.isNotEmpty) ...[
+                      ClearDraftsButton(
+                        text: 'Clear Draft',
+                        orderType: 'LD',
+                        orderNumber: labdipEntryController.orderNumber,
+                        confirmTitle: 'Clear this draft?',
+                        confirmMessage: 'This draft order and its '
+                            '${labdipEntryController.rxLabdipOrderLines.length} line(s) will be '
+                            'deleted.',
+                        onCleared: () => Get.back(),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    PrimaryButton(
                 text: 'Submit Order',
                 onPressed: labdipEntryController.rxLabdipOrderLines.isEmpty
                     ? null
                     : labdipEntryController.submitOrder,
               ),
+                  ],
+                ),
               ),
             ),
           ),

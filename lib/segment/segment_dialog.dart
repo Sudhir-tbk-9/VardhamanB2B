@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
 import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/segment/open_draft_order.dart';
@@ -176,10 +177,35 @@ class SegmentDialog extends StatefulWidget {
 class _SegmentDialogState extends State<SegmentDialog> {
   final _segmentController = Get.find<SegmentController>();
 
+  /// The drafts locking the segment; emptied by Clear all drafts.
+  late List<DraftOrder> _draftOrders = widget.draftOrders;
+
   /// Segment the drafts lock the dialog to, or null.
-  late final OrderSegment? _lockedSegment = widget.draftOrders.isEmpty
+  OrderSegment? get _lockedSegment => _draftOrders.isEmpty
       ? null
       : widget.lockedSegment ?? _segmentController.segment;
+
+  /// Clear all drafts in the lock warning: asks first, deletes every draft
+  /// of the customer, and unlocks the segment in place.
+  Future<void> _clearAllDrafts() async {
+    if (!await confirmClearDrafts(
+      title: 'Clear all drafts?',
+      message: 'All ${_draftOrders.length} draft order(s) (Bulk, DTM, '
+          'Labdip and Sampling) will be deleted, and any segment can then '
+          'be picked.',
+    )) {
+      return;
+    }
+
+    await _segmentController.clearAllDrafts();
+
+    logSegment('All drafts cleared from the segment dialog: segment '
+        'unlocked');
+
+    if (mounted) {
+      setState(() => _draftOrders = const []);
+    }
+  }
 
   /// Starts on the current segment when changing it, or on the locked one.
   late OrderSegment? _picked = _segmentController.segment ?? _lockedSegment;
@@ -205,7 +231,7 @@ class _SegmentDialogState extends State<SegmentDialog> {
   void _pick(OrderSegment segment) {
     if (!_canPick(segment)) {
       logSegment('Pick of ${segment.title} blocked: orders in progress '
-          '(${widget.draftOrders.join(', ')})');
+          '(${_draftOrders.join(', ')})');
 
       return;
     }
@@ -305,8 +331,9 @@ class _SegmentDialogState extends State<SegmentDialog> {
             _LockedAlert(
               variant: variant,
               segment: _lockedSegment!,
-              draftOrders: widget.draftOrders,
+              draftOrders: _draftOrders,
               onOpen: _openDraft,
+              onClearAll: _clearAllDrafts,
             ),
           ],
           const SizedBox(height: 24),
@@ -734,11 +761,16 @@ class _LockedAlert extends StatelessWidget {
   /// Opens a draft in its order screen (closing the segment dialog).
   final DraftOrderOpener onOpen;
 
+  /// Clear all drafts: deletes every draft (after asking), unlocking the
+  /// segment.
+  final Future<void> Function() onClearAll;
+
   const _LockedAlert({
     required this.variant,
     required this.segment,
     required this.draftOrders,
     required this.onOpen,
+    required this.onClearAll,
   });
 
   @override
@@ -813,6 +845,20 @@ class _LockedAlert extends StatelessWidget {
                   ),
                   if (draftOrder != draftOrders.last) const SizedBox(height: 6),
                 ],
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: Colors.white.withAlpha(150)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                    label: const Text('Clear all drafts'),
+                    onPressed: onClearAll,
+                  ),
+                ),
               ],
             ),
           ),

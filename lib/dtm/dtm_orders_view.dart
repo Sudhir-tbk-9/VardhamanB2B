@@ -1,4 +1,5 @@
 import 'package:data_table_2/data_table_2.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/date_range_menu.dart';
 import 'package:vardhman_b2b/common/order_filters_panel.dart';
@@ -64,7 +65,20 @@ class DtmOrdersView extends StatelessWidget {
                   OrderPager(controller: dtmController.paginatorController),
               ],
             ),
-            trailing: PrimaryButton(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Only while this tab lists drafts.
+                if (dtmController.rxDraftOrders.isNotEmpty) ...[
+                  ClearDraftsButton(
+                    orderType: 'DT',
+                    confirmTitle: 'Clear all DTM drafts?',
+                    confirmMessage:
+                        'All ${dtmController.rxDraftOrders.length} DTM draft order(s) will be deleted.',
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                PrimaryButton(
               text: 'New Order',
               onPressed: () async {
                 final newOrderNumber = await Api.fetchDraftOrderNumber();
@@ -94,6 +108,8 @@ class DtmOrdersView extends StatelessWidget {
                   );
                 }
               },
+            ),
+              ],
             ),
           ),
           Expanded(

@@ -1,4 +1,5 @@
 import 'package:data_table_2/data_table_2.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/date_range_menu.dart';
 import 'package:vardhman_b2b/common/order_filters_panel.dart';
@@ -69,7 +70,20 @@ class SamplingOrdersView extends StatelessWidget {
                   OrderPager(controller: samplingController.paginatorController),
               ],
             ),
-            trailing: PrimaryButton(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Only while this tab lists drafts.
+                if (samplingController.rxDraftOrders.isNotEmpty) ...[
+                  ClearDraftsButton(
+                    orderType: 'LD',
+                    confirmTitle: 'Clear all Labdip / Sampling drafts?',
+                    confirmMessage:
+                        'All ${samplingController.rxDraftOrders.length} Labdip and Sampling draft order(s) will be deleted (both tabs list them).',
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                PrimaryButton(
               text: 'New Order',
               onPressed: () async {
                 final newOrderNumber = await Api.fetchDraftOrderNumber();
@@ -99,6 +113,8 @@ class SamplingOrdersView extends StatelessWidget {
                   );
                 }
               },
+            ),
+              ],
             ),
           ),
           Expanded(

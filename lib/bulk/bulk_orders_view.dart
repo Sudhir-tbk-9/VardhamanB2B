@@ -1,4 +1,5 @@
 import 'package:data_table_2/data_table_2.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/date_range_menu.dart';
 import 'package:vardhman_b2b/common/order_filters_panel.dart';
@@ -64,7 +65,20 @@ class BulkOrdersView extends StatelessWidget {
                   OrderPager(controller: bulkController.paginatorController),
               ],
             ),
-            trailing: PrimaryButton(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Only while this tab lists drafts.
+                if (bulkController.rxDraftOrders.isNotEmpty) ...[
+                  ClearDraftsButton(
+                    orderType: 'BK',
+                    confirmTitle: 'Clear all Bulk drafts?',
+                    confirmMessage:
+                        'All ${bulkController.rxDraftOrders.length} Bulk draft order(s) will be deleted.',
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                PrimaryButton(
               text: 'New Order',
               onPressed: () async {
                 final newOrderNumber = await Api.fetchDraftOrderNumber();
@@ -94,6 +108,8 @@ class BulkOrdersView extends StatelessWidget {
                   );
                 }
               },
+            ),
+              ],
             ),
           ),
           Expanded(

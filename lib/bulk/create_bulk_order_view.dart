@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/new_order_date_field.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
@@ -56,7 +57,25 @@ class CreateBulkOrderView extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               child: Obx(
-                () => PrimaryButton(
+                () => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Only once the draft has lines: deletes this draft
+                    // order and closes the screen.
+                    if (bulkEntryController.rxBulkOrderLines.isNotEmpty) ...[
+                      ClearDraftsButton(
+                        text: 'Clear Draft',
+                        orderType: 'BK',
+                        orderNumber: bulkEntryController.orderNumber,
+                        confirmTitle: 'Clear this draft?',
+                        confirmMessage: 'This draft order and its '
+                            '${bulkEntryController.rxBulkOrderLines.length} line(s) will be '
+                            'deleted.',
+                        onCleared: () => Get.back(),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    PrimaryButton(
                 text: 'Submit Order',
                 onPressed: bulkEntryController.rxBulkOrderLines.isEmpty
                     ? null
@@ -117,6 +136,8 @@ class CreateBulkOrderView extends StatelessWidget {
                         );
                       },
               ),
+                  ],
+                ),
               ),
             ),
           ),

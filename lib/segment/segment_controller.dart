@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/user/user_controller.dart';
 
@@ -128,14 +129,19 @@ class SegmentController extends GetxController {
 
   final String Function() _soldToReader;
 
-  /// [draftOrdersLoader] replaces the DraftTable read and [soldToReader]
-  /// the logged in customer's sold-to, for tests.
+  final Future<void> Function() _draftsClearer;
+
+  /// [draftOrdersLoader] replaces the DraftTable read, [soldToReader] the
+  /// logged in customer's sold-to and [draftsClearer] the deletion of all
+  /// drafts, for tests.
   SegmentController({
     DraftOrdersLoader? draftOrdersLoader,
     this.draftOrderOpener,
     String Function()? soldToReader,
+    Future<void> Function()? draftsClearer,
   })  : _draftOrdersLoader = draftOrdersLoader ?? _loadDraftOrders,
-        _soldToReader = soldToReader ?? _readSoldTo {
+        _soldToReader = soldToReader ?? _readSoldTo,
+        _draftsClearer = draftsClearer ?? deleteDrafts {
     rxSegment.value = OrderSegment.byName(_readStorage());
 
     if (rxSegment.value == null) {
@@ -191,6 +197,10 @@ class SegmentController extends GetxController {
       return const [];
     }
   }
+
+  /// Deletes every draft of the customer in this browser (Clear all drafts
+  /// in the segment dialog): the segment is no longer locked.
+  Future<void> clearAllDrafts() => _draftsClearer();
 
   static Future<List<DraftOrder>> _loadDraftOrders() async {
     final soldTo = Get.find<UserController>(tag: 'userController')

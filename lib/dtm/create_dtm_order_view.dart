@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/new_order_date_field.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
@@ -55,11 +56,31 @@ class CreateDtmOrderView extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
             child: Obx(
-              () => PrimaryButton(
-                text: 'Submit Order',
-                onPressed: dtmEntryController.rxDtmOrderLines.isEmpty
-                    ? null
-                    : dtmEntryController.submitOrder,
+              () => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Only once the draft has lines: deletes this draft
+                  // order and closes the screen.
+                  if (dtmEntryController.rxDtmOrderLines.isNotEmpty) ...[
+                    ClearDraftsButton(
+                      text: 'Clear Draft',
+                      orderType: 'DT',
+                      orderNumber: dtmEntryController.orderNumber,
+                      confirmTitle: 'Clear this draft?',
+                      confirmMessage: 'This draft order and its '
+                          '${dtmEntryController.rxDtmOrderLines.length} line(s) will be '
+                          'deleted.',
+                      onCleared: () => Get.back(),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  PrimaryButton(
+                    text: 'Submit Order',
+                    onPressed: dtmEntryController.rxDtmOrderLines.isEmpty
+                        ? null
+                        : dtmEntryController.submitOrder,
+                  ),
+                ],
               ),
             ),
           ),
