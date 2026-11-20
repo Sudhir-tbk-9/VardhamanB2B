@@ -15,6 +15,7 @@ import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/dtm/dtm_controller.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
+import 'package:vardhman_b2b/login/idle_logout.dart';
 import 'package:vardhman_b2b/invoices/invoices_controller.dart';
 import 'package:vardhman_b2b/labdip/labdip_controller.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
@@ -69,6 +70,35 @@ class LoginController extends GetxController {
     _init();
 
     _checkUser();
+
+    _idleLogout.start();
+  }
+
+  /// Logs the user out after 5 minutes without activity.
+  late final _idleLogout = IdleLogout(
+    isLoggedIn: () => rxLoginState.value == LoginState.loggedIn,
+    onTimeout: _logOutWhenIdle,
+  );
+
+  void _logOutWhenIdle() {
+    debugPrint('[SESSION] Logged out after '
+        '${_idleLogout.timeout.inMinutes} minutes of inactivity');
+
+    lockUser();
+
+    toastification.show(
+      autoCloseDuration: Duration(seconds: 8),
+      primaryColor: VardhmanColors.orange,
+      title: Text('You were logged out after '
+          '${_idleLogout.timeout.inMinutes} minutes of inactivity'),
+    );
+  }
+
+  @override
+  void onClose() {
+    _idleLogout.stop();
+
+    super.onClose();
   }
 
   void passwordListener(String newPassword) {
