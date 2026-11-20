@@ -71,18 +71,14 @@ class ExcelLine {
     );
   }
 
-  List<String> get missingFields => [
-        if (poNumber.isEmpty) 'PO Number',
-        if (merchandiser.isEmpty) 'Merchandiser',
-        if (buyer.isEmpty) 'Buyer',
-        if (lightSources.isEmpty) 'Light Source',
+  /// Fields a line cannot be ordered without.
+  List<String> get missingRequiredFields => [
         if (article.isEmpty) 'Article',
-        if (uom.isEmpty) 'UOM',
         if (shade.isEmpty) 'Shade',
         if (quantity < 1) 'Quantity',
       ];
 
-  bool get hasError => missingFields.isNotEmpty;
+  bool get hasError => missingRequiredFields.isNotEmpty;
 
   bool get isBlank =>
       merchandiser.isEmpty &&
@@ -100,14 +96,24 @@ class ExcelLine {
 }
 
 class ExcelImportRow {
-  /// Row number as shown in the spreadsheet (header is row 1).
+  /// Number of the order line in the file: 1 for the first line under the
+  /// column header.
   final int rowNumber;
 
   ExcelLine line;
 
+  /// Why the line cannot be ordered (no Article, Shade or Quantity, or the
+  /// Article / Shade not in JDE), or null. Lines with an error are shown in
+  /// red and not uploaded; the others are shown in green and uploaded.
   String? error;
 
+  /// JDE unit price, or null when JDE has none: the line is uploaded
+  /// without one, as from the form.
   double? unitPrice;
+
+  /// Whether the last validation found the line valid; it is not checked
+  /// again until it is edited.
+  bool isChecked = false;
 
   ExcelImportRow({required this.rowNumber, required this.line});
 

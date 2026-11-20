@@ -6,16 +6,30 @@ import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/common/table_header.dart';
 
-/// Shows every imported line in a grid with error lines highlighted in red,
-/// lists the errors in a panel, lets the user fix an error line (which is
-/// re-validated against JDE via [onRevalidate]) and asks whether to proceed
-/// with only the valid lines.
+/// Light row shades, so the dark text stays readable on them, and the
+/// stronger colours of the status text.
+abstract final class _Status {
+  static const validFill = Color(0xFFEAF6EC);
+
+  static const validText = Color(0xFF1E7B34);
+
+  static const errorFill = Color(0xFFFDECEC);
+
+  static const errorBorder = Color(0xFFE57373);
+
+  static const errorText = Color(0xFFC62828);
+}
+
+/// Shows every imported line in a grid: valid lines in green, lines with an
+/// error (Article / Shade not valid, or no Article, Shade or Quantity)
+/// in red. Every line can be fixed (and re-validated against JDE via
+/// [onRevalidate]) or deleted. Asks whether to upload the valid lines.
 ///
 /// Pops with `true` for Yes (insert the valid lines) and `false` for No.
 class ExcelImportDialog extends StatefulWidget {
   final List<ExcelImportRow> rows;
 
-  /// Re-runs the JDE validation chain on every line that is not yet valid.
+  /// Re-runs the validation on every line not yet found valid.
   final Future<void> Function() onRevalidate;
 
   const ExcelImportDialog({
@@ -44,7 +58,11 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
 
   Future<void> _fix(ExcelImportRow row) async {
     await Get.dialog<void>(
-      _FixLineDialog(row: row, onRevalidate: widget.onRevalidate),
+      _FixLineDialog(
+        row: row,
+        onRevalidate: widget.onRevalidate,
+        onDelete: () => widget.rows.remove(row),
+      ),
       barrierDismissible: false,
     );
 
@@ -64,9 +82,9 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     return AlertDialog(
       title: Text(
         errorRows.isEmpty
-            ? 'All $total lines are valid. Upload them?'
-            : '${errorRows.length} of $total lines have errors. '
-                'Proceed with the $validCount valid lines?',
+            ? 'Upload all $total lines?'
+            : '${errorRows.length} of $total lines have errors and will not '
+                'be uploaded. Upload the other $validCount?',
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -170,13 +188,15 @@ class _LinesGrid extends StatelessWidget {
             ],
             rows: rows.map(
               (row) {
-                final hasError = !row.isValid;
+                final isValid = row.isValid;
 
+                final statusColor =
+                    isValid ? _Status.validText : _Status.errorText;
+
+                // Dark text on the light shades, for readability.
                 final textStyle = TextStyle(
                   fontSize: 12,
-                  color:
-                      hasError ? VardhmanColors.red : VardhmanColors.darkGrey,
-                  fontWeight: hasError ? FontWeight.w600 : FontWeight.normal,
+                  color: VardhmanColors.darkGrey,
                 );
 
                 DataCell cell(String text) =>
@@ -184,7 +204,7 @@ class _LinesGrid extends StatelessWidget {
 
                 return DataRow(
                   color: WidgetStatePropertyAll(
-                    hasError ? VardhmanColors.red.withAlpha(28) : null,
+                    isValid ? _Status.validFill : _Status.errorFill,
                   ),
                   cells: [
                     cell('${row.rowNumber}'),
@@ -199,34 +219,36 @@ class _LinesGrid extends StatelessWidget {
                     cell(row.line.quantity > 0 ? '${row.line.quantity}' : ''),
                     cell(row.unitPrice?.toStringAsFixed(2) ?? ''),
                     DataCell(
-                      hasError
-                          ? TextButton.icon(
-                              style: TextButton.styleFrom(
-                                foregroundColor: VardhmanColors.red,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              icon: const Icon(Icons.edit, size: 16),
-                              label: const Text('Fix'),
-                              onPressed: () => onFix(row),
-                            )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: VardhmanColors.green,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Valid',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: VardhmanColors.green,
-                                  ),
-                                ),
-                              ],
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // An icon only, so the Fix button stays in view;
+                          // the row's shade shows the status too.
+                          Tooltip(
+                            message: isValid ? 'Valid' : 'Invalid',
+                            child: Icon(
+                              isValid
+                                  ? Icons.check_circle
+                                  : Icons.error_outline,
+                              size: 16,
+                              color: statusColor,
                             ),
+                          ),
+                          const SizedBox(width: 2),
+                          // Every row: the Fix modal also deletes the row.
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: isValid
+                                  ? VardhmanColors.darkGrey
+                                  : _Status.errorText,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Fix'),
+                            onPressed: () => onFix(row),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 );
@@ -239,6 +261,7 @@ class _LinesGrid extends StatelessWidget {
   }
 }
 
+/// Lists the rows with an error; tapping one opens its Fix modal.
 class _ErrorsPanel extends StatelessWidget {
   final List<ExcelImportRow> errorRows;
 
@@ -257,8 +280,8 @@ class _ErrorsPanel extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(maxHeight: 150),
       decoration: BoxDecoration(
-        color: VardhmanColors.red.withAlpha(14),
-        border: Border.all(color: VardhmanColors.red, width: 0.8),
+        color: _Status.errorFill,
+        border: Border.all(color: _Status.errorBorder, width: 0.8),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -269,10 +292,10 @@ class _ErrorsPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
             child: Text(
               'Errors (${errorRows.length})',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: VardhmanColors.red,
+                color: _Status.errorText,
               ),
             ),
           ),
@@ -294,10 +317,10 @@ class _ErrorsPanel extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.error_outline,
                                 size: 14,
-                                color: VardhmanColors.red,
+                                color: _Status.errorText,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -305,20 +328,20 @@ class _ErrorsPanel extends StatelessWidget {
                                   'Row ${row.rowNumber} · '
                                   '${row.line.itemNumber.trim().isEmpty ? '-' : row.line.itemNumber.trim()}'
                                   ' — ${row.error}',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 12,
-                                    color: VardhmanColors.red,
+                                    color: _Status.errorText,
                                   ),
                                 ),
                               ),
-                              Text(
+                              const Text(
                                 'Fix',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: VardhmanColors.red,
+                                  color: _Status.errorText,
                                   decoration: TextDecoration.underline,
-                                  decorationColor: VardhmanColors.red,
+                                  decorationColor: _Status.errorText,
                                 ),
                               ),
                             ],
@@ -336,15 +359,22 @@ class _ErrorsPanel extends StatelessWidget {
   }
 }
 
-/// Edits one error line. Save writes the edits to the line and re-validates
-/// it against JDE; the dialog closes once the line is valid, otherwise it
-/// shows the new error so the user can keep fixing.
+/// Edits one line. Save writes the edits to the line and re-validates it
+/// against JDE; the dialog closes once the line is valid, otherwise it shows
+/// the new error so the user can keep fixing. Delete removes the line from
+/// the upload.
 class _FixLineDialog extends StatefulWidget {
   final ExcelImportRow row;
 
   final Future<void> Function() onRevalidate;
 
-  const _FixLineDialog({required this.row, required this.onRevalidate});
+  final VoidCallback onDelete;
+
+  const _FixLineDialog({
+    required this.row,
+    required this.onRevalidate,
+    required this.onDelete,
+  });
 
   @override
   State<_FixLineDialog> createState() => _FixLineDialogState();
@@ -399,15 +429,15 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: VardhmanColors.red.withAlpha(20),
-                  border: Border.all(color: VardhmanColors.red, width: 0.8),
+                  color: _Status.errorFill,
+                  border: Border.all(color: _Status.errorBorder, width: 0.8),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   error,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    color: VardhmanColors.red,
+                    color: _Status.errorText,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -492,10 +522,22 @@ class _FixLineDialogState extends State<_FixLineDialog> {
             Get.back();
           },
         ),
+        SecondaryButton(
+          wait: false,
+          text: 'Delete',
+          iconData: Icons.delete_outline,
+          onPressed: () async {
+            widget.onDelete();
+
+            Get.back();
+          },
+        ),
         PrimaryButton(
           text: 'Save & validate',
           onPressed: () async {
-            widget.row.line = _draft;
+            widget.row
+              ..line = _draft
+              ..isChecked = false;
 
             await widget.onRevalidate();
 

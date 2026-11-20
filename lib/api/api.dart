@@ -1724,11 +1724,19 @@ class Api {
     return orderDetailLines;
   }
 
-  static Future<List<String>> validateItemNumbers(
-    List<String> itemNumbers, {
+  /// The Article / Shade combinations (F4101.SEG1 / F4101.SEG3) of
+  /// [articles] and [shades] that exist in the JDE item master (F4101), in
+  /// any UOM, obsolete or not: no other filter. Upper case, trimmed. Null
+  /// when the call failed.
+  static Future<Set<(String, String)>?> fetchArticleShadePairs({
+    required List<String> articles,
+    required List<String> shades,
     String? logLabel,
   }) async {
-    final validItemNumbers = <String>[];
+    List<Map<String, String>> literals(List<String> values) => [
+          for (final value in values)
+            {"specialValueId": "LITERAL", "content": value},
+        ];
 
     try {
       final response = await _dio.post(
@@ -1737,57 +1745,46 @@ class Api {
           "targetName": "F4101",
           "targetType": "table",
           "dataServiceType": "BROWSE",
-          "returnControlIDs": "F4101.LITM",
+          "returnControlIDs": "F4101.SEG1|F4101.SEG3",
           "maxPageSize": "No Max",
           "query": {
             "autoFind": true,
             "condition": [
               {
-                "controlId": "F4101.LITM",
+                "controlId": "F4101.SEG1",
                 "operator": "LIST",
-                "value": itemNumbers
-                    .map(
-                      (itemNumber) => {
-                        "specialValueId": "LITERAL",
-                        "content": itemNumber,
-                      },
-                    )
-                    .toList(),
-              },
-              _segmentCondition('validateItemNumbers'),
-              {
-                "controlId": "F4101.PRP1",
-                "operator": "LIST",
-                "value": [
-                  {"specialValueId": "LITERAL", "content": "Z"},
-                  {"specialValueId": "LITERAL", "content": "M"}
-                ]
+                "value": literals(articles),
               },
               {
-                "controlId": "F4101.STKT",
-                "operator": "NOT_EQUAL",
-                "value": [
-                  {"specialValueId": "LITERAL", "content": "O"}
-                ]
-              }
+                "controlId": "F4101.SEG3",
+                "operator": "LIST",
+                "value": literals(shades),
+              },
             ]
           }
         },
         options: Options(extra: {if (logLabel != null) 'logLabel': logLabel}),
       );
 
-      if (response.statusCode == 200) {
-        final rowset = response.data['fs_DATABROWSE_F4101']['data']['gridData']
-            ['rowset'] as List;
-        for (var row in rowset) {
-          validItemNumbers.add(row['F4101_LITM']);
-        }
+      if (response.statusCode != 200) {
+        return null;
       }
-    } catch (e) {
-      log('fetchItemNumbers error - $e');
-    }
 
-    return validItemNumbers;
+      final rowset = response.data['fs_DATABROWSE_F4101']['data']['gridData']
+          ['rowset'] as List;
+
+      return {
+        for (final row in rowset)
+          (
+            '${row['F4101_SEG1'] ?? ''}'.trim().toUpperCase(),
+            '${row['F4101_SEG3'] ?? ''}'.trim().toUpperCase(),
+          ),
+      };
+    } catch (e) {
+      debugPrint('fetchArticleShadePairs error - $e');
+
+      return null;
+    }
   }
 
   static Future<List<LabdipTableRow>> fetchLabdipTableRows(

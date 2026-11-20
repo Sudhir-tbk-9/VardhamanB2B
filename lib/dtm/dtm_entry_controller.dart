@@ -5,6 +5,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
+import 'package:vardhman_b2b/common/order_quantity_log.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/common/shade_uom_lookup.dart';
 import 'package:vardhman_b2b/api/buyer_info.dart';
@@ -1072,6 +1073,12 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
         fileType: 'PO Document',
       );
     }
+
+    logOrderLineQuantities(
+      orderType: 'DTM',
+      b2bOrderNumber: 'B2BD$submitDtmOrderNumber',
+      lines: rxDtmOrderLines,
+    );
 
     final isSubmitted = await orderReviewController.submitDtmOrder(
       b2bOrderNumber: 'B2BD$submitDtmOrderNumber',

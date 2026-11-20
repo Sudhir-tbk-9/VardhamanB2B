@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
+import 'package:vardhman_b2b/common/order_quantity_log.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/common/shade_uom_lookup.dart';
 import 'package:vardhman_b2b/api/buyer_info.dart';
@@ -1251,6 +1252,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       );
     }
 
+    logOrderLineQuantities(
+      orderType: 'Bulk',
+      b2bOrderNumber: 'B2BB$submitBulkOrderNumber',
+      lines: rxBulkOrderLines,
+    );
+
     final isSubmitted = await orderReviewController.submitBulkOrder(
       b2bOrderNumber: 'B2BB$submitBulkOrderNumber',
       merchandiserName: rxMerchandiser.value,
@@ -1327,12 +1334,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       final importRows = <ExcelImportRow>[];
 
-      // Row 0 is the header.
+      // Row 0 is the header; the order lines are numbered from 1.
       for (int i = 1; i < sheetRows.length; i++) {
         final excelLine = ExcelLine.fromCells(sheetRows[i]);
 
         if (!excelLine.isBlank) {
-          importRows.add(ExcelImportRow(rowNumber: i + 1, line: excelLine));
+          importRows.add(ExcelImportRow(rowNumber: i, line: excelLine));
         }
       }
 
@@ -1348,18 +1355,18 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       await _validateImportRows(importRows);
 
-      if (importRows.any((row) => !row.isValid)) {
-        final proceed = await Get.dialog<bool>(
-          ExcelImportDialog(
-            rows: importRows,
-            onRevalidate: () => _validateImportRows(importRows),
-          ),
-          barrierDismissible: false,
-        );
+      // Shown every time: valid lines in green, others in red, and any line
+      // can be fixed or deleted before the upload.
+      final proceed = await Get.dialog<bool>(
+        ExcelImportDialog(
+          rows: importRows,
+          onRevalidate: () => _validateImportRows(importRows),
+        ),
+        barrierDismissible: false,
+      );
 
-        if (proceed != true) {
-          return;
-        }
+      if (proceed != true) {
+        return;
       }
 
       final validRows = importRows.where((row) => row.isValid).toList();
@@ -1377,45 +1384,43 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  /// Validates every row not already known to be valid: required fields,
-  /// duplicates, item present in JDE item master (F4101) and priced in JDE
-  /// (ORCH554074_GetUnitPrice).
+  /// Validates every row not already found valid. The only checks: an
+  /// Article, a Shade and a Quantity over 0, an Article / Shade combination
+  /// in the JDE item master (F4101) (any UOM, obsolete or not), and, as in
+  /// the form, an article the TC rule and the segment allow. A row failing
+  /// one is shown in red;
+  /// every other row is valid and uploaded. The JDE unit price is filled in
+  /// when JDE has one; without one the line is uploaded without a price, as
+  /// from the form.
   Future<void> _validateImportRows(List<ExcelImportRow> importRows) async {
     final rowsToCheck = <ExcelImportRow>[];
 
     for (final row in importRows) {
-      if (row.isValid && row.unitPrice != null) {
+      if (row.isChecked) {
         continue;
       }
 
       row.error = null;
       row.unitPrice = null;
 
-      final missingFields = row.line.missingFields;
+      final line = row.line;
 
-      if (missingFields.isNotEmpty) {
-        row.error = 'Missing ${missingFields.join(', ')}';
-      } else if (importRows.any(
-            (other) =>
-                other != row &&
-                other.line.itemNumber == row.line.itemNumber &&
-                // An earlier line, or a line already accepted (e.g. when a
-                // fixed line now matches a later valid one).
-                ((other.rowNumber < row.rowNumber &&
-                        other.line.missingFields.isEmpty) ||
-                    other.unitPrice != null),
-          ) ||
-          rxBulkOrderLines.any(
-            (orderLine) =>
-                orderLine.article == row.line.article &&
-                orderLine.uom == row.line.uom &&
-                orderLine.shade == row.line.shade,
-          )) {
-        row.error = 'Duplicate item number';
-      } else if (!allowsArticle(row.line.article)) {
+      final missingRequiredFields = line.missingRequiredFields;
+
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} required fields: '
+        'Article "${line.article}", UOM "${line.uom}", '
+        'Shade "${line.shade}", Quantity ${line.quantity} '
+        '(must be at least 1: ${line.quantity >= 1 ? 'OK' : 'NOT OK'}) '
+        '→ ${missingRequiredFields.isEmpty ? 'OK' : 'missing ${missingRequiredFields.join(', ')}'}',
+      );
+
+      if (missingRequiredFields.isNotEmpty) {
+        row.error = 'Missing ${missingRequiredFields.join(', ')}';
+      } else if (!allowsArticle(line.article)) {
         // A TC Required order takes "R" articles only.
         row.error = 'TC Required order: only articles with an "R"';
-      } else if (_segmentErrorOf(row.line.article) case final segmentError?) {
+      } else if (_segmentErrorOf(line.article) case final segmentError?) {
         row.error = segmentError;
       } else {
         rowsToCheck.add(row);
@@ -1431,9 +1436,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       await _checkImportRowsInJde(rowsToCheck);
     }
 
-    // One line per row, so a rejected row can be matched to the JDE calls
-    // above (debugPrint, so release builds log too).
     for (final row in importRows) {
+      row.isChecked = row.isValid;
+
+      // One line per row, so a row can be matched to the JDE calls above
+      // (debugPrint, so release builds log too).
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} ${row.line.itemNumber}: '
         '${row.error ?? 'OK, unit price ${row.unitPrice}'}',
@@ -1469,22 +1476,57 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         '(${segment.code})';
   }
 
-  /// Item master (F4101) and unit price checks for [rowsToCheck]. Each call
-  /// is logged in full with a `[BULK IMPORT]` tag.
+  /// Article / Shade check in the JDE item master (F4101) and unit price
+  /// for [rowsToCheck]. The only check: the Article / Shade combination
+  /// exists in JDE, in any UOM, obsolete or not. Each call is logged in
+  /// full with a `[BULK IMPORT]` tag.
   Future<void> _checkImportRowsInJde(List<ExcelImportRow> rowsToCheck) async {
-    final validItemNumbers = await Api.validateItemNumbers(
-      rowsToCheck.map((row) => row.line.itemNumber).toSet().toList(),
-      logLabel: '[BULK IMPORT] Item master check (F4101)',
+    final articles =
+        rowsToCheck.map((row) => row.line.article).toSet().toList();
+
+    final shades = rowsToCheck.map((row) => row.line.shade).toSet().toList();
+
+    // How the Article / Shade is checked. The call's full payload and
+    // response follow, under the same label (see Api._logOrderRequest).
+    debugPrint(
+      '[BULK IMPORT] Article / Shade check: POST /v2/dataservice (BROWSE) '
+      'on the JDE item master, table F4101, for Article (F4101.SEG1) in '
+      '${articles.length} article(s) and Shade (F4101.SEG3) in '
+      '${shades.length} shade(s), no other filter (any UOM, obsolete or '
+      'not). A row is valid when JDE returns its Article and Shade '
+      'together.\n'
+      'ARTICLES: ${articles.join(', ')}\n'
+      'SHADES: ${shades.join(', ')}',
+    );
+
+    final pairs = await Api.fetchArticleShadePairs(
+      articles: articles,
+      shades: shades,
+      logLabel: '[BULK IMPORT] Article / Shade check (F4101)',
     );
 
     final rowsToPrice = <ExcelImportRow>[];
 
     for (final row in rowsToCheck) {
-      if (validItemNumbers.contains(row.line.itemNumber)) {
+      final article = row.line.article.trim().toUpperCase();
+
+      final shade = row.line.shade.trim().toUpperCase();
+
+      if (pairs == null) {
+        row.error = 'Could not check the Article / Shade in JDE. Please retry.';
+      } else if (!pairs.contains((article, shade))) {
+        row.error = 'Article / Shade combination not found in JDE';
+      } else if (row.line.uom.isNotEmpty) {
+        // The price needs the full item number, UOM included.
         rowsToPrice.add(row);
-      } else {
-        row.error = 'Item not found in JDE item master or obsolete';
       }
+
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} Article "$article" + Shade '
+        '"$shade": ${pairs == null ? 'JDE call failed' : pairs.contains((article, shade)) ? 'found in F4101' : 'NOT found in F4101'}'
+        ' → ${row.isValid ? 'valid' : 'invalid'}'
+        '${row.isValid && row.line.uom.isEmpty ? ' (no UOM: no price looked up)' : ''}',
+      );
     }
 
     const batchSize = 10;
@@ -1498,11 +1540,15 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
               logLabel: '[BULK IMPORT] Unit price, row ${row.rowNumber}',
             );
 
-            if (unitPrice == null || unitPrice <= 0) {
-              row.error = 'Price not available in JDE';
-            } else {
+            // No price is not an error: the line goes without one.
+            if (unitPrice != null && unitPrice > 0) {
               row.unitPrice = unitPrice;
             }
+
+            debugPrint(
+              '[BULK IMPORT] Row ${row.rowNumber} unit price: '
+              '${row.unitPrice ?? 'none from JDE, uploaded without a price'}',
+            );
           },
         ),
       );
