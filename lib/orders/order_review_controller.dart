@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
+import 'package:vardhman_b2b/common/order_placed_toast.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
@@ -71,13 +72,7 @@ class OrderReviewController extends GetxController {
     rxIsProcessing.value = false;
 
     if (isSubmitted) {
-      toastification.show(
-        autoCloseDuration: Duration(minutes: 15),
-        primaryColor: VardhmanColors.green,
-        title: Text(
-          'Order $b2bOrderNumber placed successfully!',
-        ),
-      );
+      showOrderPlacedToast('Order $b2bOrderNumber placed successfully!');
 
       if (_userController.rxCustomerDetail.value.canSendSMS) {
         Api.sendOrderEntrySMS(
@@ -130,13 +125,7 @@ class OrderReviewController extends GetxController {
     rxIsProcessing.value = false;
 
     if (isSubmitted) {
-      toastification.show(
-        autoCloseDuration: Duration(minutes: 15),
-        primaryColor: VardhmanColors.green,
-        title: Text(
-          'Order $b2bOrderNumber placed successfully!',
-        ),
-      );
+      showOrderPlacedToast('Order $b2bOrderNumber placed successfully!');
 
       if (_userController.rxCustomerDetail.value.canSendSMS) {
         Api.sendOrderEntrySMS(
@@ -189,10 +178,7 @@ class OrderReviewController extends GetxController {
     rxIsProcessing.value = false;
 
     if (isSubmitted) {
-      toastification.show(
-          autoCloseDuration: Duration(minutes: 15),
-          primaryColor: VardhmanColors.green,
-          title: Text('Order $b2bOrderNumber placed successfully!'));
+      showOrderPlacedToast('Order $b2bOrderNumber placed successfully!');
 
       if (_userController.rxCustomerDetail.value.canSendSMS) {
         Api.sendOrderEntrySMS(
@@ -243,11 +229,7 @@ class OrderReviewController extends GetxController {
     rxIsProcessing.value = false;
 
     if (isSubmitted) {
-      toastification.show(
-        autoCloseDuration: Duration(minutes: 15),
-        primaryColor: VardhmanColors.green,
-        title: Text('Order $b2bOrderNumber placed successfully!'),
-      );
+      showOrderPlacedToast('Order $b2bOrderNumber placed successfully!');
 
       if (_userController.rxCustomerDetail.value.canSendSMS) {
         Api.sendOrderEntrySMS(

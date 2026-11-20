@@ -667,6 +667,10 @@ class LoginController extends GetxController {
   }
 
   void lockUser() {
+    // Messages from the session (e.g. "Order ... placed successfully!") do
+    // not carry over to the login screen or the next login.
+    toastification.dismissAll(delayForAnimation: false);
+
     rxOtp.value = '';
 
     rxPassword.value = '';

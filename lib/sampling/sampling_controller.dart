@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
+import 'package:vardhman_b2b/common/order_placed_toast.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/api/sampling_feedback.dart';
 import 'package:vardhman_b2b/api/order_detail_line.dart';
@@ -253,12 +254,8 @@ class SamplingController extends GetxController with OrderListFilters {
       if (isSubmitted) {
         rxOrderDetailFeedbackMap.clear();
 
-        toastification.show(
-          autoCloseDuration: Duration(minutes: 15),
-          primaryColor: VardhmanColors.green,
-          title: Text(
-            'Rematch order $b2bRejectionOrderNumber placed successfully!',
-          ),
+        showOrderPlacedToast(
+          'Rematch order $b2bRejectionOrderNumber placed successfully!',
         );
 
         if (userController.rxCustomerDetail.value.canSendSMS) {
