@@ -7,6 +7,7 @@ import 'package:vardhman_b2b/catalog/catalog_controller.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/order_detail_cell.dart';
 import 'package:vardhman_b2b/common/order_detail_column_label.dart';
+import 'package:vardhman_b2b/common/order_status_panel.dart';
 import 'package:vardhman_b2b/common/vardhman_loader.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/dtm/dtm_controller.dart';
@@ -44,32 +45,24 @@ class DtmOrderDetailsView extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: VardhmanColors.darkGrey,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Wrap(
-                      // Wrap: on a narrow window the order facts go onto a second line.
-                      alignment: WrapAlignment.spaceBetween,
-                      runSpacing: 4,
-                      children: [
-                        if (dtmController.rxSelectedOrderHeaderLine.value !=
-                            null) ...[
-                          Text(
-                            'Order Details for ${dtmController.rxSelectedOrderHeaderLine.value!.orderReference}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'JDE order no. ${dtmController.rxSelectedOrderHeaderLine.value!.orderNumber}',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Dated ${DateFormat('dd/MM/yyyy').format(dtmController.rxSelectedOrderHeaderLine.value!.orderDate)}',
-                          ),
-                        ],
-                      ],
-                    ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('Order Details'),
                   ),
                 ),
               ),
+              // Order summary (ORCH5542001) and line status chips
+              // (ORCH5542002) of the order clicked, as in Bulk.
+              if (dtmController.rxSelectedOrderHeaderLine.value != null)
+                OrderStatusPanel(
+                  orderHeaderLine:
+                      dtmController.rxSelectedOrderHeaderLine.value!,
+                  lineStatusCounts: dtmController.lineStatusCounts,
+                  selectedLineStatus: dtmController.lineStatusFilter,
+                  onLineStatusSelected: (status) =>
+                      dtmController.rxLineStatusFilter.value = status,
+                ),
+              const Divider(height: 1, thickness: 1),
               Flexible(
                 child: LoadingOverlay(
                   isLoading: dtmController.isLoadingDetails,
@@ -145,6 +138,14 @@ class DtmOrderDetailsView extends StatelessWidget {
                               fixedWidth: 70,
                               headingRowAlignment: MainAxisAlignment.end,
                             ),
+                            // Status, Quantity, Quantity Shipped, Unit Price,
+                            // Total Price, Invoice: in Bulk's order.
+                            DataColumn2(
+                              label:
+                                  OrderDetailColumnLabel(labelText: 'Status'),
+                              size: ColumnSize.S,
+                              headingRowAlignment: MainAxisAlignment.end,
+                            ),
                             DataColumn2(
                               label:
                                   OrderDetailColumnLabel(labelText: 'Quantity'),
@@ -167,12 +168,6 @@ class DtmOrderDetailsView extends StatelessWidget {
                               label: OrderDetailColumnLabel(
                                   labelText: 'Total Price'),
                               fixedWidth: 80,
-                              headingRowAlignment: MainAxisAlignment.end,
-                            ),
-                            DataColumn2(
-                              label:
-                                  OrderDetailColumnLabel(labelText: 'Status'),
-                              size: ColumnSize.S,
                               headingRowAlignment: MainAxisAlignment.end,
                             ),
                             DataColumn2(
@@ -210,7 +205,9 @@ class DtmOrderDetailsView extends StatelessWidget {
                               headingRowAlignment: MainAxisAlignment.end,
                             ),
                           ],
-                          rows: dtmController.primaryOrderDetailLines.indexed.map(
+                          // Filtered by the status chips; striped by
+                          // position, so stripes still alternate.
+                          rows: dtmController.visibleOrderDetailLines.indexed.map(
                             ((int, OrderDetailLine) entry) {
                               final (index, orderDetail) = entry;
 
@@ -226,59 +223,10 @@ class DtmOrderDetailsView extends StatelessWidget {
                                 uom: uom,
                               );
 
-                              final permanentShadeLine =
-                                  dtmController.getPermanentShadeLine(
-                                orderDetail.workOrderNumber,
-                              );
-
-                              var permanentShade = '';
-
-                              var status = orderDetail.status;
-
-                              var quantityShipped = 0;
-
-                              double unitPrice = 0, extendedPrice = 0;
-
-                              var invoicedLines = <OrderDetailLine>[];
-
-                              if (permanentShadeLine != null) {
-                                final permanentShadeParts = permanentShadeLine
-                                    .item
-                                    .split(RegExp('\\s+'));
-
-                                if (permanentShadeParts.length == 3) {
-                                  permanentShade = permanentShadeParts[2];
-                                }
-
-                                invoicedLines = dtmController
-                                    .getInvoicedLines(permanentShadeLine.item);
-
-                                quantityShipped = invoicedLines.fold(
-                                  quantityShipped,
-                                  (previousValue, orderDetailLine) =>
-                                      previousValue +
-                                      orderDetailLine.quantityShipped,
-                                );
-
-                                unitPrice =
-                                    invoicedLines.firstOrNull?.unitPrice ??
-                                        orderDetail.unitPrice;
-
-                                extendedPrice = invoicedLines.fold(
-                                  extendedPrice,
-                                  (previousValue, orderDetailLine) =>
-                                      previousValue +
-                                      orderDetailLine.extendedPrice,
-                                );
-
-                                if (invoicedLines.isNotEmpty) {
-                                  status = 'Dispatched';
-                                } else {
-                                  status = permanentShadeLine.status;
-                                }
-                              } else {
-                                unitPrice = orderDetail.unitPrice;
-                              }
+                              // Final shade, status, shipments, prices and
+                              // invoices from the order's ORCH5542002 lines.
+                              final lineValues =
+                                  dtmController.lineValuesOf(orderDetail);
 
                               final uomDesc =
                                   orderReviewController.getUomDescription(uom);
@@ -309,7 +257,14 @@ class DtmOrderDetailsView extends StatelessWidget {
                                     OrderDetailCell(cellText: shade),
                                   ),
                                   DataCell(
-                                    OrderDetailCell(cellText: permanentShade),
+                                    OrderDetailCell(
+                                      cellText: lineValues.finalShade,
+                                    ),
+                                  ),
+                                  DataCell(
+                                    OrderDetailCell(
+                                      cellText: lineValues.status,
+                                    ),
                                   ),
                                   DataCell(
                                     OrderDetailCell(
@@ -319,30 +274,30 @@ class DtmOrderDetailsView extends StatelessWidget {
                                   ),
                                   DataCell(
                                     OrderDetailCell(
-                                      cellText: quantityShipped.toString(),
+                                      cellText: lineValues.quantityShipped
+                                          .toString(),
                                     ),
                                   ),
                                   DataCell(
                                     OrderDetailCell(
-                                      cellText: unitPrice.toStringAsFixed(2),
+                                      cellText: lineValues.unitPrice
+                                          .toStringAsFixed(2),
                                     ),
                                   ),
                                   DataCell(
                                     OrderDetailCell(
-                                      cellText:
-                                          extendedPrice.toStringAsFixed(2),
+                                      cellText: lineValues.totalPrice
+                                          .toStringAsFixed(2),
                                     ),
                                   ),
-                                  DataCell(
-                                    OrderDetailCell(cellText: status),
-                                  ),
+                                  // Every invoice of the line, as in Bulk.
                                   DataCell(
                                     OrderDetailCell(
-                                      cellText: invoicedLines.firstOrNull !=
-                                              null
-                                          ? "${invoicedLines.first.invoiceNumber} ${invoicedLines.first.invoiceType}"
-                                              "${invoicedLines.first.dateInvoiced == null ? '' : ' (${DateFormat('dd/MM/yyyy').format(invoicedLines.first.dateInvoiced!)})'}"
-                                          : '',
+                                      cellText: lineValues.invoicedLines
+                                          .map((invoicedLine) {
+                                        return '${invoicedLine.invoiceNumber} ${invoicedLine.invoiceType}'
+                                            '${invoicedLine.dateInvoiced == null ? '' : ' (${DateFormat('dd/MM/yyyy').format(invoicedLine.dateInvoiced!)})'}';
+                                      }).join(', '),
                                     ),
                                   ),
                                   DataCell(

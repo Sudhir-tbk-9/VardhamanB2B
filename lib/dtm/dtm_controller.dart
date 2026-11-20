@@ -139,6 +139,9 @@ class DtmController extends GetxController with OrderListFilters {
   Future<void> selectOrder(OrderHeaderLine orderHeaderLine) async {
     rxSelectedOrderHeaderLine.value = orderHeaderLine;
 
+    // Each order opens showing all its lines.
+    rxLineStatusFilter.value = null;
+
     refreshSelectedOrderDetails();
   }
 
@@ -205,6 +208,90 @@ class DtmController extends GetxController with OrderListFilters {
         .toList();
   }
 
+  /// What the Order Details table shows for a DTM line, all from the
+  /// order's ORCH5542002 lines: the final (permanent) shade JDE made for the
+  /// line's work order, and that line's status, shipments and invoices.
+  /// Until JDE has made it, the line's own status and unit price.
+  DtmLineValues lineValuesOf(OrderDetailLine orderDetailLine) {
+    final permanentShadeLine =
+        getPermanentShadeLine(orderDetailLine.workOrderNumber);
+
+    if (permanentShadeLine == null) {
+      return DtmLineValues(
+        finalShade: '',
+        status: orderDetailLine.status,
+        quantityShipped: 0,
+        unitPrice: orderDetailLine.unitPrice,
+        totalPrice: 0,
+        invoicedLines: const [],
+      );
+    }
+
+    final permanentShadeParts = permanentShadeLine.item.split(RegExp('\\s+'));
+
+    final invoicedLines = getInvoicedLines(permanentShadeLine.item);
+
+    return DtmLineValues(
+      finalShade: permanentShadeParts.length == 3 ? permanentShadeParts[2] : '',
+      status:
+          invoicedLines.isNotEmpty ? 'Dispatched' : permanentShadeLine.status,
+      quantityShipped: invoicedLines.fold(
+        0,
+        (total, invoicedLine) => total + invoicedLine.quantityShipped,
+      ),
+      unitPrice:
+          invoicedLines.firstOrNull?.unitPrice ?? orderDetailLine.unitPrice,
+      totalPrice: invoicedLines.fold(
+        0,
+        (total, invoicedLine) => total + invoicedLine.extendedPrice,
+      ),
+      invoicedLines: invoicedLines,
+    );
+  }
+
+  /// Line status as shown in Order Details ([lineValuesOf]).
+  String displayStatusOf(OrderDetailLine orderDetailLine) =>
+      lineValuesOf(orderDetailLine).status;
+
+  /// Number of order lines per displayed status, for the status chips.
+  Map<String, int> get lineStatusCounts {
+    final counts = <String, int>{};
+
+    for (final orderDetailLine in primaryOrderDetailLines) {
+      final status = displayStatusOf(orderDetailLine);
+
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+
+    return counts;
+  }
+
+  /// Line status the Order Details table is filtered to (a status chip);
+  /// null for All. Back to All whenever another order is opened.
+  final rxLineStatusFilter = RxnString();
+
+  /// The status filter in effect: null (All) also when the picked status
+  /// no longer has lines, e.g. after the order was refreshed.
+  String? get lineStatusFilter {
+    final status = rxLineStatusFilter.value;
+
+    return status != null && lineStatusCounts.containsKey(status)
+        ? status
+        : null;
+  }
+
+  /// The lines shown in the Order Details table: [primaryOrderDetailLines]
+  /// with the status chip filter applied, on the lines already loaded.
+  List<OrderDetailLine> get visibleOrderDetailLines {
+    final status = lineStatusFilter;
+
+    final lines = primaryOrderDetailLines;
+
+    return status == null
+        ? lines
+        : lines.where((line) => displayStatusOf(line) == status).toList();
+  }
+
   @override
   bool get hasDefaultValues =>
       areDatesEqual(
@@ -236,4 +323,29 @@ class DtmController extends GetxController with OrderListFilters {
 
     rxBuyerInput.value = '';
   }
+}
+
+/// A DTM line's values in the Order Details table
+/// ([DtmController.lineValuesOf]).
+class DtmLineValues {
+  final String finalShade;
+
+  final String status;
+
+  final int quantityShipped;
+
+  final double unitPrice;
+
+  final double totalPrice;
+
+  final List<OrderDetailLine> invoicedLines;
+
+  const DtmLineValues({
+    required this.finalShade,
+    required this.status,
+    required this.quantityShipped,
+    required this.unitPrice,
+    required this.totalPrice,
+    required this.invoicedLines,
+  });
 }
