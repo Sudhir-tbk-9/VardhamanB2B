@@ -348,6 +348,8 @@ class LabdipOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => labdipController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: labdipController.rxOrderNumberInput.value,
@@ -444,6 +446,8 @@ class LabdipOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => labdipController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: labdipController.rxMerchandiserInput.value,
@@ -480,6 +484,8 @@ class LabdipOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => labdipController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: labdipController.rxShadeInput.value,
@@ -507,6 +513,8 @@ class LabdipOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => labdipController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: labdipController.rxBuyerInput.value,

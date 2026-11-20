@@ -386,6 +386,8 @@ class BulkOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => bulkController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: bulkController.rxOrderNumberInput.value,
@@ -481,6 +483,8 @@ class BulkOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => bulkController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: bulkController.rxPoNumberInput.value,
@@ -509,6 +513,8 @@ class BulkOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => bulkController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: bulkController.rxMerchandiserInput.value,
@@ -545,6 +551,8 @@ class BulkOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => bulkController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: bulkController.rxShadeInput.value,
@@ -571,6 +579,8 @@ class BulkOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => bulkController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: bulkController.rxBuyerInput.value,

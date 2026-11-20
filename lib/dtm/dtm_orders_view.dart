@@ -361,6 +361,8 @@ class DtmOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => dtmController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: dtmController.rxOrderNumberInput.value,
@@ -456,6 +458,8 @@ class DtmOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => dtmController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: dtmController.rxPoNumberInput.value,
@@ -484,6 +488,8 @@ class DtmOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => dtmController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: dtmController.rxMerchandiserInput.value,
@@ -520,6 +526,8 @@ class DtmOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => dtmController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: dtmController.rxShadeInput.value,
@@ -546,6 +554,8 @@ class DtmOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => dtmController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: dtmController.rxBuyerInput.value,

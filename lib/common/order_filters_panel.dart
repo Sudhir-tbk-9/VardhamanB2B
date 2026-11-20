@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
+import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/orders/order_list_filters.dart';
 
@@ -147,7 +148,7 @@ class OrderFiltersPanel extends StatelessWidget {
               _ResetFiltersButton(
                 variant: variant,
                 onPressed:
-                    filters.hasDefaultValues ? null : filters.setDefaultValues,
+                    filters.hasDefaultValues ? null : filters.resetFilters,
               ),
             ],
           ),
@@ -179,8 +180,21 @@ class OrderFiltersPanel extends StatelessWidget {
                   color: variant.primary.withAlpha(50),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                   child: child,
+                ),
+                // The filters apply as they are entered; Apply closes the
+                // panel to give the list its room back.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: PrimaryButton(
+                      text: 'Apply',
+                      iconData: Icons.check,
+                      onPressed: () async => filters.collapseFilters(),
+                    ),
+                  ),
                 ),
               ],
               // Shown closed too: a shade / buyer search keeps running.

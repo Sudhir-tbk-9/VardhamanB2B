@@ -350,6 +350,8 @@ class SamplingOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => samplingController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: samplingController.rxOrderNumberInput.value,
@@ -446,6 +448,8 @@ class SamplingOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => samplingController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: samplingController.rxMerchandiserInput.value,
@@ -482,6 +486,8 @@ class SamplingOrdersView extends StatelessWidget {
                     children: <Widget>[
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => samplingController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: samplingController.rxShadeInput.value,
@@ -509,6 +515,8 @@ class SamplingOrdersView extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: TextField(
+                          // Enter applies the filter: the panel closes.
+                          onSubmitted: (_) => samplingController.collapseFilters(),
                           controller: TextEditingController.fromValue(
                             TextEditingValue(
                               text: samplingController.rxBuyerInput.value,

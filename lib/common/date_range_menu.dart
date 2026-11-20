@@ -30,7 +30,12 @@ class DateRangeMenu extends StatelessWidget {
           tooltip: 'Quick date range',
           position: PopupMenuPosition.under,
           color: Colors.white,
-          onSelected: filters.selectDateRange,
+          // A quick range is a filter applied: the panel closes.
+          onSelected: (dateRange) {
+            filters.selectDateRange(dateRange);
+
+            filters.collapseFilters();
+          },
           itemBuilder: (context) => [
             for (final dateRange in OrderDateRange.values)
               PopupMenuItem(

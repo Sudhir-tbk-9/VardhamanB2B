@@ -93,6 +93,17 @@ mixin OrderListFilters on GetxController {
   /// and the list keeps the room.
   final rxFiltersExpanded = false.obs;
 
+  /// Closes the filter panel once a filter is applied (Apply, Enter in a
+  /// filter field, a quick date range) or the filters are reset.
+  void collapseFilters() => rxFiltersExpanded.value = false;
+
+  /// Resets the filters and closes the panel.
+  Future<void> resetFilters() async {
+    collapseFilters();
+
+    await setDefaultValues();
+  }
+
   /// Short labels of the filters in use, for the closed filter panel.
   List<String> get activeFilterLabels {
     final dateFormat = DateFormat('d MMM yy');
