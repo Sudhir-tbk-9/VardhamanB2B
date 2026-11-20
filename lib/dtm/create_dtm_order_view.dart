@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
 import 'package:vardhman_b2b/common/clear_drafts.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
 import 'package:vardhman_b2b/common/new_order_date_field.dart';
@@ -572,41 +573,32 @@ class CreateDtmOrderView extends StatelessWidget {
                                             ),
                                           ],
                                         ),
-                                        // TC beside Remark rather than under
-                                        // it, so the form does not grow.
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Expanded(
-                                              child: NewOrderTextField(
-                                                inputFormatters: [
-                                                  capitalFormatter
-                                                ],
-                                                labelText: 'Remark',
-                                                rxString:
-                                                    dtmEntryController.rxRemark,
-                                                hintText: 'Enter Remark',
-                                                // A text area: long remarks wrap over 3 lines.
-                                                minLines: 3,
-                                              ),
-                                            ),
-                                            // Only for an article with an
-                                            // "R" in it.
-                                            if (dtmEntryController
-                                                .offersTc) ...[
-                                              SizedBox(
-                                                width: 4,
-                                              ),
-                                              Expanded(
-                                                child: DirectDeliveryTcBox(
-                                                  controller:
-                                                      dtmEntryController,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                                        // Remark full width; the TC box
+                                        // (only for an article with an "R")
+                                        // below it, not beside it.
+                                        NewOrderTextField(
+                                          inputFormatters: [capitalFormatter],
+                                          labelText: 'Remark',
+                                          rxString: dtmEntryController.rxRemark,
+                                          hintText: 'Enter Remark',
+                                          // A text area: long remarks wrap
+                                          // over 2 lines (low, so the lines
+                                          // table below keeps its room).
+                                          minLines: 2,
+                                          // After a system "TC Required": the
+                                          // user can add a remark of their own.
+                                          inlineHint:
+                                              DirectDeliveryTc.tcRemarkHint,
                                         ),
+                                        if (dtmEntryController.offersTc) ...[
+                                          SizedBox(height: 2),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: DirectDeliveryTcBox(
+                                              controller: dtmEntryController,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

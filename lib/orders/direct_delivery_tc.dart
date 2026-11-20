@@ -109,6 +109,21 @@ mixin DirectDeliveryTc on GetxController {
     return (rest.startsWith(',') ? rest.substring(1) : rest).trim();
   }
 
+  /// Grey hint after a Remark field holding only the system's "TC
+  /// Required": the user can add a remark of their own after it.
+  static const tcRemarkHintText = ', add your own remark here (optional)';
+
+  /// [tcRemarkHintText] while [remark] is only "TC Required", else null.
+  static String? tcRemarkHint(String remark) {
+    final trimmed = remark.trim();
+
+    return trimmed == tcRequiredRemark || trimmed == '$tcRequiredRemark,'
+        ? (trimmed.endsWith(',')
+            ? tcRemarkHintText.substring(1)
+            : tcRemarkHintText)
+        : null;
+  }
+
   /// "TC Required", then [remark] after a comma: "TC Required, <remark>".
   static String withTcRemark(String remark) {
     final userRemark = withoutTcRemark(remark);

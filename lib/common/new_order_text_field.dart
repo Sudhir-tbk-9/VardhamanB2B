@@ -90,6 +90,7 @@ class NewOrderTextField extends StatelessWidget {
     this.obscureText = false,
     this.focusNode,
     this.onSubmitted,
+    this.inlineHint,
   });
 
   final String labelText;
@@ -107,6 +108,11 @@ class NewOrderTextField extends StatelessWidget {
 
   /// Called when Enter is pressed in the field.
   final VoidCallback? onSubmitted;
+
+  /// Grey text shown right after the field's text for that text, or null
+  /// for none: e.g. after a system "TC Required", a nudge to add a remark.
+  /// Drawn by the field after its text, never part of its value.
+  final String? Function(String text)? inlineHint;
 
   final TextEditingController textEditingController = TextEditingController();
 
@@ -195,8 +201,11 @@ class NewOrderTextField extends StatelessWidget {
                         ),
                         minLines: minLines,
                         maxLines: minLines,
-                        controller: TextEditingController.fromValue(
-                          TextEditingValue(
+                        controller: _InlineHintController(
+                          hint: isEnabled
+                              ? inlineHint?.call(rxString.value)
+                              : null,
+                          value: TextEditingValue(
                             text: rxString.value,
                             selection: TextSelection.collapsed(
                               offset: rxString.value.length,
@@ -243,6 +252,49 @@ class NewOrderTextField extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Draws [hint] in grey italics right after the text, as a span of the
+/// field itself so it lines up with the text exactly; the value (and so the
+/// remark saved) is only the text.
+class _InlineHintController extends TextEditingController {
+  final String? hint;
+
+  _InlineHintController({required this.hint, required TextEditingValue value})
+      : super.fromValue(value);
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final textSpan = super.buildTextSpan(
+      context: context,
+      style: style,
+      withComposing: withComposing,
+    );
+
+    final hint = this.hint;
+
+    if (hint == null) {
+      return textSpan;
+    }
+
+    return TextSpan(
+      style: style,
+      children: [
+        textSpan,
+        TextSpan(
+          text: hint,
+          style: style?.copyWith(
+            color: VardhmanColors.darkGrey.withAlpha(120),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -366,7 +366,7 @@ void main() {
   }
 
   for (final size in [const Size(1920, 1080), const Size(1536, 730)]) {
-    testWidgets('DTM Remark is a 3 line text area at $size', (tester) async {
+    testWidgets('DTM Remark is a 2 line text area at $size', (tester) async {
       await _pumpDtmForm(tester, size);
 
       final remark = find.ancestor(
@@ -375,11 +375,26 @@ void main() {
       );
 
       expect(remark, findsOneWidget);
-      // Taller than a one line field (36).
-      expect(tester.getSize(remark).height, greaterThan(60));
+      // A 2 line text area: taller than a one line field (36).
+      expect(tester.getSize(remark).height, allOf(greaterThan(40), lessThan(78)));
+
+      // An "R" article: the TC box shows, under the Remark field, and the
+      // Remark field keeps the full width of its column.
+      final tcBox = find.text('Tick if TC Required');
+
+      expect(tcBox, findsOneWidget);
+      expect(
+        tester.getTopLeft(tcBox).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(remark).dy),
+      );
+      expect(
+        tester.getTopLeft(tcBox).dx,
+        lessThan(tester.getTopRight(remark).dx),
+      );
 
       // ignore: avoid_print
-      print('Remark box at $size: ${tester.getSize(remark)}');
+      print('Remark box at $size: ${tester.getSize(remark)}, TC box at '
+          '${tester.getTopLeft(tcBox)}');
 
       // Lets the form's timers run out before the test ends.
       await tester.pumpWidget(const SizedBox());
