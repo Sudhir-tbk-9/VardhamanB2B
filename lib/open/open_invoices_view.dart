@@ -1,7 +1,6 @@
 import 'package:date_field/date_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:vardhman_b2b/common/header_view.dart';
@@ -35,8 +34,9 @@ class OpenInvoicesView extends StatelessWidget {
             children: <Widget>[
               HeaderView(
                 leading: SecondaryButton(
-                  iconData: FontAwesomeIcons.arrowRotateRight.data,
-                  text: 'Refresh',
+                  iconData: Icons.refresh,
+                  tooltip: 'Refresh invoices',
+                  text: '',
                   onPressed: invoicesController.refreshInvoices,
                 ),
                 // Wrap, not Row: on a narrow window the two totals move to
@@ -322,7 +322,8 @@ class OpenInvoicesView extends StatelessWidget {
                           : () async {
                               invoicesController.clearOpenFilters();
                             },
-                      iconData: FontAwesomeIcons.arrowRotateLeft.data,
+                      iconData: Icons.restart_alt,
+                      tooltip: 'Reset filters',
                     ),
                   ],
                 ),
