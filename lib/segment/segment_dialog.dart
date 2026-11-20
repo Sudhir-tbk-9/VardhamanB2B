@@ -465,16 +465,7 @@ class _Heading extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          'Orders in this session will offer only the articles of the '
-          'segment you pick.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withAlpha(200),
-            fontSize: 13,
-            height: 1.4,
-          ),
-        ),
+        
       ],
     );
   }
