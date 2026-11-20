@@ -124,19 +124,25 @@ void main() {
 
     final blocked = earliestEdd.subtract(const Duration(days: 1));
 
-    if (blocked.month != earliestEdd.month) {
-      await tester.tap(find.byTooltip('Previous month'));
+    if (blocked.month == earliestEdd.month) {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CalendarDatePicker),
+          matching: find.text('${blocked.day}'),
+        ),
+        warnIfMissed: false,
+      );
       await tester.pumpAndSettle();
+    } else {
+      // The earliest date is the 1st: the calendar cannot go back to the
+      // month of the blocked day at all.
+      final previousMonth = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+
+      expect(previousMonth.onPressed, isNull);
     }
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(CalendarDatePicker),
-        matching: find.text('${blocked.day}'),
-      ),
-      warnIfMissed: false,
-    );
-    await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
