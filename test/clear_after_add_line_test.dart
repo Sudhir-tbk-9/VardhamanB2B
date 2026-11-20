@@ -9,6 +9,7 @@ import 'package:vardhman_b2b/common/new_order_text_field.dart';
 import 'package:get/get.dart';
 // ignore: depend_on_referenced_packages
 import 'package:sqlite3/open.dart';
+import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/item_catalog_info.dart';
 import 'package:vardhman_b2b/api/user_address.dart';
 import 'package:vardhman_b2b/bulk/bulk_entry_controller.dart';
@@ -115,6 +116,102 @@ void main() {
         'qty': c.rxQuantity.value,
       }.toString();
 
+  DraftTableData importedLine({String uom = ''}) => DraftTableData(
+        id: 1,
+        soldTo: '1001',
+        orderType: 'BK',
+        orderNumber: 1,
+        merchandiser: 'M',
+        lineNumber: 1,
+        shade: 'P91',
+        buyer: 'B',
+        buyerCode: '',
+        firstLightSource: 'D65',
+        secondLightSource: '',
+        substrate: '',
+        tex: '',
+        ticket: '',
+        brand: '',
+        article: 'A8930',
+        requestType: '',
+        colorName: '',
+        lab: '',
+        remark: '',
+        billingType: '',
+        uom: uom,
+        endUse: '',
+        quantity: 5,
+        colorRemark: '',
+        lastUpdated: DateTime(2026),
+        qtxFileName: '',
+        poNumber: 'PO1',
+        poFileName: '',
+      );
+
+  // The app is wrapped for toasts ("UOM not found" for this line).
+  Future<void> pumpToasts(WidgetTester tester) => tester.pumpWidget(
+        const ToastificationWrapper(
+          child: MaterialApp(home: Scaffold(body: SizedBox())),
+        ),
+      );
+
+  Future<void> settle(WidgetTester tester) async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump();
+  }
+
+  testWidgets(
+      'a selected line imported without a UOM keeps its shade when a UOM is '
+      'picked', (tester) async {
+    await pumpToasts(tester);
+
+    final c = BulkEntryController(orderNumber: 1);
+
+    c.selectBulkOrderLine(importedLine());
+    await settle(tester);
+
+    expect(c.rxShade.value, 'P91');
+    expect(c.rxUomWithDesc.value, '');
+
+    c.rxUomWithDesc.value = 'CN - Cones';
+    await settle(tester);
+
+    expect(c.rxUom.value, 'CN');
+    expect(c.rxShade.value, 'P91');
+
+    // A second UOM change keeps it too, until the shade is changed.
+    c.rxUomWithDesc.value = 'TB - Tubes';
+    await settle(tester);
+
+    expect(c.rxShade.value, 'P91');
+
+    // Let the toasts run out.
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets(
+      'once the user changes the shade, a UOM change resets it as before',
+      (tester) async {
+    await pumpToasts(tester);
+
+    final c = BulkEntryController(orderNumber: 1);
+
+    c.selectBulkOrderLine(importedLine());
+    await settle(tester);
+
+    c.rxShade.value = 'W32117';
+    await settle(tester);
+
+    c.rxUomWithDesc.value = 'CN - Cones';
+    await settle(tester);
+
+    expect(c.rxShade.value, '');
+
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   test('Add Line keeps the article, clears shade, UOM, ticket and quantity',
       () async {
     final c = BulkEntryController(orderNumber: 1);
@@ -136,6 +233,9 @@ void main() {
     c.rxQuantity.value = '5';
 
     await Future<void>.delayed(const Duration(milliseconds: 200));
+    // A100's shade list, as the catalog loads it: only its shades are
+    // taken.
+    c.rxShades.assignAll(['S1']);
     // ignore: avoid_print
     print('before add: ${fields(c)}');
 
@@ -181,6 +281,7 @@ void main() {
       c.rxColor.value = 'RED';
       c.rxQuantity.value = '57';
       await Future<void>.delayed(const Duration(milliseconds: 200));
+      c.rxShades.assignAll(['S1']);
     });
     await tester.pump();
 

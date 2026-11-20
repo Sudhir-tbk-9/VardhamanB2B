@@ -252,6 +252,10 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   /// does not carry it.
   String? _shadeCarriedOver;
 
+  /// Shade of the selected line when it was imported without a UOM; kept
+  /// when a UOM is picked until the user changes the shade.
+  String? _lineShadeToKeep;
+
   /// A new Article resets its dependent fields (UOM, Ticket, Brand, Tex,
   /// Substrate, unit price), fills them from the catalog when the article
   /// has a single item, and re-runs the Article + Shade UOM lookup (Sno 14)
@@ -308,7 +312,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       rxUom.value = '';
     }
 
-    final shadeToKeep = _shadeToKeep;
+    // The shade of a selected line imported without a UOM is kept too, as
+    // long as the user has not changed it.
+    final lineShade = _lineShadeToKeep;
+
+    final shadeToKeep = _shadeToKeep ??
+        (lineShade != null && rxShade.value == lineShade ? lineShade : null);
 
     _shadeToKeep = null;
 
@@ -317,6 +326,22 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     if (shadeToKeep != null) {
       shadeListener(shadeToKeep);
     }
+  }
+
+  /// Whether the Shade is one of the chosen article's shades (the list the
+  /// Shade field offers); typed text that matches none is not a shade.
+  bool get isShadeOfArticle => rxShades.contains(rxShade.value.trim());
+
+  /// Only a shade from the article's list is taken (no free text).
+  void _showShadeNotOfArticle() {
+    toastification.show(
+      autoCloseDuration: Duration(seconds: 4),
+      primaryColor: VardhmanColors.red,
+      title: Text(
+        'Shade ${rxShade.value.trim()} is not available for article '
+        '${rxArticle.value.trim()}. Pick one from the list.',
+      ),
+    );
   }
 
   void resetShade({String keepShade = ''}) {
@@ -548,6 +573,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
     if (_shadeCarriedOver != null && newShade != _shadeCarriedOver) {
       _shadeCarriedOver = null;
+    }
+
+    // The user changed (or cleared) the imported line's shade.
+    if (_lineShadeToKeep != null && newShade != _lineShadeToKeep) {
+      _lineShadeToKeep = null;
     }
 
     if (newShade.isEmpty) {
@@ -905,6 +935,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         primaryColor: VardhmanColors.red,
         title: Text(DirectDeliveryTc.onlyRArticlesMessage),
       );
+    } else if (!isShadeOfArticle) {
+      _showShadeNotOfArticle();
     } else if (rxBulkOrderLines.any(
       (bulkOrderLine) =>
           bulkOrderLine.article == rxArticle.value &&
@@ -975,6 +1007,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         primaryColor: VardhmanColors.red,
         title: Text(DirectDeliveryTc.onlyRArticlesMessage),
       );
+    } else if (!isShadeOfArticle) {
+      _showShadeNotOfArticle();
     } else if (rxBulkOrderLines.any(
       (bulkOrderLine) =>
           bulkOrderLine != selectedBulkOrderLine &&
@@ -1333,16 +1367,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         return;
       }
 
-      final importRows = <ExcelImportRow>[];
+      final importRows = importRowsFromSheet(sheetRows);
 
-      // Row 0 is the header; the order lines are numbered from 1.
-      for (int i = 1; i < sheetRows.length; i++) {
-        final excelLine = ExcelLine.fromCells(sheetRows[i]);
-
-        if (!excelLine.isBlank) {
-          importRows.add(ExcelImportRow(rowNumber: i, line: excelLine));
-        }
-      }
+      debugPrint(
+        '[BULK IMPORT] ${pickedFile.name}: ${sheetRows.length} sheet rows, '
+        '${importRows.length} lines (empty and repeated header rows skipped)',
+      );
 
       if (importRows.isEmpty) {
         toastification.show(
@@ -1385,14 +1415,20 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  /// Validates every row not already found valid. The only checks: an
-  /// Article, a Shade and a Quantity over 0, an Article / Shade combination
-  /// in the JDE item master (F4101) (any UOM, obsolete or not), and, as in
-  /// the form, an article the TC rule and the segment allow. A row failing
-  /// one is shown in red;
-  /// every other row is valid and uploaded. The JDE unit price is filled in
-  /// when JDE has one; without one the line is uploaded without a price, as
-  /// from the form.
+  /// Validates every row not already found valid.
+  ///
+  /// Red (not uploaded): no Article, Shade or Quantity, a Quantity under 1,
+  /// an article the TC rule or the segment does not allow (as in the form),
+  /// or several UOMs for the Article / Shade (one has to be entered in Fix).
+  ///
+  /// Yellow (uploaded): the Article / Shade combination not found in the
+  /// JDE item master (F4101), or no UOM found for it.
+  ///
+  /// The UOM comes from the sheet's uom column when it has one, otherwise
+  /// it is looked up from the Article and Shade as the form does
+  /// (Api.fetchUomsForShade). The JDE unit price is filled in when JDE has
+  /// one; without one the line is uploaded without a price, as from the
+  /// form.
   Future<void> _validateImportRows(List<ExcelImportRow> importRows) async {
     final rowsToCheck = <ExcelImportRow>[];
 
@@ -1402,7 +1438,16 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       }
 
       row.error = null;
+      row.warning = null;
       row.unitPrice = null;
+
+      // A UOM found earlier is looked up again: the Article or Shade may
+      // have been fixed since.
+      if (row.uomLookedUp) {
+        row
+          ..line = row.line.copyWith(uom: '')
+          ..uomLookedUp = false;
+      }
 
       final line = row.line;
 
@@ -1410,8 +1455,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} required fields: '
-        'Article "${line.article}", UOM "${line.uom}", '
-        'Shade "${line.shade}", Quantity "${line.quantityText}" '
+        'Article "${line.article}", Shade "${line.shade}", '
+        'Quantity "${line.quantityText}" '
         '(must be at least 1: ${line.quantity >= 1 ? 'OK' : 'NOT OK'}) '
         '→ ${missingRequiredFields.isEmpty ? 'OK' : 'missing ${missingRequiredFields.join(', ')}'}',
       );
@@ -1444,19 +1489,23 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     for (final row in importRows) {
       row.isChecked = row.isValid;
 
+      final warning = row.warning;
+
       // One line per row, so a row can be matched to the JDE calls above
       // (debugPrint, so release builds log too).
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} ${row.line.itemNumber}: '
-        '${row.error ?? 'OK, unit price ${row.unitPrice}'}',
+        '${row.error ?? 'OK${warning == null ? '' : ' with warning: $warning'}, unit price ${row.unitPrice}'}',
       );
     }
 
     final invalidCount = importRows.where((row) => !row.isValid).length;
 
+    final warningCount = importRows.where((row) => row.hasWarning).length;
+
     debugPrint(
-      '[BULK IMPORT] ${importRows.length - invalidCount} valid, '
-      '$invalidCount with errors',
+      '[BULK IMPORT] ${importRows.length - invalidCount} valid '
+      '($warningCount with warnings), $invalidCount with errors',
     );
   }
 
@@ -1481,10 +1530,10 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         '(${segment.code})';
   }
 
-  /// Article / Shade check in the JDE item master (F4101) and unit price
-  /// for [rowsToCheck]. The only check: the Article / Shade combination
-  /// exists in JDE, in any UOM, obsolete or not. Each call is logged in
-  /// full with a `[BULK IMPORT]` tag.
+  /// JDE checks for [rowsToCheck]: the Article / Shade combination in the
+  /// item master (F4101, any UOM, obsolete or not; a warning when not
+  /// found), the UOM for rows without one, and the unit price. Each call is
+  /// logged in full with a `[BULK IMPORT]` tag.
   Future<void> _checkImportRowsInJde(List<ExcelImportRow> rowsToCheck) async {
     final articles =
         rowsToCheck.map((row) => row.line.article).toSet().toList();
@@ -1498,8 +1547,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       'on the JDE item master, table F4101, for Article (F4101.SEG1) in '
       '${articles.length} article(s) and Shade (F4101.SEG3) in '
       '${shades.length} shade(s), no other filter (any UOM, obsolete or '
-      'not). A row is valid when JDE returns its Article and Shade '
-      'together.\n'
+      'not). Not found is a warning, not an error.\n'
       'ARTICLES: ${articles.join(', ')}\n'
       'SHADES: ${shades.join(', ')}',
     );
@@ -1510,29 +1558,44 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       logLabel: '[BULK IMPORT] Article / Shade check (F4101)',
     );
 
-    final rowsToPrice = <ExcelImportRow>[];
+    final rowsNeedingUom = <ExcelImportRow>[];
 
     for (final row in rowsToCheck) {
       final article = row.line.article.trim().toUpperCase();
 
       final shade = row.line.shade.trim().toUpperCase();
 
+      final isFound = pairs != null && pairs.contains((article, shade));
+
       if (pairs == null) {
-        row.error = 'Could not check the Article / Shade in JDE. Please retry.';
-      } else if (!pairs.contains((article, shade))) {
-        row.error = 'Article / Shade combination not found in JDE';
-      } else if (row.line.uom.isNotEmpty) {
-        // The price needs the full item number, UOM included.
-        rowsToPrice.add(row);
+        row.warning = 'Could not check the Article / Shade in JDE';
+      } else if (!isFound) {
+        row.warning = 'Article / Shade combination not found in JDE';
       }
+
+      // Not found: JDE has no UOM for it either.
+      if (row.line.uom.isEmpty && (isFound || pairs == null)) {
+        rowsNeedingUom.add(row);
+      }
+
+      final result = pairs == null
+          ? 'JDE call failed (warning)'
+          : isFound
+              ? 'found in F4101'
+              : 'NOT found in F4101 (warning)';
 
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} Article "$article" + Shade '
-        '"$shade": ${pairs == null ? 'JDE call failed' : pairs.contains((article, shade)) ? 'found in F4101' : 'NOT found in F4101'}'
-        ' → ${row.isValid ? 'valid' : 'invalid'}'
-        '${row.isValid && row.line.uom.isEmpty ? ' (no UOM: no price looked up)' : ''}',
+        '"$shade": $result'
+        '${row.line.uom.isEmpty ? '' : ', UOM ${row.line.uom} from the sheet'}',
       );
     }
+
+    await _lookUpImportUoms(rowsNeedingUom);
+
+    final rowsToPrice = rowsToCheck
+        .where((row) => row.isValid && row.line.uom.isNotEmpty)
+        .toList();
 
     const batchSize = 10;
 
@@ -1557,6 +1620,73 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           },
         ),
       );
+    }
+  }
+
+  /// The UOM of each of [rows] from its Article and Shade, as the form picks
+  /// it: the UOMs JDE has for the shade (Api.fetchUomsForShade), kept to
+  /// the article's catalog UOMs. One: used. Several: an error, the UOM to
+  /// be entered in Fix. None: a warning, the line goes without a UOM.
+  Future<void> _lookUpImportUoms(List<ExcelImportRow> rows) async {
+    final uomsByItem = <(String, String), List<String>>{};
+
+    final pairsToFetch = rows
+        .map((row) => (row.line.article.trim(), row.line.shade.trim()))
+        .toSet()
+        .toList();
+
+    const batchSize = 10;
+
+    for (int i = 0; i < pairsToFetch.length; i += batchSize) {
+      await Future.wait(
+        pairsToFetch.skip(i).take(batchSize).map(
+          (pair) async {
+            final (article, shade) = pair;
+
+            final jdeUoms =
+                await Api.fetchUomsForShade(article: article, shade: shade);
+
+            final catalogUoms = catalogController.orderItems
+                .where((item) => item.article == article)
+                .map((item) => item.uom)
+                .toSet();
+
+            final uoms = catalogUoms.isEmpty
+                ? jdeUoms
+                : jdeUoms.where(catalogUoms.contains).toList();
+
+            uomsByItem[pair] = uoms;
+
+            final jdeText = jdeUoms.isEmpty ? 'none' : jdeUoms.join(', ');
+
+            final catalogText = catalogUoms.isEmpty
+                ? ''
+                : ', in the catalog ${uoms.isEmpty ? 'none' : uoms.join(', ')}';
+
+            debugPrint(
+              '[BULK IMPORT] UOM lookup (F4101 SEG2) for Article "$article" '
+              '+ Shade "$shade": JDE $jdeText$catalogText',
+            );
+          },
+        ),
+      );
+    }
+
+    for (final row in rows) {
+      final uoms =
+          uomsByItem[(row.line.article.trim(), row.line.shade.trim())] ??
+              const <String>[];
+
+      if (uoms.length == 1) {
+        row
+          ..line = row.line.copyWith(uom: uoms.first)
+          ..uomLookedUp = true;
+      } else if (uoms.isEmpty) {
+        row.warning ??= 'No UOM found in JDE for this Article / Shade';
+      } else {
+        row.error = 'Several UOMs for this Article / Shade '
+            '(${uoms.join(', ')}): enter one in Fix';
+      }
     }
   }
 
@@ -1645,9 +1775,17 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     rxFirstLightSource.value = bulkOrderLine.firstLightSource;
     rxSecondLightSource.value = bulkOrderLine.secondLightSource;
     rxArticle.value = bulkOrderLine.article;
-    rxUomWithDesc.value =
-        '${bulkOrderLine.uom} - ${orderReviewController.getUomDescription(bulkOrderLine.uom)}';
+    rxUomWithDesc.value = bulkOrderLine.uom.trim().isEmpty
+        ? ''
+        : '${bulkOrderLine.uom} - ${orderReviewController.getUomDescription(bulkOrderLine.uom)}';
     rxShade.value = bulkOrderLine.shade;
+
+    // A line imported without a UOM: its sheet's shade stays when a UOM is
+    // picked, until the user changes the shade.
+    _lineShadeToKeep =
+        bulkOrderLine.uom.trim().isEmpty && bulkOrderLine.shade.isNotEmpty
+            ? bulkOrderLine.shade
+            : null;
     rxColor.value = bulkOrderLine.colorName;
     rxQuantity.value = bulkOrderLine.quantity.toString();
     rxRequestedDate.value = bulkOrderLine.requestedDate;

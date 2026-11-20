@@ -23,7 +23,12 @@ class CatalogSearchField extends StatelessWidget {
     this.invalidList = const [],
     this.dropdownKey,
     this.onChanged,
+    this.emptyText,
   });
+
+  /// Shown in the list when nothing matches the typed text; null keeps the
+  /// package's own message.
+  final String? emptyText;
 
   /// Called after the user picks a value or clears the field; not when
   /// [rxString] is set in code.
@@ -130,6 +135,19 @@ class CatalogSearchField extends StatelessWidget {
                                 ),
                               ),
                               showSearchBox: isSearchboxEnabled,
+                              emptyBuilder: emptyText == null
+                                  ? null
+                                  : (context, searchEntry) => Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(
+                                          emptyText!,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: VardhmanColors.darkGrey,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
                               fit: FlexFit.loose,
                               searchDelay: Duration(milliseconds: 0),
                               // Arrow keys move through the options, Enter

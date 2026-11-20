@@ -18,12 +18,20 @@ abstract final class _Status {
   static const errorBorder = Color(0xFFE57373);
 
   static const errorText = Color(0xFFC62828);
+
+  static const warningFill = Color(0xFFFFF8E1);
+
+  static const warningBorder = Color(0xFFFFCA28);
+
+  static const warningText = Color(0xFF8D6E00);
 }
 
-/// Shows every imported line in a grid: valid lines in green, lines with an
-/// error (Article / Shade not valid, or no Article, Shade or Quantity)
-/// in red. Every line can be fixed (and re-validated against JDE via
-/// [onRevalidate]) or deleted. Asks whether to upload the valid lines.
+/// Shows every imported line in a grid, numbered 1, 2, 3… in display order:
+/// valid lines in green, valid lines with a warning (Article / Shade
+/// combination not found in JDE) in yellow, lines with an error (no
+/// Article, Shade or Quantity, …) in red. Every line can be fixed (and
+/// re-validated against JDE via [onRevalidate]) or deleted. Yes uploads the
+/// green and yellow lines, and is enabled once no red line is left.
 ///
 /// Pops with `true` for Yes (insert the valid lines) and `false` for No.
 class ExcelImportDialog extends StatefulWidget {
@@ -45,21 +53,25 @@ class ExcelImportDialog extends StatefulWidget {
 class _ExcelImportDialogState extends State<ExcelImportDialog> {
   final _gridScrollController = ScrollController();
 
-  final _errorsScrollController = ScrollController();
+  final _issuesScrollController = ScrollController();
 
   @override
   void dispose() {
     _gridScrollController.dispose();
 
-    _errorsScrollController.dispose();
+    _issuesScrollController.dispose();
 
     super.dispose();
   }
+
+  /// The row's number as shown: its position in the list, from 1.
+  int _numberOf(ExcelImportRow row) => widget.rows.indexOf(row) + 1;
 
   Future<void> _fix(ExcelImportRow row) async {
     await Get.dialog<void>(
       _FixLineDialog(
         row: row,
+        number: _numberOf(row),
         onRevalidate: widget.onRevalidate,
         onDelete: () => widget.rows.remove(row),
       ),
@@ -71,20 +83,37 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     }
   }
 
+  void _delete(ExcelImportRow row) {
+    setState(() => widget.rows.remove(row));
+
+    debugPrint('[BULK IMPORT] Row ${row.rowNumber} deleted from the import');
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = widget.rows.length;
 
     final errorRows = widget.rows.where((row) => !row.isValid).toList();
 
+    final warningRows = widget.rows.where((row) => row.hasWarning).toList();
+
     final validCount = total - errorRows.length;
+
+    final String title;
+
+    if (total == 0) {
+      title = 'No lines left to upload';
+    } else if (errorRows.isNotEmpty) {
+      title = '${errorRows.length} of $total lines have errors. Fix or '
+          'delete the red lines to upload the other $validCount.';
+    } else {
+      title = '${total == 1 ? 'Upload the line?' : 'Upload all $total lines?'}'
+          '${warningRows.isEmpty ? '' : ' (${warningRows.length} with warnings)'}';
+    }
 
     return AlertDialog(
       title: Text(
-        errorRows.isEmpty
-            ? 'Upload all $total lines?'
-            : '${errorRows.length} of $total lines have errors and will not '
-                'be uploaded. Upload the other $validCount?',
+        title,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -102,16 +131,22 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                   controller: _gridScrollController,
                   child: SingleChildScrollView(
                     controller: _gridScrollController,
-                    child: _LinesGrid(rows: widget.rows, onFix: _fix),
+                    child: _LinesGrid(
+                      rows: widget.rows,
+                      onFix: _fix,
+                      onDelete: _delete,
+                    ),
                   ),
                 ),
               ),
             ),
-            if (errorRows.isNotEmpty) ...[
+            if (errorRows.isNotEmpty || warningRows.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _ErrorsPanel(
+              _IssuesPanel(
                 errorRows: errorRows,
-                scrollController: _errorsScrollController,
+                warningRows: warningRows,
+                numberOf: _numberOf,
+                scrollController: _issuesScrollController,
                 onFix: _fix,
               ),
             ],
@@ -126,10 +161,11 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
             Get.back(result: false);
           },
         ),
+        // Disabled while a red line is left; yellow lines do not block it.
         PrimaryButton(
           wait: false,
           text: 'Yes',
-          onPressed: validCount == 0
+          onPressed: errorRows.isNotEmpty || validCount == 0
               ? null
               : () async {
                   Get.back(result: true);
@@ -145,7 +181,13 @@ class _LinesGrid extends StatelessWidget {
 
   final void Function(ExcelImportRow row) onFix;
 
-  const _LinesGrid({required this.rows, required this.onFix});
+  final void Function(ExcelImportRow row) onDelete;
+
+  const _LinesGrid({
+    required this.rows,
+    required this.onFix,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -179,19 +221,26 @@ class _LinesGrid extends StatelessWidget {
               column('Buyer'),
               column('Light Source'),
               column('Article'),
-              column('UOM'),
               column('Shade'),
+              column('UOM'),
               column('Style No.'),
               column('Qty', numeric: true),
               column('Unit Price', numeric: true),
               column('Status'),
             ],
-            rows: rows.map(
-              (row) {
+            rows: rows.indexed.map(
+              ((int, ExcelImportRow) entry) {
+                final (index, row) = entry;
+
                 final isValid = row.isValid;
 
-                final statusColor =
-                    isValid ? _Status.validText : _Status.errorText;
+                final hasWarning = row.hasWarning;
+
+                final statusColor = !isValid
+                    ? _Status.errorText
+                    : hasWarning
+                        ? _Status.warningText
+                        : _Status.validText;
 
                 // Dark text on the light shades, for readability.
                 final textStyle = TextStyle(
@@ -204,17 +253,22 @@ class _LinesGrid extends StatelessWidget {
 
                 return DataRow(
                   color: WidgetStatePropertyAll(
-                    isValid ? _Status.validFill : _Status.errorFill,
+                    !isValid
+                        ? _Status.errorFill
+                        : hasWarning
+                            ? _Status.warningFill
+                            : _Status.validFill,
                   ),
                   cells: [
-                    cell('${row.rowNumber}'),
+                    // 1, 2, 3… in display order, also after a delete.
+                    cell('${index + 1}'),
                     cell(row.line.poNumber),
                     cell(row.line.merchandiser),
                     cell(row.line.buyer),
                     cell(row.line.lightSources),
                     cell(row.line.article),
-                    cell(row.line.uom),
                     cell(row.line.shade),
+                    cell(row.line.uom),
                     cell(row.line.styleNo),
                     cell(row.line.quantity > 0 ? '${row.line.quantity}' : ''),
                     cell(row.unitPrice?.toStringAsFixed(2) ?? ''),
@@ -222,20 +276,21 @@ class _LinesGrid extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // An icon only, so the Fix button stays in view;
-                          // the row's shade shows the status too.
+                          // An icon only, so the buttons stay in view; the
+                          // row's shade shows the status too.
                           Tooltip(
-                            message: isValid ? 'Valid' : 'Invalid',
+                            message: row.error ?? row.warning ?? 'Valid',
                             child: Icon(
-                              isValid
-                                  ? Icons.check_circle
-                                  : Icons.error_outline,
+                              !isValid
+                                  ? Icons.error_outline
+                                  : hasWarning
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.check_circle,
                               size: 16,
                               color: statusColor,
                             ),
                           ),
                           const SizedBox(width: 2),
-                          // Every row: the Fix modal also deletes the row.
                           TextButton.icon(
                             style: TextButton.styleFrom(
                               foregroundColor: isValid
@@ -246,6 +301,15 @@ class _LinesGrid extends StatelessWidget {
                             icon: const Icon(Icons.edit, size: 16),
                             label: const Text('Fix'),
                             onPressed: () => onFix(row),
+                          ),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: VardhmanColors.darkGrey,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Delete'),
+                            onPressed: () => onDelete(row),
                           ),
                         ],
                       ),
@@ -261,27 +325,79 @@ class _LinesGrid extends StatelessWidget {
   }
 }
 
-/// Lists the rows with an error; tapping one opens its Fix modal.
-class _ErrorsPanel extends StatelessWidget {
+/// Lists the rows with an error (red) and those with a warning (yellow);
+/// tapping one opens its Fix modal.
+class _IssuesPanel extends StatelessWidget {
   final List<ExcelImportRow> errorRows;
+
+  final List<ExcelImportRow> warningRows;
+
+  final int Function(ExcelImportRow row) numberOf;
 
   final ScrollController scrollController;
 
   final void Function(ExcelImportRow row) onFix;
 
-  const _ErrorsPanel({
+  const _IssuesPanel({
     required this.errorRows,
+    required this.warningRows,
+    required this.numberOf,
     required this.scrollController,
     required this.onFix,
   });
 
+  Widget _issue(ExcelImportRow row, {required bool isError}) {
+    final color = isError ? _Status.errorText : _Status.warningText;
+
+    final itemNumber = row.line.itemNumber.trim();
+
+    return InkWell(
+      onTap: () => onFix(row),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        child: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.warning_amber_rounded,
+              size: 14,
+              color: color,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Row ${numberOf(row)} · ${itemNumber.isEmpty ? '-' : itemNumber}'
+                ' — ${isError ? row.error : row.warning}',
+                style: TextStyle(fontSize: 12, color: color),
+              ),
+            ),
+            Text(
+              'Fix',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+                decoration: TextDecoration.underline,
+                decorationColor: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasErrors = errorRows.isNotEmpty;
+
     return Container(
       constraints: const BoxConstraints(maxHeight: 150),
       decoration: BoxDecoration(
-        color: _Status.errorFill,
-        border: Border.all(color: _Status.errorBorder, width: 0.8),
+        color: hasErrors ? _Status.errorFill : _Status.warningFill,
+        border: Border.all(
+          color: hasErrors ? _Status.errorBorder : _Status.warningBorder,
+          width: 0.8,
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -291,11 +407,15 @@ class _ErrorsPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
             child: Text(
-              'Errors (${errorRows.length})',
-              style: const TextStyle(
+              [
+                if (hasErrors) 'Errors (${errorRows.length})',
+                if (warningRows.isNotEmpty)
+                  'Warnings (${warningRows.length}), uploaded',
+              ].join(' · '),
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: _Status.errorText,
+                color: hasErrors ? _Status.errorText : _Status.warningText,
               ),
             ),
           ),
@@ -306,50 +426,10 @@ class _ErrorsPanel extends StatelessWidget {
                 controller: scrollController,
                 shrinkWrap: true,
                 padding: const EdgeInsets.only(bottom: 6),
-                children: errorRows
-                    .map(
-                      (row) => InkWell(
-                        onTap: () => onFix(row),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 3,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                size: 14,
-                                color: _Status.errorText,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Row ${row.rowNumber} · '
-                                  '${row.line.itemNumber.trim().isEmpty ? '-' : row.line.itemNumber.trim()}'
-                                  ' — ${row.error}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: _Status.errorText,
-                                  ),
-                                ),
-                              ),
-                              const Text(
-                                'Fix',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _Status.errorText,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: _Status.errorText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                children: [
+                  for (final row in errorRows) _issue(row, isError: true),
+                  for (final row in warningRows) _issue(row, isError: false),
+                ],
               ),
             ),
           ),
@@ -360,11 +440,14 @@ class _ErrorsPanel extends StatelessWidget {
 }
 
 /// Edits one line. Save writes the edits to the line and re-validates it
-/// against JDE; the dialog closes once the line is valid, otherwise it shows
-/// the new error so the user can keep fixing. Delete removes the line from
-/// the upload.
+/// against JDE; the dialog closes once the line is valid (a warning does
+/// not keep it open), otherwise it shows the new error so the user can keep
+/// fixing. Delete removes the line from the upload.
 class _FixLineDialog extends StatefulWidget {
   final ExcelImportRow row;
+
+  /// The row's number as shown in the list.
+  final int number;
 
   final Future<void> Function() onRevalidate;
 
@@ -372,6 +455,7 @@ class _FixLineDialog extends StatefulWidget {
 
   const _FixLineDialog({
     required this.row,
+    required this.number,
     required this.onRevalidate,
     required this.onDelete,
   });
@@ -389,6 +473,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
     required ValueChanged<String> onChanged,
     bool isNumber = false,
     bool upperCase = false,
+    String? helperText,
   }) {
     return Expanded(
       child: Padding(
@@ -402,8 +487,32 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           decoration: InputDecoration(
             isDense: true,
             labelText: label,
+            helperText: helperText,
             border: const OutlineInputBorder(),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _message(String text, {required bool isError}) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isError ? _Status.errorFill : _Status.warningFill,
+        border: Border.all(
+          color: isError ? _Status.errorBorder : _Status.warningBorder,
+          width: 0.8,
+        ),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          color: isError ? _Status.errorText : _Status.warningText,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -413,9 +522,11 @@ class _FixLineDialogState extends State<_FixLineDialog> {
   Widget build(BuildContext context) {
     final error = widget.row.error;
 
+    final warning = widget.row.isValid ? widget.row.warning : null;
+
     return AlertDialog(
       title: Text(
-        'Fix row ${widget.row.rowNumber}',
+        'Fix row ${widget.number}',
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -424,24 +535,8 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (error != null)
-              Container(
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: _Status.errorFill,
-                  border: Border.all(color: _Status.errorBorder, width: 0.8),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  error,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: _Status.errorText,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            if (error != null) _message(error, isError: true),
+            if (warning != null) _message(warning, isError: false),
             Row(
               children: [
                 _field(
@@ -472,6 +567,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
             ),
             const SizedBox(height: 10),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _field(
                   label: 'Article',
@@ -481,18 +577,21 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                       _draft = _draft.copyWith(article: value.trim()),
                 ),
                 _field(
-                  label: 'UOM',
-                  upperCase: true,
-                  initialValue: _draft.uom,
-                  onChanged: (value) =>
-                      _draft = _draft.copyWith(uom: value.trim()),
-                ),
-                _field(
                   label: 'Shade',
                   upperCase: true,
                   initialValue: _draft.shade,
                   onChanged: (value) =>
                       _draft = _draft.copyWith(shade: value.trim()),
+                ),
+                // Looked up from the Article and Shade; entered here only
+                // when JDE has several.
+                _field(
+                  label: 'UOM',
+                  upperCase: true,
+                  helperText: 'Empty: from Article + Shade',
+                  initialValue: _draft.uom,
+                  onChanged: (value) =>
+                      _draft = _draft.copyWith(uom: value.trim()),
                 ),
                 _field(
                   label: 'Style No.',
@@ -503,8 +602,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                 _field(
                   label: 'Quantity',
                   isNumber: true,
-                  initialValue:
-                      _draft.quantity > 0 ? _draft.quantity.toString() : '',
+                  initialValue: _draft.quantityText,
                   onChanged: (value) => _draft = _draft.copyWith(
                     quantity: ExcelLine.parseQuantity(value),
                     quantityText: value.trim(),
@@ -536,7 +634,15 @@ class _FixLineDialogState extends State<_FixLineDialog> {
         PrimaryButton(
           text: 'Save & validate',
           onPressed: () async {
-            widget.row
+            final row = widget.row;
+
+            // A UOM typed here is kept; an unchanged looked-up one is
+            // looked up again for the (maybe fixed) Article and Shade.
+            if (_draft.uom != row.line.uom) {
+              row.uomLookedUp = false;
+            }
+
+            row
               ..line = _draft
               ..isChecked = false;
 
@@ -546,7 +652,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
               return;
             }
 
-            if (widget.row.isValid) {
+            if (row.isValid) {
               Get.back();
             } else {
               setState(() {});

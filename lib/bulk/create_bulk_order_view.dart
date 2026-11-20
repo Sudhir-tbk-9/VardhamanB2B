@@ -230,12 +230,12 @@ class CreateBulkOrderView extends StatelessWidget {
                             text: 'Sample Excel',
                             onPressed: () async {
                               final ByteData data = await rootBundle
-                                  .load('assets/bulk_import.xlsx');
+                                  .load('assets/Stitch Connect Orders.xlsx');
 
                               final Uint8List bytes = data.buffer.asUint8List();
 
                               await FileSaver.instance.saveFile(
-                                name: 'bulk_import',
+                                name: 'Stitch Connect Orders',
                                 bytes: bytes,
                                 ext: 'xlsx',
                                 mimeType: MimeType.microsoftExcel,
@@ -478,7 +478,10 @@ class CreateBulkOrderView extends StatelessWidget {
                                                       .shadeDropdownKey,
                                                   searchList: bulkEntryController
                                                       .rxShades,
-                                                  shouldEnforceList: false,
+                                                  // The article's shades only;
+                                                  // typed text matching none
+                                                  // cannot be picked.
+                                                  emptyText: 'No record found',
                                                 ),
                                               ),
                                             ],
