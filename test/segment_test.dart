@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:universal_html/html.dart' as html;
 import 'package:vardhman_b2b/segment/segment_controller.dart';
 import 'package:vardhman_b2b/segment/segment_dialog.dart';
 
 void main() {
-  setUp(SegmentController.clearStored);
+  setUp(() {
+    SegmentController.clearStored();
+    // The segment last picked per customer, kept past a logout.
+    html.window.localStorage.clear();
+  });
 
   tearDown(Get.reset);
 
@@ -209,7 +214,59 @@ void main() {
     );
   });
 
-  testWidgets('after a re-login, drafts lock the segment they were made in',
+  testWidgets('a re-login starts in the segment picked last; it can switch',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    SegmentController login({String soldTo = '1001'}) => SegmentController(
+          draftOrdersLoader: () async => const [],
+          soldToReader: () => soldTo,
+        );
+
+    // First session: Speciality picked, then logged out.
+    login().select(OrderSegment.speciality);
+    SegmentController.clearStored();
+
+    // Another customer on this browser has not picked one: asked as before.
+    expect(login(soldTo: '2002').hasSegment, isFalse);
+
+    // Next login: straight in with Speciality, no dialog.
+    final controller = Get.put(login());
+
+    expect(controller.segment, OrderSegment.speciality);
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          appBar: AppBar(actions: const [SegmentHeaderButton()]),
+        ),
+      ),
+    );
+
+    showSegmentDialogIfNeeded();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
+    expect(find.text('SPE · Speciality'), findsOneWidget);
+
+    // Switched from the header: the login after that starts in Industry.
+    await tester.tap(find.text('SPE · Speciality'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Industry'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(controller.segment, OrderSegment.industry);
+
+    SegmentController.clearStored();
+
+    expect(login().segment, OrderSegment.industry);
+  });
+
+  testWidgets('after a re-login, drafts keep the segment locked',
       (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
@@ -229,16 +286,16 @@ void main() {
     ];
     SegmentController.clearStored();
 
-    // Next login: the dialog opens on Speciality, the others locked.
+    // Next login: in Speciality; switching shows the lock.
     final controller = Get.put(login());
 
-    expect(controller.hasSegment, isFalse);
+    expect(controller.segment, OrderSegment.speciality);
 
     await tester.pumpWidget(
       const GetMaterialApp(home: Scaffold(body: SizedBox())),
     );
 
-    showSegmentDialogIfNeeded();
+    showSegmentDialog();
     await tester.pumpAndSettle();
 
     expect(find.text('WARNING'), findsOneWidget);
@@ -250,38 +307,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.segment, OrderSegment.speciality);
-  });
-
-  testWidgets('without drafts any segment can be picked after a re-login',
-      (tester) async {
-    tester.view.physicalSize = const Size(1280, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    SegmentController login() => SegmentController(
-          draftOrdersLoader: () async => const [],
-          soldToReader: () => '1001',
-        );
-
-    login().select(OrderSegment.speciality);
-    SegmentController.clearStored();
-
-    final controller = Get.put(login());
-
-    await tester.pumpWidget(
-      const GetMaterialApp(home: Scaffold(body: SizedBox())),
-    );
-
-    showSegmentDialogIfNeeded();
-    await tester.pumpAndSettle();
-
-    expect(find.text('WARNING'), findsNothing);
-
-    await tester.tap(find.text('Industry'));
-    await tester.pump();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
-    expect(controller.segment, OrderSegment.industry);
   });
 }

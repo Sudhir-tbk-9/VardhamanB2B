@@ -105,15 +105,14 @@ typedef DraftOrderOpener = Future<void> Function(DraftOrder draftOrder);
 void logSegment(String message) => debugPrint('[SEGMENT] $message');
 
 /// The segment of the logged in user. Kept in the tab's sessionStorage, like
-/// the login itself (see LoginController), so a page refresh keeps it and
-/// logging out forgets it.
+/// the login itself (see LoginController), so a page refresh keeps it; also
+/// per customer in localStorage, so the next login starts in it.
 class SegmentController extends GetxController {
   static const _storageKey = 'orderSegment';
 
-  /// localStorage key prefix of the segment the drafts were made in, per
-  /// customer (sold-to). Drafts stay in this browser's database past a
-  /// logout, so their segment has to as well: the next login is then
-  /// locked to it while they are not submitted or deleted.
+  /// localStorage key prefix of the segment last picked, per customer
+  /// (sold-to); kept past a logout. The next login starts in it, and while
+  /// there are drafts (made in it) it cannot be changed.
   static const _draftSegmentKey = 'draftSegment';
 
   /// Null until the user picks one in the segment dialog.
@@ -144,11 +143,26 @@ class SegmentController extends GetxController {
         _draftsClearer = draftsClearer ?? deleteDrafts {
     rxSegment.value = OrderSegment.byName(_readStorage());
 
-    if (rxSegment.value == null) {
+    if (rxSegment.value != null) {
+      logSegment('Restored ${_describe(rxSegment.value!)} after page refresh');
+
+      return;
+    }
+
+    // A new login: the segment this customer last picked in this browser,
+    // before logging out. The header button still switches it.
+    final lastSegment = this.lastSegment;
+
+    if (lastSegment == null) {
       logSegment('No segment yet for this login: the selection dialog '
           'will be shown');
     } else {
-      logSegment('Restored ${_describe(rxSegment.value!)} after page refresh');
+      rxSegment.value = lastSegment;
+
+      _writeStorage(lastSegment.name);
+
+      logSegment('Logged in with ${_describe(lastSegment)}, the segment '
+          'picked in the last session (switch from the header)');
     }
   }
 
@@ -235,8 +249,13 @@ class SegmentController extends GetxController {
     ];
   }
 
+  /// Segment the customer last picked in this browser (kept past a logout),
+  /// or null when none was picked yet: the next login starts in it.
+  OrderSegment? get lastSegment => draftSegment;
+
   /// Segment the customer's drafts in this browser were made in, or null
-  /// when not known (e.g. drafts saved before it was kept).
+  /// when not known (e.g. drafts saved before it was kept). The last segment
+  /// picked: it cannot be changed while there are drafts.
   OrderSegment? get draftSegment {
     try {
       return OrderSegment.byName(
@@ -267,8 +286,8 @@ class SegmentController extends GetxController {
     }
   }
 
-  /// Forgets the segment; the next login asks again, locked to
-  /// [draftSegment] while there are drafts.
+  /// Forgets the session's segment; the next login starts in the one last
+  /// picked ([lastSegment]), or asks when there is none.
   static void clearStored() {
     try {
       html.window.sessionStorage.remove(_storageKey);
