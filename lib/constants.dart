@@ -148,3 +148,7 @@ final capitalFormatter = TextInputFormatter.withFunction(
     );
   },
 );
+
+/// Most characters a Remark can have (DTM, Labdip and Sampling forms),
+/// "TC Required, " included.
+const remarkMaxLength = 35;

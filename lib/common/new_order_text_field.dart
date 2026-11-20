@@ -91,6 +91,7 @@ class NewOrderTextField extends StatelessWidget {
     this.focusNode,
     this.onSubmitted,
     this.inlineHint,
+    this.showLength = false,
   });
 
   final String labelText;
@@ -114,6 +115,10 @@ class NewOrderTextField extends StatelessWidget {
   /// Drawn by the field after its text, never part of its value.
   final String? Function(String text)? inlineHint;
 
+  /// With [maxLength]: "12/35" beside the label, so the limit is seen
+  /// before typing stops at it.
+  final bool showLength;
+
   final TextEditingController textEditingController = TextEditingController();
 
   /// More than one line: a text area.
@@ -122,6 +127,35 @@ class NewOrderTextField extends StatelessWidget {
   final border = OutlineInputBorder(
     borderSide: BorderSide.none,
   );
+
+  /// [label] with "12/35" at the right while [showLength] (see there).
+  Widget _withLength(Widget label) {
+    final maxLength = this.maxLength;
+
+    if (!showLength || maxLength == null) {
+      return label;
+    }
+
+    final length = rxString.value.length;
+
+    return Row(
+      children: [
+        Expanded(child: label),
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Text(
+            '$length/$maxLength',
+            style: TextStyle(
+              fontSize: 11,
+              color: length >= maxLength
+                  ? VardhmanColors.red
+                  : VardhmanColors.darkGrey.withAlpha(150),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +174,7 @@ class NewOrderTextField extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: RichText(
+                child: _withLength(RichText(
                   text: TextSpan(
                     text: labelText,
                     style: TextStyle(
@@ -160,7 +194,7 @@ class NewOrderTextField extends StatelessWidget {
                         ),
                     ],
                   ),
-                ),
+                )),
               ),
               SizedBox(
                 height: 4,

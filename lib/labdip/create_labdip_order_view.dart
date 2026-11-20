@@ -617,6 +617,8 @@ class CreateLabdipOrderView extends StatelessWidget {
                                   labelText: 'Remark',
                                   inputFormatters: [capitalFormatter],
                                   rxString: labdipEntryController.rxRemark,
+                                  maxLength: remarkMaxLength,
+                                  showLength: true,
                                   hintText:
                                       'Mention Request Type, End Use....etc',
                                 ),

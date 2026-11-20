@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 
 /// "Tick if TC Required" (direct delivery) on the DTM and Bulk order forms.
@@ -125,18 +126,30 @@ mixin DirectDeliveryTc on GetxController {
   }
 
   /// "TC Required", then [remark] after a comma: "TC Required, <remark>".
+  /// At most [remarkMaxLength] characters: the user's remark is cut to fit
+  /// (when the tick is added to a remark already that long).
   static String withTcRemark(String remark) {
     final userRemark = withoutTcRemark(remark);
 
-    return userRemark.isEmpty
-        ? tcRequiredRemark
-        : '$tcRequiredRemark, $userRemark';
+    if (userRemark.isEmpty) {
+      return tcRequiredRemark;
+    }
+
+    return _limited('$tcRequiredRemark, $userRemark');
   }
 
+  /// [remark] cut to [remarkMaxLength] characters, e.g. one saved before the
+  /// limit.
+  static String _limited(String remark) => remark.length > remarkMaxLength
+      ? remark.substring(0, remarkMaxLength).trimRight()
+      : remark;
+
   /// Remark saved with the line (and sent in ColorRemark): "TC Required,
-  /// <remark>" for a TC line, otherwise the remark typed.
-  String get lineRemark =>
-      isTcLine ? withTcRemark(rxRemark.value) : withoutTcRemark(rxRemark.value);
+  /// <remark>" for a TC line, otherwise the remark typed. At most
+  /// [remarkMaxLength] characters.
+  String get lineRemark => isTcLine
+      ? withTcRemark(rxRemark.value)
+      : _limited(withoutTcRemark(rxRemark.value));
 
   static bool isTcRequiredLine(DraftTableData line) =>
       line.billingType == 'Plant';

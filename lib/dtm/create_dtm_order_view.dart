@@ -579,6 +579,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                           inputFormatters: [capitalFormatter],
                                           labelText: 'Remark',
                                           rxString: dtmEntryController.rxRemark,
+                                          maxLength: remarkMaxLength,
+                                          showLength: true,
                                           hintText: 'Enter Remark',
                                           // A text area: long remarks wrap
                                           // over 2 lines (low, so the lines
