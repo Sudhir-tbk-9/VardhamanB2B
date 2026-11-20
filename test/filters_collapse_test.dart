@@ -73,8 +73,7 @@ void main() {
               children: [
                 Expanded(
                   child: TextField(
-                    onChanged: (value) =>
-                        list.rxOrderNumberInput.value = value,
+                    onChanged: (value) => list.rxOrderNumberInput.value = value,
                     onSubmitted: (_) => list.collapseFilters(),
                   ),
                 ),
@@ -110,7 +109,8 @@ void main() {
     expect(list.rxFiltersExpanded.value, isFalse);
   });
 
-  testWidgets('Reset clears the filters and closes the panel', (tester) async {
+  testWidgets('Reset clears the filters and keeps an open panel open',
+      (tester) async {
     final list = await pumpPanel(tester);
 
     await tester.enterText(find.byType(TextField), '1024');
@@ -121,7 +121,42 @@ void main() {
 
     expect(list.resets, 1);
     expect(list.rxOrderNumberInput.value, '');
+    // Open: other values can be picked straight away.
+    expect(list.rxFiltersExpanded.value, isTrue);
+  });
+
+  testWidgets('Reset on a closed panel leaves it closed', (tester) async {
+    final list = await pumpPanel(tester);
+
+    await tester.enterText(find.byType(TextField), '1024');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
     expect(list.rxFiltersExpanded.value, isFalse);
+
+    await tester.tap(find.byTooltip('Reset filters'));
+    await tester.pumpAndSettle();
+
+    expect(list.resets, 1);
+    expect(list.rxFiltersExpanded.value, isFalse);
+  });
+
+  test('a screen change closes every order list open panel', () {
+    final lists = [_OrderList(), _OrderList()];
+
+    for (final list in lists) {
+      list
+        ..initOrderListFilters()
+        ..rxFiltersExpanded.value = true;
+    }
+
+    OrderListFilters.collapseAllFilters();
+
+    expect(lists.map((list) => list.rxFiltersExpanded.value), [false, false]);
+
+    for (final list in lists) {
+      list.onClose();
+    }
   });
 
   testWidgets('a quick date range closes the panel', (tester) async {

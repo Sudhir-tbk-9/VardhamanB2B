@@ -22,6 +22,7 @@ import 'package:vardhman_b2b/home/order_summary_view.dart';
 import 'package:vardhman_b2b/labdip/labdip_view.dart';
 import 'package:vardhman_b2b/login/login_controller.dart';
 import 'package:vardhman_b2b/open/open_view.dart';
+import 'package:vardhman_b2b/orders/order_list_filters.dart';
 import 'package:vardhman_b2b/paid/paid_view.dart';
 import 'package:vardhman_b2b/sampling/sampling_view.dart';
 import 'package:vardhman_b2b/segment/segment_dialog.dart';
@@ -63,6 +64,14 @@ class _HomeScaffoldState extends State<HomeScaffold> {
     super.didUpdateWidget(oldWidget);
 
     _syncNavRailIndex();
+
+    // Another screen (side menu, browser back / forward): open filter panels
+    // close. After this frame: the panels are rebuilt, not during a build.
+    if (oldWidget.tabIndex != widget.tabIndex) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => OrderListFilters.collapseAllFilters(),
+      );
+    }
   }
 
   /// The URL decides the tab; rxNavRailIndex mirrors it for code that reads

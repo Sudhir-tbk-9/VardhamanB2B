@@ -94,13 +94,31 @@ mixin OrderListFilters on GetxController {
   final rxFiltersExpanded = false.obs;
 
   /// Closes the filter panel once a filter is applied (Apply, Enter in a
-  /// filter field, a quick date range) or the filters are reset.
+  /// filter field, a quick date range) or the screen is changed.
   void collapseFilters() => rxFiltersExpanded.value = false;
 
-  /// Resets the filters and closes the panel.
-  Future<void> resetFilters() async {
-    collapseFilters();
+  /// The order lists in use (Sampling, Labdip, DTM, Bulk), for
+  /// [collapseAllFilters].
+  static final _orderLists = <OrderListFilters>{};
 
+  /// Closes every order list's filter panel: on a screen change, so a list
+  /// opened again shows its orders rather than an open panel.
+  static void collapseAllFilters() {
+    for (final orderList in _orderLists) {
+      orderList.collapseFilters();
+    }
+  }
+
+  @override
+  void onClose() {
+    _orderLists.remove(this);
+
+    super.onClose();
+  }
+
+  /// Resets the filters. An open panel stays open, so other values can be
+  /// picked straight away; a closed one stays closed.
+  Future<void> resetFilters() async {
     await setDefaultValues();
   }
 
@@ -174,6 +192,8 @@ mixin OrderListFilters on GetxController {
 
   /// Call from onInit.
   void initOrderListFilters() {
+    _orderLists.add(this);
+
     const typingDelay = Duration(milliseconds: 300);
 
     debounce(rxOrderNumberInput, (_) => _onHeaderFiltersChanged(),
