@@ -140,33 +140,53 @@ class OpenInvoicesList extends StatelessWidget {
                   invoicesController.rxSelectedInvoiceInfos
                       .contains(invoiceInfo);
 
+              // A tap on the row or on its checkbox.
+              void onSelected(bool? value) {
+                if (invoiceInfo.docType == 'RU') {
+                  toastification.show(
+                    autoCloseDuration: Duration(seconds: 3),
+                    primaryColor: VardhmanColors.red,
+                    title: Text(
+                      'Unapplied reciept cannot be selected for payments',
+                    ),
+                  );
+                } else if (value ?? false) {
+                  invoicesController.addInvoiceToSelected(invoiceInfo);
+                } else {
+                  invoicesController.removeInvoiceFromSelected(invoiceInfo);
+                }
+              }
+
               return DataRow(
                 color: WidgetStatePropertyAll(
                   isSelected ? VardhmanColors.lightBlue : Colors.white,
                 ),
-                onSelectChanged: !canSelect
-                    ? null
-                    : (value) {
-                        if (invoiceInfo.docType == 'RU') {
-                          toastification.show(
-                            autoCloseDuration: Duration(seconds: 3),
-                            primaryColor: VardhmanColors.red,
-                            title: Text(
-                              'Unapplied reciept cannot be selected for payments',
-                            ),
-                          );
-                        } else if (value ?? false) {
-                          invoicesController.addInvoiceToSelected(invoiceInfo);
-                        } else {
-                          invoicesController
-                              .removeInvoiceFromSelected(invoiceInfo);
-                        }
-                      },
+                onSelectChanged: !canSelect ? null : onSelected,
                 selected: isSelected,
                 cells: [
                   DataCell(
                     SizedBox(
                       width: 50,
+                      // Shown on every selectable row, ticked when selected,
+                      // as the header's select-all checkbox.
+                      child: !canSelect
+                          ? null
+                          : Center(
+                              child: Checkbox(
+                                value: isSelected,
+                                onChanged: onSelected,
+                                checkColor: VardhmanColors.darkGrey,
+                                fillColor: const WidgetStatePropertyAll(
+                                  Colors.white,
+                                ),
+                                side: WidgetStateBorderSide.resolveWith(
+                                  (states) => BorderSide(
+                                    color: VardhmanColors.darkGrey,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
                       /*child: SecondaryButton(
                         text: '',
                         iconData: FontAwesomeIcons.filePdf.data,
