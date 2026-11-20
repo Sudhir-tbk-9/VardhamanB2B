@@ -568,7 +568,6 @@ class CreateDtmOrderView extends StatelessWidget {
                                                     .rxRequestedDate,
                                                 hintText: 'select',
                                                 firstDate: earliestEdd,
-                                                pickerNote: earliestEddNote,
                                               ),
                                             ),
                                           ],

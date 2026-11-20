@@ -29,7 +29,6 @@ void main() {
               labelText: 'Expected Delivery Date',
               rxDate: Rxn<DateTime>(date),
               firstDate: earliestEdd,
-              pickerNote: earliestEddNote,
             ),
           ),
         ),
@@ -66,35 +65,14 @@ void main() {
     expect(picker.initialDate, earliestEdd);
   });
 
-  for (final screen in [const Size(1536, 730), const Size(420, 860)]) {
-    testWidgets('the calendar shows the note right under it at $screen',
-        (tester) async {
-      await openPicker(
-        tester,
-        earliestEdd,
-        screen: screen,
-      );
+  testWidgets('no note in the calendar: the blocked days are only greyed out',
+      (tester) async {
+    await openPicker(tester, earliestEdd, screen: const Size(1536, 730));
 
-      expect(find.text(earliestEddNote), findsOneWidget);
-      expect(earliestEddNote, contains('next 10 days are not available'));
-
-      final note = tester.getRect(find.text(earliestEddNote));
-
-      // Under the calendar, within its width, on screen.
-      final calendar = tester.getRect(
-        find.descendant(
-          of: find.byType(DatePickerDialog),
-          matching: find.byType(AnimatedContainer),
-        ).first,
-      );
-      expect(note.top, greaterThan(calendar.bottom));
-      expect(note.top - calendar.bottom, lessThan(40));
-      expect(note.left, greaterThanOrEqualTo(calendar.left));
-      expect(note.right, lessThanOrEqualTo(calendar.right));
-      expect(note.bottom, lessThan(screen.height));
-
-    });
-  }
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    expect(find.textContaining('not available'), findsNothing);
+    expect(find.textContaining('Earliest delivery date'), findsNothing);
+  });
 
   testWidgets('tapping a blocked day does not pick it', (tester) async {
     final rxDate = Rxn<DateTime>(earliestEdd);
@@ -112,7 +90,6 @@ void main() {
               labelText: 'Expected Delivery Date',
               rxDate: rxDate,
               firstDate: earliestEdd,
-              pickerNote: earliestEddNote,
             ),
           ),
         ),

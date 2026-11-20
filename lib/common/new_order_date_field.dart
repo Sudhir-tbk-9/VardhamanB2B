@@ -15,11 +15,6 @@ const blockedEddDays = 11;
 DateTime get earliestEdd => DateUtils.dateOnly(DateTime.now())
     .add(const Duration(days: blockedEddDays));
 
-/// Note in the EDD calendar on why some dates are greyed out.
-String get earliestEddNote =>
-    'Today and the next ${blockedEddDays - 1} days are not available. '
-    'Earliest delivery date: ${DateFormat('d MMM yyyy').format(earliestEdd)}';
-
 class NewOrderDateField extends StatelessWidget {
   NewOrderDateField({
     super.key,
@@ -34,8 +29,8 @@ class NewOrderDateField extends StatelessWidget {
     this.pickerNote,
   });
 
-  /// Shown under the calendar, e.g. why dates before [firstDate] are greyed
-  /// out ([earliestEddNote]).
+  /// Shown in a card under the calendar, if given. The EDD calendar shows
+  /// none: the days before [firstDate] are only greyed out.
   final String? pickerNote;
 
   final String labelText;

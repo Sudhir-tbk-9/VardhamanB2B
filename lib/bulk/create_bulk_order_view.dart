@@ -637,7 +637,6 @@ class CreateBulkOrderView extends StatelessWidget {
                                                       .rxRequestedDate,
                                                   hintText: 'select',
                                                   firstDate: earliestEdd,
-                                                  pickerNote: earliestEddNote,
                                                 ),
                                               ),
                                             ],
