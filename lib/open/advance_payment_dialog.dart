@@ -5,7 +5,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
-import 'package:vardhman_b2b/common/app_url.dart';
+// for PY (appReturnUrl / appCancelUrl)
+// import 'package:vardhman_b2b/common/app_url.dart';
 import 'package:vardhman_b2b/common/payment_log.dart';
 import 'package:vardhman_b2b/common/payment_return.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
@@ -109,39 +110,39 @@ class AdvancePaymentDialog extends StatelessWidget {
                                 );
                               }
 
-                              // for PD
-                              /*final plainText =
-                                   'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.selectedDiscountedAmount.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in|cancel-url=https://b2b.amefird.in|';*/
+                              // for PD (old ipay2corp gateway). The amount is
+                              // the advance amount, the same as the JDE
+                              // entry's Payment_Amount above.
+                              final plainText =
+                                  'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.rxAdvancePaymentAmount.value.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in|cancel-url=https://b2b.amefird.in|';
+
                               // for PY
-                              // final plainText =
-                              //     'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.selectedDiscountedAmount.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in/vytldev/|cancel-url=https://b2b.amefird.in/vytldev/|';
-
-                              final plainText = {
-                                "txn-id": receiptNumber,
-                                "txn-session-id": receiptNumber,
-                                "user-code": "",
-                                "clientCode": "WT-2519",
-                                // Same amount as the JDE entry's
-                                // Payment_Amount above.
-                                "txn-amount": invoicesController
-                                    .rxAdvancePaymentAmount.value
-                                    .toStringAsFixed(2),
-                                "txn-datetime":
-                                    DateFormat('dd/MM/yyyy HH:mm:ss')
-                                        .format(DateTime.now()),
-                                "txn-for": "payment",
-                                "payment-mode": "1",
-                                "challan-expiry-date": "",
-
-                                // Back to wherever this app was opened from:
-                                // the dev proxy (localhost:8000, see
-                                // scripts/run_web_payment_test.ps1) locally,
-                                // b2b.amefird.in/vytldev/ when deployed.
-                                "return-url": appReturnUrl,
-                                "cancel-url": appCancelUrl,
-
-                                "email-id": "",
-                              };
+                              // final plainText = {
+                              //   "txn-id": receiptNumber,
+                              //   "txn-session-id": receiptNumber,
+                              //   "user-code": "",
+                              //   "clientCode": "WT-2519",
+                              //   // Same amount as the JDE entry's
+                              //   // Payment_Amount above.
+                              //   "txn-amount": invoicesController
+                              //       .rxAdvancePaymentAmount.value
+                              //       .toStringAsFixed(2),
+                              //   "txn-datetime":
+                              //       DateFormat('dd/MM/yyyy HH:mm:ss')
+                              //           .format(DateTime.now()),
+                              //   "txn-for": "payment",
+                              //   "payment-mode": "1",
+                              //   "challan-expiry-date": "",
+                              //
+                              //   // Back to wherever this app was opened from:
+                              //   // the dev proxy (localhost:8000, see
+                              //   // scripts/run_web_payment_test.ps1) locally,
+                              //   // b2b.amefird.in/vytldev/ when deployed.
+                              //   "return-url": appReturnUrl,
+                              //   "cancel-url": appCancelUrl,
+                              //
+                              //   "email-id": "",
+                              // };
 
                               // for GITHUB
                               // final plainText =
@@ -154,7 +155,7 @@ class AdvancePaymentDialog extends StatelessWidget {
 
                               if (encryptedString != null) {
                                 // for PD
-                                /*final paymentFormElement =
+                                final paymentFormElement =
                                     html.document.createElement('form')
                                       ..setAttribute('id', 'paymentForm')
                                       ..setAttribute('method', "POST")
@@ -166,11 +167,11 @@ class AdvancePaymentDialog extends StatelessWidget {
                                     html.document.createElement('input')
                                       ..setAttribute('type', 'text')
                                       ..setAttribute('name', 'walletClientCode')
-                                      ..setAttribute('value', 'WT-1573');*/
+                                      ..setAttribute('value', 'WT-1573');
                                 // for PD
 
                                 // for PY
-                                final paymentFormElement =
+                                /*final paymentFormElement =
                                     html.document.createElement('form')
                                       ..setAttribute('id', 'paymentForm')
                                       ..setAttribute('method', "POST")
@@ -182,7 +183,7 @@ class AdvancePaymentDialog extends StatelessWidget {
                                     html.document.createElement('input')
                                       ..setAttribute('type', 'text')
                                       ..setAttribute('name', 'clientCode')
-                                      ..setAttribute('value', 'WT-2519');
+                                      ..setAttribute('value', 'WT-2519');*/
                                 // for PY
 
                                 paymentFormElement
@@ -191,7 +192,9 @@ class AdvancePaymentDialog extends StatelessWidget {
                                 final walletRequestMessageInput = html.document
                                     .createElement('input')
                                   ..setAttribute('type', 'text')
-                                  ..setAttribute('name', 'collectRequestMessage')
+                                  // for PD: walletRequestMessage
+                                  // for PY: collectRequestMessage
+                                  ..setAttribute('name', 'walletRequestMessage')
                                   ..setAttribute(
                                     'value',
                                     encryptedString,

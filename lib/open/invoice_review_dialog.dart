@@ -6,7 +6,8 @@ import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/api/api.dart';
 import 'package:vardhman_b2b/api/invoice_info.dart';
 import 'package:vardhman_b2b/app/theme_variants.dart';
-import 'package:vardhman_b2b/common/app_url.dart';
+// for PY (appReturnUrl / appCancelUrl)
+// import 'package:vardhman_b2b/common/app_url.dart';
 import 'package:vardhman_b2b/common/payment_log.dart';
 import 'package:vardhman_b2b/common/payment_return.dart';
 import 'package:vardhman_b2b/home/home_controller.dart';
@@ -168,9 +169,10 @@ class InvoiceReviewDialog extends StatelessWidget {
                             paymentReference: '',
                             paymentRemark: '',
                           );
-                          // for PD
-                          /*final plainText =
-                               'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.selectedDiscountedAmount.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in|cancel-url=https://b2b.amefird.in|';*/
+                          // for PD (old ipay2corp gateway)
+                          final plainText =
+                              'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.selectedDiscountedAmount.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in|cancel-url=https://b2b.amefird.in|';
+
                           // for PY
                           // final plainText = {
                           //   "txn-id": receiptNumber,
@@ -192,29 +194,29 @@ class InvoiceReviewDialog extends StatelessWidget {
                           //   "email-id": "",
                           // };
 
-                          final plainText = {
-                            "txn-id": receiptNumber,
-                            "txn-session-id": receiptNumber,
-                            "user-code": "",
-                            "clientCode": "WT-2519",
-                            "txn-amount": invoicesController
-                                .selectedDiscountedAmount
-                                .toStringAsFixed(2),
-                            "txn-datetime": DateFormat('dd/MM/yyyy HH:mm:ss')
-                                .format(DateTime.now()),
-                            "txn-for": "payment",
-                            "payment-mode": "1",
-                            "challan-expiry-date": "",
-
-                            // Back to wherever this app was opened from: the
-                            // dev proxy (localhost:8000, see
-                            // scripts/run_web_payment_test.ps1) locally,
-                            // b2b.amefird.in/vytldev/ when deployed.
-                            "return-url": appReturnUrl,
-                            "cancel-url": appCancelUrl,
-
-                            "email-id": "",
-                          };
+                          // final plainText = {
+                          //   "txn-id": receiptNumber,
+                          //   "txn-session-id": receiptNumber,
+                          //   "user-code": "",
+                          //   "clientCode": "WT-2519",
+                          //   "txn-amount": invoicesController
+                          //       .selectedDiscountedAmount
+                          //       .toStringAsFixed(2),
+                          //   "txn-datetime": DateFormat('dd/MM/yyyy HH:mm:ss')
+                          //       .format(DateTime.now()),
+                          //   "txn-for": "payment",
+                          //   "payment-mode": "1",
+                          //   "challan-expiry-date": "",
+                          //
+                          //   // Back to wherever this app was opened from: the
+                          //   // dev proxy (localhost:8000, see
+                          //   // scripts/run_web_payment_test.ps1) locally,
+                          //   // b2b.amefird.in/vytldev/ when deployed.
+                          //   "return-url": appReturnUrl,
+                          //   "cancel-url": appCancelUrl,
+                          //
+                          //   "email-id": "",
+                          // };
 
                           // 'txn-id=$receiptNumber|txn-datetime=${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}|txn-amount=${invoicesController.selectedDiscountedAmount.toStringAsFixed(2)}|txn-for=payment|wallet-payment-mode=2|return-url=https://b2b.amefird.in/vytldev|cancel-url=https://b2b.amefird.in/vytldev|';
                           // for GITHUB
@@ -228,23 +230,23 @@ class InvoiceReviewDialog extends StatelessWidget {
 
                           if (encryptedString != null) {
                             // for PD
-                            /*final paymentFormElement = html.document
-                                 .createElement('form')
-                               ..setAttribute('id', 'paymentForm')
-                               ..setAttribute('method', "POST")
-                               ..setAttribute(
-                                   'action', "https://generic.ipay2corp.icici.bank.in/gp2c-api/ws/payment") //https://generic.ipay2corp.icicibank.com/gp2c-api/ws/payment
-                               ..setAttribute('target', '_self');
+                            final paymentFormElement = html.document
+                                .createElement('form')
+                              ..setAttribute('id', 'paymentForm')
+                              ..setAttribute('method', "POST")
+                              ..setAttribute('action',
+                                  "https://generic.ipay2corp.icici.bank.in/gp2c-api/ws/payment") //https://generic.ipay2corp.icicibank.com/gp2c-api/ws/payment
+                              ..setAttribute('target', '_self');
 
-                             final walletClientCodeInput =
-                                 html.document.createElement('input')
-                                   ..setAttribute('type', 'text')
-                                   ..setAttribute('name', 'walletClientCode')
-                                   ..setAttribute('value', 'WT-1573');*/
+                            final walletClientCodeInput =
+                                html.document.createElement('input')
+                                  ..setAttribute('type', 'text')
+                                  ..setAttribute('name', 'walletClientCode')
+                                  ..setAttribute('value', 'WT-1573');
                             // for PD
 
                             // for PY
-                            final paymentFormElement =
+                            /*final paymentFormElement =
                                 html.document.createElement('form')
                                   ..setAttribute('id', 'paymentForm')
                                   ..setAttribute('method', "POST")
@@ -256,7 +258,7 @@ class InvoiceReviewDialog extends StatelessWidget {
                                 html.document.createElement('input')
                                   ..setAttribute('type', 'text')
                                   ..setAttribute('name', 'clientCode')
-                                  ..setAttribute('value', 'WT-2519');
+                                  ..setAttribute('value', 'WT-2519');*/
                             // for PY
 
                             paymentFormElement.append(walletClientCodeInput);
@@ -264,7 +266,9 @@ class InvoiceReviewDialog extends StatelessWidget {
                             final walletRequestMessageInput = html.document
                                 .createElement('input')
                               ..setAttribute('type', 'text')
-                              ..setAttribute('name', 'collectRequestMessage')
+                              // for PD: walletRequestMessage
+                              // for PY: collectRequestMessage
+                              ..setAttribute('name', 'walletRequestMessage')
                               ..setAttribute(
                                 'value',
                                 encryptedString,
