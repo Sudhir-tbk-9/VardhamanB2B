@@ -5,6 +5,11 @@
 # build\vytldev_py_<yyyy-MM-dd>.zip for the server.
 # No $ErrorActionPreference = 'Stop': PowerShell 5.1 would treat flutter's
 # stderr warnings as errors; the exit code is checked instead.
+# --no-tree-shake-icons: ships the full icon fonts. A trimmed font holds only
+# the icons of that build; a browser still holding an older trimmed font
+# (same file name, cached) with a newer main.dart.js shows newer icons blank
+# (seen on PY: the New Order badge and the Filters icon). Use the same flag
+# for the PD build.
 
 $root = Split-Path $PSScriptRoot -Parent
 $web = Join-Path $root 'build\web'
@@ -13,7 +18,7 @@ $zip = Join-Path $root "build\vytldev_py_$(Get-Date -Format 'yyyy-MM-dd').zip"
 
 Push-Location $root
 try {
-  flutter build web --release --base-href /vytldev/ --no-wasm-dry-run
+  flutter build web --release --base-href /vytldev/ --no-wasm-dry-run --no-tree-shake-icons
   if ($LASTEXITCODE -ne 0) { throw 'flutter build web failed' }
 
   if (-not (Test-Path (Join-Path $web 'main.dart.js'))) {
