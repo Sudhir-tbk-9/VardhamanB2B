@@ -410,4 +410,133 @@ void main() {
     expect(find.text('Fix row 1'), findsNothing);
     expect(row.canUpload, isTrue);
   });
+
+  Future<void> pumpTcDialog(
+    WidgetTester tester, {
+    required List<ExcelImportRow> rows,
+  }) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: ExcelImportDialog(rows: rows, onRevalidate: () async {}),
+        ),
+      ),
+    );
+  }
+
+  List<ExcelImportRow> rAndOtherRows() => [
+        ExcelImportRow(rowNumber: 1, line: _line(article: 'RS826')),
+        ExcelImportRow(rowNumber: 2, line: _line(article: 'A100')),
+        ExcelImportRow(rowNumber: 3, line: _line(article: 'MAR235')),
+      ];
+
+  // The TC ticks in the grid, one per "R" article line.
+  Finder rowTcBoxes() => find.descendant(
+        of: find.byType(DataTable),
+        matching: find.byType(Checkbox),
+      );
+
+  Checkbox headerTcBox(WidgetTester tester) => tester.widget<Checkbox>(
+        find
+            .descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(Checkbox),
+            )
+            .first,
+      );
+
+  testWidgets(
+      'each "R" line has its own TC tick; lines without an "R" have none',
+      (tester) async {
+    final rows = rAndOtherRows();
+
+    await pumpTcDialog(tester, rows: rows);
+
+    expect(find.text('Tick if TC Required'), findsOneWidget);
+    expect(find.text('(2 "R" article lines)'), findsOneWidget);
+
+    // RS826 and MAR235 only.
+    expect(rowTcBoxes(), findsNWidgets(2));
+    expect(rows.any((row) => row.isTcLine), isFalse);
+
+    // Tick MAR235 alone.
+    await tester.tap(rowTcBoxes().last);
+    await tester.pump();
+
+    expect(rows.map((row) => row.isTcLine), [false, false, true]);
+
+    // Some ticked: the header box shows a dash.
+    expect(headerTcBox(tester).value, isNull);
+
+    // And untick it again.
+    await tester.tap(rowTcBoxes().last);
+    await tester.pump();
+
+    expect(rows.any((row) => row.isTcLine), isFalse);
+    expect(headerTcBox(tester).value, isFalse);
+  });
+
+  testWidgets(
+      'the header box ticks every "R" line at once, then unticks them; one '
+      'can still be unticked on its own', (tester) async {
+    final rows = rAndOtherRows();
+
+    await pumpTcDialog(tester, rows: rows);
+
+    await tester.tap(find.text('Tick if TC Required'));
+    await tester.pump();
+
+    expect(rows.map((row) => row.isTcLine), [true, false, true]);
+    expect(headerTcBox(tester).value, isTrue);
+
+    // RS826 unticked on its own: MAR235 stays a TC line.
+    await tester.tap(rowTcBoxes().first);
+    await tester.pump();
+
+    expect(rows.map((row) => row.isTcLine), [false, false, true]);
+
+    // From a dash, the header box ticks them all again.
+    await tester.tap(find.text('Tick if TC Required'));
+    await tester.pump();
+
+    expect(rows.map((row) => row.isTcLine), [true, false, true]);
+
+    await tester.tap(find.text('Tick if TC Required'));
+    await tester.pump();
+
+    expect(rows.any((row) => row.isTcLine), isFalse);
+  });
+
+  testWidgets(
+      'a TC Required order: the "R" lines start ticked and can be unticked',
+      (tester) async {
+    // As the controller sets them for a TC order.
+    final rows = rAndOtherRows()
+      ..forEach((row) => row.tcRequired = true);
+
+    await pumpTcDialog(tester, rows: rows);
+
+    expect(headerTcBox(tester).value, isTrue);
+    expect(rows.map((row) => row.isTcLine), [true, false, true]);
+
+    await tester.tap(rowTcBoxes().first);
+    await tester.pump();
+
+    expect(rows.map((row) => row.isTcLine), [false, false, true]);
+  });
+
+  testWidgets('no "R" article: no TC Required box and no TC ticks',
+      (tester) async {
+    await pumpTcDialog(
+      tester,
+      rows: [ExcelImportRow(rowNumber: 1, line: _line(article: 'A100'))],
+    );
+
+    expect(find.text('Tick if TC Required'), findsNothing);
+    expect(rowTcBoxes(), findsNothing);
+  });
 }

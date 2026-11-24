@@ -278,6 +278,14 @@ class ExcelImportRow {
   /// without one, as from the form.
   double? unitPrice;
 
+  /// "TC Required" ticked for this line in the import dialog: uploaded as a
+  /// TC line (direct delivery). Only counts for an "R" article ([isTcLine]).
+  bool tcRequired = false;
+
+  /// Uploaded as a TC line: an "R" article with [tcRequired] ticked.
+  bool get isTcLine =>
+      tcRequired && line.article.toUpperCase().contains('R');
+
   /// Whether the last validation found the line valid; it is not checked
   /// again until it is edited.
   bool isChecked = false;

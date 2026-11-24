@@ -1386,6 +1386,12 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       await _validateImportRows(importRows);
 
+      // TC Required per "R" article line, ticked in the dialog (one by one,
+      // or all with the header box). In a TC order they start ticked.
+      for (final row in importRows) {
+        row.tcRequired = isTcLocked;
+      }
+
       // Shown every time: valid lines in green, others in red, and any line
       // can be fixed or deleted before the upload.
       final proceed = await Get.dialog<bool>(
@@ -1788,15 +1794,16 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
+  /// An "R" article line ticked TC Required in the import dialog
+  /// ([ExcelImportRow.isTcLine]) is a TC line; every other line is a normal
+  /// line.
   Future<void> _insertImportRows(List<ExcelImportRow> importRows) async {
     var lineNumber = _lastLineNumber;
 
-    // Lines imported into a TC Required order are TC lines ("R" articles
-    // only, see _validateImportRows); otherwise normal lines.
-    final tcOrder = isTcLocked;
-
     for (final importRow in importRows) {
       final excelLine = importRow.line;
+
+      final isTcImportLine = importRow.isTcLine;
 
       lineNumber++;
 
@@ -1843,8 +1850,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           ticket: catalogItem?.ticket ?? '',
           tex: catalogItem?.tex ?? '',
           unitPrice: drift.Value(importRow.unitPrice),
-          billingType: tcOrder ? 'Plant' : '',
-          remark: tcOrder ? DirectDeliveryTc.tcRequiredRemark : '',
+          billingType: isTcImportLine ? 'Plant' : '',
+          remark: isTcImportLine ? DirectDeliveryTc.tcRequiredRemark : '',
           endUse: '',
           lab: '',
           lineNumber: lineNumber,
@@ -1852,7 +1859,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           orderType: 'BK',
           requestType: '',
           soldTo: _userController.rxUserDetail.value.soldToNumber,
-          colorRemark: tcOrder ? DirectDeliveryTc.tcRequiredRemark : '',
+          colorRemark: isTcImportLine ? DirectDeliveryTc.tcRequiredRemark : '',
           lastUpdated: DateTime.now(),
           qtxFileName: '',
           requestedDate: drift.Value(rxRequestedDate.value),
