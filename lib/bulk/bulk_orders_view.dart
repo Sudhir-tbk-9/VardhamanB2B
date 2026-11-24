@@ -70,11 +70,9 @@ class BulkOrdersView extends StatelessWidget {
               children: [
                 // Only while this tab lists drafts.
                 if (bulkController.rxDraftOrders.isNotEmpty) ...[
-                  ClearDraftsButton(
+                  SelectClearDraftsButton(
                     orderType: 'BK',
-                    confirmTitle: 'Clear all Bulk drafts?',
-                    confirmMessage:
-                        'All ${bulkController.rxDraftOrders.length} Bulk draft order(s) will be deleted.',
+                    typeName: 'Bulk',
                   ),
                   const SizedBox(width: 8),
                 ],

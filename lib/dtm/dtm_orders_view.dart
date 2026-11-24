@@ -70,11 +70,9 @@ class DtmOrdersView extends StatelessWidget {
               children: [
                 // Only while this tab lists drafts.
                 if (dtmController.rxDraftOrders.isNotEmpty) ...[
-                  ClearDraftsButton(
+                  SelectClearDraftsButton(
                     orderType: 'DT',
-                    confirmTitle: 'Clear all DTM drafts?',
-                    confirmMessage:
-                        'All ${dtmController.rxDraftOrders.length} DTM draft order(s) will be deleted.',
+                    typeName: 'DTM',
                   ),
                   const SizedBox(width: 8),
                 ],

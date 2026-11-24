@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:sqlite3/open.dart';
 import 'package:toastification/toastification.dart';
 import 'package:vardhman_b2b/common/clear_drafts.dart';
+import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/segment/segment_controller.dart';
 import 'package:vardhman_b2b/segment/segment_dialog.dart';
@@ -134,6 +135,166 @@ void main() {
 
     expect(await deleteDrafts(), 4);
     expect(await remaining(), {'2002 BK #9'});
+  });
+
+  test('picked drafts: only those orders, all their lines', () async {
+    await addDrafts();
+
+    expect(await deleteDrafts(orderType: 'BK', orderNumbers: {1}), 1);
+    expect(await remaining(), {
+      '1001 BK #2',
+      '1001 DT #3',
+      '1001 LD #4',
+      '2002 BK #9',
+    });
+
+    // Another type's order number is not cleared from this list.
+    expect(await deleteDrafts(orderType: 'BK', orderNumbers: {2, 3}), 1);
+    expect(await remaining(), {'1001 DT #3', '1001 LD #4', '2002 BK #9'});
+  });
+
+  test('the drafts listed in the modal: one per order, with its lines',
+      () async {
+    await addDrafts();
+
+    final drafts = await loadDraftSummaries('BK');
+
+    expect(drafts.map((draft) => draft.orderNumber), unorderedEquals([1, 2]));
+    expect(
+      {for (final draft in drafts) draft.orderNumber: draft.lineCount},
+      {1: 2, 2: 1},
+    );
+    expect(drafts.every((draft) => draft.merchandiser == 'M'), isTrue);
+  });
+
+  Future<Set<int>?> Function() openSelectDialog(
+    WidgetTester tester,
+    List<DraftSummary> drafts,
+  ) {
+    Set<int>? result;
+    var closed = false;
+
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    showSelectDraftsDialog(typeName: 'Bulk', drafts: drafts).then((value) {
+      result = value;
+      closed = true;
+    });
+
+    return () async {
+      await tester.pumpAndSettle();
+
+      expect(closed, isTrue);
+
+      return result;
+    };
+  }
+
+  final someDrafts = [
+    for (final number in [11, 12, 13])
+      DraftSummary(
+        orderNumber: number,
+        lineCount: 2,
+        poNumber: 'PO$number',
+        merchandiser: 'M',
+        lastUpdated: DateTime(2026, 11, 24, 10),
+      ),
+  ];
+
+  bool clearEnabled(WidgetTester tester) =>
+      tester
+          .widget<PrimaryButton>(find.byType(PrimaryButton))
+          .onPressed !=
+      null;
+
+  testWidgets(
+      'the Clear Drafts modal: tick drafts one by one; Clear selected returns '
+      'them', (tester) async {
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: SizedBox())),
+    );
+
+    final closed = openSelectDialog(tester, someDrafts);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clear Bulk drafts'), findsOneWidget);
+    expect(find.text('#11'), findsOneWidget);
+    expect(find.text('PO12'), findsOneWidget);
+    expect(find.text('0 of 3 selected'), findsOneWidget);
+
+    // Nothing ticked: Clear selected is off.
+    expect(clearEnabled(tester), isFalse);
+
+    // Pressing a row tints it lightly, never the theme's solid highlight.
+    final rowInk = tester.widget<InkWell>(
+      find.ancestor(of: find.text('#11'), matching: find.byType(InkWell)),
+    );
+
+    expect(rowInk.highlightColor!.a, lessThan(0.2));
+    expect(rowInk.splashColor!.a, lessThan(0.2));
+
+    await tester.tap(find.text('#11'));
+    await tester.tap(find.text('#13'));
+    await tester.pump();
+
+    expect(find.text('2 of 3 selected'), findsOneWidget);
+    expect(find.text('Clear selected (2)'), findsOneWidget);
+
+    // Ticking again unticks.
+    await tester.tap(find.text('#13'));
+    await tester.pump();
+
+    expect(find.text('1 of 3 selected'), findsOneWidget);
+
+    await tester.tap(find.text('Clear selected (1)'));
+
+    expect(await closed(), {11});
+  });
+
+  testWidgets('Select all ticks every draft in one go, and unticks them',
+      (tester) async {
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: SizedBox())),
+    );
+
+    final closed = openSelectDialog(tester, someDrafts);
+    await tester.pumpAndSettle();
+
+    final selectAll = find.byTooltip('Select all');
+
+    await tester.tap(selectAll);
+    await tester.pump();
+
+    expect(find.text('3 of 3 selected'), findsOneWidget);
+
+    await tester.tap(selectAll);
+    await tester.pump();
+
+    expect(find.text('0 of 3 selected'), findsOneWidget);
+
+    await tester.tap(selectAll);
+    await tester.pump();
+    await tester.tap(find.text('Clear selected (3)'));
+
+    expect(await closed(), {11, 12, 13});
+  });
+
+  testWidgets('Cancel in the Clear Drafts modal clears nothing',
+      (tester) async {
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: SizedBox())),
+    );
+
+    final closed = openSelectDialog(tester, someDrafts);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('#12'));
+    await tester.pump();
+    await tester.tap(find.text('Cancel'));
+
+    expect(await closed(), isNull);
   });
 
   testWidgets('Clear Drafts asks first; Cancel keeps them', (tester) async {

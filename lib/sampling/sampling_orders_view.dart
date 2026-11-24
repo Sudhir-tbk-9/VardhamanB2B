@@ -75,11 +75,9 @@ class SamplingOrdersView extends StatelessWidget {
               children: [
                 // Only while this tab lists drafts.
                 if (samplingController.rxDraftOrders.isNotEmpty) ...[
-                  ClearDraftsButton(
+                  SelectClearDraftsButton(
                     orderType: 'LD',
-                    confirmTitle: 'Clear all Labdip / Sampling drafts?',
-                    confirmMessage:
-                        'All ${samplingController.rxDraftOrders.length} Labdip and Sampling draft order(s) will be deleted (both tabs list them).',
+                    typeName: 'Labdip / Sampling',
                   ),
                   const SizedBox(width: 8),
                 ],
