@@ -50,19 +50,11 @@ void main() {
       fileName: 'Stitch Connect Orders.xlsx',
     );
 
+    // Plain example values: no "..." / "…" after them.
     expect(sheetRows, [
       _header,
-      ['ABC123...', 'ABC', 'XYZ', 'D65,U35', 'A8930', 'P91', '1A2B3…', '123…'],
-      [
-        'ABC123...',
-        'ABC',
-        'XYZ',
-        'U35,INCA',
-        'RP924',
-        'W32117',
-        '1A2B3…',
-        '123…',
-      ],
+      ['ABC123', 'ABC', 'XYZ', 'D65,U35', 'A8930', 'P91', '1A2B3', '123'],
+      ['ABC123', 'ABC', 'XYZ', 'U35,INCA', 'RP924', 'W32117', '1A2B3', '123'],
     ]);
 
     final rows = importRowsFromSheet(sheetRows);
@@ -70,7 +62,9 @@ void main() {
     expect(rows.map((row) => row.rowNumber), [1, 2]);
     expect(rows.map((row) => row.line.article), ['A8930', 'RP924']);
     expect(rows.map((row) => row.line.shade), ['P91', 'W32117']);
+    expect(rows.map((row) => row.line.quantity), [123, 123]);
     expect(rows.every((row) => row.line.uom.isEmpty), isTrue);
+    expect(rows.every((row) => !row.line.hasError), isTrue);
   });
 
   test('the sample layout has no uom column: the UOM is left to the lookup',
