@@ -128,6 +128,11 @@ class _LoginGate extends StatelessWidget {
 
     return Obx(
       () => switch (loginController.rxLoginState.value) {
+        LoginState.unknown => const Scaffold(
+            body: Center(
+              child: VardhmanLoader(message: 'Please wait...'),
+            ),
+          ),
         LoginState.resuming || LoginState.loggedIn => const Scaffold(
             body: Center(
               child: VardhmanLoader(message: 'Taking you back...'),

@@ -26,6 +26,10 @@ import 'package:vardhman_b2b/user/user_controller.dart';
 import 'package:video_player/video_player.dart';
 
 enum LoginState {
+  /// At app start and right after a logout: the saved user is being looked
+  /// up (and JDE asked for a token), so a loader is shown. Showing User ID
+  /// meanwhile, then switching to Password, moved the cursor out of the
+  /// Password field on the web.
   unknown,
   loggedOut,
   otp,
@@ -213,8 +217,9 @@ class LoginController extends GetxController {
     // while logged in: restore the session instead of asking for the password.
     final canRestore = canResume && (isReturning || _hasActiveSession);
 
-    rxLoginState.value =
-        canRestore ? LoginState.resuming : LoginState.loggedOut;
+    // A loader either way until _restoreUser settles on User ID, Password or
+    // the home screen.
+    rxLoginState.value = canRestore ? LoginState.resuming : LoginState.unknown;
 
     // The "Taking you back..." loader shows until this settles, so it must
     // not wait forever on JDE or the local database, nor stop on an error.
@@ -223,6 +228,13 @@ class LoginController extends GetxController {
           .timeout(const Duration(seconds: 45));
     } catch (e, stack) {
       log('Session restore failed: $e', stackTrace: stack);
+
+      // Still on the loader after a logout: on to the login form.
+      if (rxLoginState.value == LoginState.unknown) {
+        rxLoginState.value = rxUserDetail.value == null
+            ? LoginState.loggedOut
+            : LoginState.password;
+      }
 
       if (rxLoginState.value == LoginState.resuming) {
         rxLoginState.value = rxUserDetail.value == null
