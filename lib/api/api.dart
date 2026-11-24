@@ -68,8 +68,8 @@ class Api {
   // for PY
   static final _dio = Dio(
     BaseOptions(
-      // baseUrl: 'https://erptest.vardhmanthreads.in/jderest',
-      baseUrl: 'https://erp.vardhmanthreads.in/jderest',
+      baseUrl: 'https://erptest.vardhmanthreads.in/jderest',
+      // baseUrl: 'https://erp.vardhmanthreads.in/jderest',
       // TODO - Change this as per environment - erpdev / erptest / erp
       headers: {
         // No Connection / Accept-Encoding: browsers refuse to let a page set
@@ -392,22 +392,22 @@ class Api {
 
   static Future<String> generateAndSendOtp(String mobileNumber) async {
     // for PD
-     final String otp = math.Random().nextInt(9999).toString().padLeft(4, '0');
+    //  final String otp = math.Random().nextInt(9999).toString().padLeft(4, '0');
     // for PY
-    // final String otp = '1234';
+    final String otp = '1234';
     //  return otp;
 
-    try {
-      await _dio.post(
-        '/orchestrator/ORCH55_SendOTPB2BPortal',
-        data: {
-          "OTP": otp,
-          "Mobilenumber": mobileNumber,
-        },
-      );
-    } catch (e) {
-      log(e.toString());
-    }
+    // try {
+    //   await _dio.post(
+    //     '/orchestrator/ORCH55_SendOTPB2BPortal',
+    //     data: {
+    //       "OTP": otp,
+    //       "Mobilenumber": mobileNumber,
+    //     },
+    //   );
+    // } catch (e) {
+    //   log(e.toString());
+    // }
 
     return otp;
   }
@@ -3444,8 +3444,8 @@ class Api {
       );
 
       final response = await _dio.post(
-        // '/orchestrator/ORCH_55_EncryptPlainText', // for PY payments
-        '/orchestrator/ORCH55_ICICIEncryptProd', // for PD payments
+        '/orchestrator/ORCH_55_EncryptPlainText', // for PY payments
+        //'/orchestrator/ORCH55_ICICIEncryptProd', // for PD payments
         data: {
           "plainText": plainText,
         },
@@ -3495,13 +3495,12 @@ class Api {
   static Future<String?> getPaymentStatus(String receiptNumber) async {
     try {
       final request = {
-        "walletClientCode": "WT-1573", // for PD
-        // "walletClientCode": "WT-2519", // for PY
+        "walletClientCode": "WT-2519",
         "apiReqFor": "status",
-        "ReceiptNumber": {
-          "txn-id": receiptNumber,
-        }
-        // "ReceiptNumber": "txn-id=$receiptNumber|"
+        // "ReceiptNumber": {
+        //   "txn-id": receiptNumber,
+        // }
+        "ReceiptNumber": "txn-id=$receiptNumber|"
       };
 
       logPayment(
