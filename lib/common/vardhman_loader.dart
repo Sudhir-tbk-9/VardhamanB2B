@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -199,31 +200,37 @@ class _SpoolPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// Covers [child] with a translucent panel and a [VardhmanLoader] while
-/// [isLoading]; fades in and out so short loads do not flash.
+/// Blurs [child] and shows only the animated [VardhmanLoader] over it while
+/// [isLoading]: no panel and no text. The spinner fades in and out so short
+/// loads do not flash.
 ///
-/// The veil is a plain translucent fill rather than a backdrop blur: a blur
-/// has to be recomputed over the whole table on every spinner frame, which
-/// is what made the loader itself stutter.
+/// The blur is on [child] itself ([ImageFiltered]), not a backdrop blur over
+/// the screen: the child's picture is kept in its own layer, so each spinner
+/// frame does not repaint the table under it, which made the loader stutter.
+/// [ImageFiltered.enabled] keeps the same widget tree loading or not, so the
+/// child keeps its state (scroll position, fields).
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
 
   final Widget child;
 
-  final String message;
-
   const LoadingOverlay({
     super.key,
     required this.isLoading,
     required this.child,
-    this.message = 'Fetching from JDE',
   });
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(child: child),
+        Positioned.fill(
+          child: ImageFiltered(
+            enabled: isLoading,
+            imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+            child: RepaintBoundary(child: child),
+          ),
+        ),
         Positioned.fill(
           child: IgnorePointer(
             ignoring: !isLoading,
@@ -232,30 +239,9 @@ class LoadingOverlay extends StatelessWidget {
               duration: const Duration(milliseconds: 250),
               child: isLoading
                   ? ColoredBox(
-                      color: Colors.white.withAlpha(215),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 36,
-                            vertical: 24,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: VardhmanColors.dividerGrey,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: VardhmanColors.red.withAlpha(30),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: VardhmanLoader(message: message),
-                        ),
-                      ),
+                      // A light veil so the blurred screen reads as paused.
+                      color: Colors.white.withAlpha(60),
+                      child: const Center(child: VardhmanLoader()),
                     )
                   : const SizedBox.shrink(),
             ),

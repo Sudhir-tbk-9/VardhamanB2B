@@ -221,7 +221,7 @@ class LoginController extends GetxController {
     // the home screen.
     rxLoginState.value = canRestore ? LoginState.resuming : LoginState.unknown;
 
-    // The "Taking you back..." loader shows until this settles, so it must
+    // The loader shows until this settles, so it must
     // not wait forever on JDE or the local database, nor stop on an error.
     try {
       await _restoreUser(canRestore: canRestore, isReturning: isReturning)

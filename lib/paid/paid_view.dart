@@ -14,7 +14,6 @@ class PaidView extends StatelessWidget {
     return Obx(
       () => LoadingOverlay(
         isLoading: invoicesController.isLoading,
-        message: 'Fetching invoices from JDE',
         child: const PaidInvoicesView(),
       ),
     );

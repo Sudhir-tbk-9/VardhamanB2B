@@ -48,7 +48,7 @@ void main() {
         home: Obx(() => switch (controller.rxLoginState.value) {
               LoginState.unknown => const Scaffold(
                   body: Center(
-                    child: VardhmanLoader(message: 'Please wait...'),
+                    child: VardhmanLoader(),
                   ),
                 ),
               _ => LoginView(),

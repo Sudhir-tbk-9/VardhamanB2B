@@ -32,7 +32,6 @@ class _OpenViewState extends State<OpenView> {
 
           return LoadingOverlay(
             isLoading: invoicesController.isLoading,
-            message: 'Fetching invoices from JDE',
             child: MasterDetailLayout(
               master: OpenInvoicesView(),
               detail: InvoiceReviewView(),
