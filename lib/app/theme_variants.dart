@@ -342,8 +342,11 @@ class ThemeVariants {
       extensions: [
         StatusColors(success: variant.success, warning: variant.warning),
       ],
-      highlightColor: variant.accent,
-      splashColor: variant.primary,
+      // Press feedback on every InkWell (side menu, header buttons and menus,
+      // list rows): light tints of the primary colour. Solid colours here
+      // turned whatever was pressed dark for a moment.
+      highlightColor: variant.primary.withAlpha(28),
+      splashColor: variant.primary.withAlpha(40),
       buttonTheme: ButtonThemeData(buttonColor: variant.primary),
       // Translucent: dropdowns fill the focused button and the selected menu
       // item with this, behind dark text.
