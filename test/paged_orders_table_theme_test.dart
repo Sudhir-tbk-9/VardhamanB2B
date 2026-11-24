@@ -8,6 +8,18 @@ import 'package:vardhman_b2b/constants.dart';
 void main() {
   tearDown(() => ThemeVariants.current = ThemeVariants.defaultVariant);
 
+  test('every theme presses with a light tint, never a solid colour', () {
+    // A solid highlight turned side menu items, header buttons and menu
+    // options dark for a moment while pressed.
+    for (final variant in ThemeVariants.all) {
+      final theme = ThemeVariants.themeData(variant);
+
+      expect(theme.highlightColor.a, lessThan(0.2), reason: variant.id);
+      expect(theme.splashColor.a, lessThan(0.2), reason: variant.id);
+      expect(theme.hoverColor.a, lessThan(0.2), reason: variant.id);
+    }
+  });
+
   test('Thread Spectrum until the user picks a theme', () {
     expect(ThemeVariants.defaultVariant.id, 'thread_spectrum');
     expect(ThemeVariants.current, ThemeVariants.threadSpectrum);
