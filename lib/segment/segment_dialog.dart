@@ -6,20 +6,29 @@ import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/segment/open_draft_order.dart';
 import 'package:vardhman_b2b/segment/segment_controller.dart';
 
-/// Shows the segment dialog when the logged in user has not picked a
-/// segment yet. It cannot be closed without picking one.
+/// Shows the segment dialog right after a login: when the user has not
+/// picked a segment yet, or with the one picked before the logout already
+/// picked ([SegmentController.isLoginConfirmationPending]), to Continue in
+/// it or change it. Not after a page refresh or a payment return. It cannot
+/// be closed without Continue.
 Future<void> showSegmentDialogIfNeeded() async {
-  if (!Get.isRegistered<SegmentController>() ||
-      Get.find<SegmentController>().hasSegment) {
+  if (!Get.isRegistered<SegmentController>()) {
+    return;
+  }
+
+  final segmentController = Get.find<SegmentController>();
+
+  if (segmentController.hasSegment &&
+      !segmentController.isLoginConfirmationPending) {
     return;
   }
 
   await showSegmentDialog();
 }
 
-/// Shows the segment dialog. Once a segment is picked (opened again from
-/// the header button) it can be closed without changing it; before that it
-/// cannot.
+/// Shows the segment dialog. Opened from the header button, with a segment
+/// already in use, it can be closed without changing it. After a login it
+/// cannot: a segment is confirmed with Continue first.
 Future<void> showSegmentDialog() async {
   if (!Get.isRegistered<SegmentController>()) {
     return;
@@ -31,7 +40,8 @@ Future<void> showSegmentDialog() async {
     return;
   }
 
-  final canCancel = segmentController.hasSegment;
+  final canCancel = segmentController.hasSegment &&
+      !segmentController.isLoginConfirmationPending;
 
   final previous = segmentController.segment;
 
@@ -40,7 +50,10 @@ Future<void> showSegmentDialog() async {
   logSegment(canCancel
       ? 'Showing the segment dialog to change '
           '${segmentController.segment!.title}'
-      : 'Showing the segment selection dialog');
+      : segmentController.isLoginConfirmationPending
+          ? 'Showing the segment dialog after login, '
+              '${segmentController.segment!.title} picked'
+          : 'Showing the segment selection dialog');
 
   try {
     // Orders in progress lock the segment: when changing it, to the current
@@ -71,6 +84,10 @@ Future<void> showSegmentDialog() async {
     );
   } finally {
     segmentController.isDialogOpen = false;
+
+    // Continued (or a draft opened from the lock warning): not asked again
+    // until the next login.
+    segmentController.isLoginConfirmationPending = false;
   }
 
   if (canCancel && segmentController.segment == previous) {
@@ -934,7 +951,8 @@ class _DraftOrderLinkState extends State<_DraftOrderLink> {
   }
 }
 
-/// What the pick means, and Continue (OK while the segment is locked).
+/// Continue (OK while the segment is locked), with a hint only before a pick
+/// or while locked.
 class _Footer extends StatelessWidget {
   final AppThemeVariant variant;
 
@@ -955,20 +973,26 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     final picked = this.picked;
 
+    // No line about which articles a picked segment offers.
     final hint = picked == null
         ? 'Pick a segment to continue'
         : isLocked
             ? 'Submit or delete the drafts above to switch segment'
-            : picked == OrderSegment.all
-                ? 'Articles of every segment will be offered'
-                : 'Only ${picked.categories.join(' and ')} articles will be '
-                    'offered';
+            : null;
 
     final button = _ContinueButton(
       variant: variant,
       text: isLocked ? 'OK' : 'Continue',
       onPressed: picked == null ? null : onConfirm,
     );
+
+    if (hint == null) {
+      return LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 480
+            ? button
+            : Align(alignment: Alignment.centerRight, child: button),
+      );
+    }
 
     final hintText = Row(
       mainAxisSize: MainAxisSize.min,

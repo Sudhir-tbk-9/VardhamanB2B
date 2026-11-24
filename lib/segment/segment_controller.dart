@@ -121,6 +121,16 @@ class SegmentController extends GetxController {
   /// Whether the segment dialog is on screen, so it is not opened twice.
   bool isDialogOpen = false;
 
+  /// A new login after the user clicked Logout ([askOnNextLogin]) started in
+  /// [lastSegment]: the segment dialog is shown once with it picked, to
+  /// Continue in it or change it. False after the inactivity logout, a page
+  /// refresh or a payment return, which keep the segment without asking.
+  bool isLoginConfirmationPending = false;
+
+  /// localStorage key prefix, per customer (sold-to): set by [askOnNextLogin]
+  /// and read (then removed) by the next login.
+  static const _askOnLoginKey = 'segmentAskOnLogin';
+
   final DraftOrdersLoader _draftOrdersLoader;
 
   /// Replaces openDraftOrder (segment dialog lock warning), for tests.
@@ -150,7 +160,7 @@ class SegmentController extends GetxController {
     }
 
     // A new login: the segment this customer last picked in this browser,
-    // before logging out. The header button still switches it.
+    // before logging out, picked in the dialog shown after login.
     final lastSegment = this.lastSegment;
 
     if (lastSegment == null) {
@@ -161,8 +171,12 @@ class SegmentController extends GetxController {
 
       _writeStorage(lastSegment.name);
 
+      isLoginConfirmationPending = _takeAskOnLogin();
+
       logSegment('Logged in with ${_describe(lastSegment)}, the segment '
-          'picked in the last session (switch from the header)');
+          'picked in the last session'
+          '${isLoginConfirmationPending ? ': the dialog will show it picked '
+              '(logged out with Logout)' : ' (switch from the header)'}');
     }
   }
 
@@ -272,6 +286,35 @@ class SegmentController extends GetxController {
           segment.name;
     } catch (e) {
       logSegment("Could not save the drafts' segment in localStorage: $e");
+    }
+  }
+
+  /// The user clicked Logout: their next login shows the segment dialog with
+  /// the segment picked last ([isLoginConfirmationPending]). Not called for
+  /// the inactivity logout.
+  void askOnNextLogin() {
+    try {
+      html.window.localStorage['$_askOnLoginKey.${_soldToReader()}'] = 'true';
+
+      logSegment('Logout: the next login shows the segment dialog');
+    } catch (e) {
+      logSegment('Could not save the segment dialog flag: $e');
+    }
+  }
+
+  /// Whether [askOnNextLogin] was called for this customer; removes it, so
+  /// the dialog is shown on one login only.
+  bool _takeAskOnLogin() {
+    try {
+      final key = '$_askOnLoginKey.${_soldToReader()}';
+
+      final isSet = html.window.localStorage[key] == 'true';
+
+      html.window.localStorage.remove(key);
+
+      return isSet;
+    } catch (_) {
+      return false;
     }
   }
 

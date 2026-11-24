@@ -214,8 +214,20 @@ void main() {
     );
   });
 
-  testWidgets('a re-login starts in the segment picked last; it can switch',
-      (tester) async {
+  // A picked card has the check badge in its row.
+  bool isPicked(WidgetTester tester, String title) => find
+      .descendant(
+        of: find
+            .ancestor(of: find.text(title), matching: find.byType(Row))
+            .first,
+        matching: find.byIcon(Icons.check),
+      )
+      .evaluate()
+      .isNotEmpty;
+
+  testWidgets(
+      'after Logout, the next login shows the dialog with the segment '
+      'picked last; Continue keeps it', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -225,17 +237,20 @@ void main() {
           soldToReader: () => soldTo,
         );
 
-    // First session: Speciality picked, then logged out.
-    login().select(OrderSegment.speciality);
+    // First session: Speciality picked, then Logout clicked.
+    login()
+      ..select(OrderSegment.speciality)
+      ..askOnNextLogin();
     SegmentController.clearStored();
 
     // Another customer on this browser has not picked one: asked as before.
     expect(login(soldTo: '2002').hasSegment, isFalse);
 
-    // Next login: straight in with Speciality, no dialog.
+    // Next login: in Speciality, and the dialog shows it picked.
     final controller = Get.put(login());
 
     expect(controller.segment, OrderSegment.speciality);
+    expect(controller.isLoginConfirmationPending, isTrue);
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -248,22 +263,147 @@ void main() {
     showSegmentDialogIfNeeded();
     await tester.pumpAndSettle();
 
-    expect(find.text('Choose your segment'), findsNothing);
-    expect(find.text('SPE · Speciality'), findsOneWidget);
+    expect(find.text('Choose your segment'), findsOneWidget);
+    expect(isPicked(tester, 'Speciality'), isTrue);
+    expect(isPicked(tester, 'Industry'), isFalse);
 
-    // Switched from the header: the login after that starts in Industry.
-    await tester.tap(find.text('SPE · Speciality'));
+    // No line about which articles the segment offers.
+    expect(find.textContaining('will be offered'), findsNothing);
+
+    // Not closed without Continue: no close button, Back and a tap outside
+    // do nothing.
+    expect(find.byTooltip('Close'), findsNothing);
+    await tester.binding.handlePopRoute();
+    await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsOneWidget);
+
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
+    expect(controller.segment, OrderSegment.speciality);
+    expect(controller.isLoginConfirmationPending, isFalse);
+
+    // Shown once per login.
+    showSegmentDialogIfNeeded();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
+
+    // And only on the login right after Logout.
+    SegmentController.clearStored();
+
+    expect(login().isLoginConfirmationPending, isFalse);
+  });
+
+  testWidgets(
+      'after the inactivity logout, the next login starts in the segment '
+      'picked last with no dialog, as before', (tester) async {
+    SegmentController login() => SegmentController(
+          draftOrdersLoader: () async => const [],
+          soldToReader: () => '1001',
+        );
+
+    // Speciality picked, then logged out after 5 minutes idle (no Logout
+    // click, so askOnNextLogin is not called).
+    login().select(OrderSegment.speciality);
+    SegmentController.clearStored();
+
+    final controller = Get.put(login());
+
+    expect(controller.segment, OrderSegment.speciality);
+    expect(controller.isLoginConfirmationPending, isFalse);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: SizedBox())),
+    );
+
+    showSegmentDialogIfNeeded();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
+  });
+
+  testWidgets(
+      'after Logout, the segment can be changed in the login dialog; the '
+      'header still switches it', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    SegmentController login() => SegmentController(
+          draftOrdersLoader: () async => const [],
+          soldToReader: () => '1001',
+        );
+
+    login()
+      ..select(OrderSegment.speciality)
+      ..askOnNextLogin();
+    SegmentController.clearStored();
+
+    final controller = Get.put(login());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          appBar: AppBar(actions: const [SegmentHeaderButton()]),
+        ),
+      ),
+    );
+
+    showSegmentDialogIfNeeded();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Industry'));
     await tester.pump();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(controller.segment, OrderSegment.industry);
+    expect(find.text('IND · Industry'), findsOneWidget);
 
+    // From the header it can be closed without changing it.
+    await tester.tap(find.text('IND · Industry'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Close'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    expect(controller.segment, OrderSegment.industry);
+
+    // The login after that starts in Industry.
     SegmentController.clearStored();
 
     expect(login().segment, OrderSegment.industry);
+  });
+
+  testWidgets('a page refresh or payment return keeps the segment, no dialog',
+      (tester) async {
+    SegmentController login() => SegmentController(
+          draftOrdersLoader: () async => const [],
+          soldToReader: () => '1001',
+        );
+
+    // Picked in this session; not logged out (sessionStorage kept).
+    login().select(OrderSegment.speciality);
+
+    final controller = Get.put(login());
+
+    expect(controller.segment, OrderSegment.speciality);
+    expect(controller.isLoginConfirmationPending, isFalse);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: SizedBox())),
+    );
+
+    showSegmentDialogIfNeeded();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose your segment'), findsNothing);
   });
 
   testWidgets('after a re-login, drafts keep the segment locked',

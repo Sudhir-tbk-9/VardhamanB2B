@@ -7,6 +7,7 @@ import 'package:vardhman_b2b/api/user_address.dart';
 import 'package:vardhman_b2b/constants.dart';
 import 'package:vardhman_b2b/drift/database.dart';
 import 'package:vardhman_b2b/login/login_controller.dart';
+import 'package:vardhman_b2b/segment/segment_controller.dart';
 
 class UserController extends GetxController {
   final _sharedPrefs = Get.find<SharedPreferences>();
@@ -129,7 +130,13 @@ class UserController extends GetxController {
     }
   }
 
+  /// Logout clicked by the user. The next login shows the segment dialog
+  /// with the segment picked last; the inactivity logout does not.
   Future<void> logOut() async {
+    if (Get.isRegistered<SegmentController>()) {
+      Get.find<SegmentController>().askOnNextLogin();
+    }
+
     loginController.lockUser();
   }
 
