@@ -1787,6 +1787,55 @@ class Api {
     }
   }
 
+  /// Whether the JDE item master (F4101) has any item with [value] in
+  /// [controlId] (`F4101.SEG1` for an Article, `F4101.SEG3` for a Shade), on
+  /// its own: any UOM, obsolete or not. One row is enough, so only one is
+  /// asked for. Null when the call fails.
+  static Future<bool?> existsInItemMaster({
+    required String controlId,
+    required String value,
+    String? logLabel,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/v2/dataservice',
+        data: {
+          "targetName": "F4101",
+          "targetType": "table",
+          "dataServiceType": "BROWSE",
+          "returnControlIDs": controlId,
+          "maxPageSize": "1",
+          "query": {
+            "autoFind": true,
+            "condition": [
+              {
+                "controlId": controlId,
+                "operator": "EQUAL",
+                "value": [
+                  {"specialValueId": "LITERAL", "content": value},
+                ],
+              },
+            ]
+          }
+        },
+        options: Options(extra: {if (logLabel != null) 'logLabel': logLabel}),
+      );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final rowset = response.data['fs_DATABROWSE_F4101']['data']['gridData']
+          ['rowset'] as List;
+
+      return rowset.isNotEmpty;
+    } catch (e) {
+      debugPrint('existsInItemMaster $controlId $value error - $e');
+
+      return null;
+    }
+  }
+
   static Future<List<LabdipTableRow>> fetchLabdipTableRows(
       {required List<int> workOrderNumbers}) async {
     final labdipTableRows = <LabdipTableRow>[];

@@ -27,11 +27,14 @@ abstract final class _Status {
 }
 
 /// Shows every imported line in a grid, numbered 1, 2, 3… in display order:
-/// valid lines in green, valid lines with a warning (Article / Shade
-/// combination not found in JDE) in yellow, lines with an error (no
-/// Article, Shade or Quantity, …) in red. Every line can be fixed (and
-/// re-validated against JDE via [onRevalidate]) or deleted. Yes uploads the
-/// green and yellow lines, and is enabled once no red line is left.
+/// valid lines in green, lines with a warning in yellow (a Quantity to fix,
+/// or the Article and Shade in JDE but not together), lines with an error
+/// in red (no Article or Shade, the Article or the Shade not in JDE, …).
+/// Every line can be fixed (and re-validated against JDE via
+/// [onRevalidate]) and deleted from its Fix modal; only the red lines whose
+/// Article or Shade is not in JDE have a Delete button in the grid too. Yes
+/// uploads the green and yellow lines, and is enabled once no red line and
+/// no Quantity to fix is left.
 ///
 /// Pops with `true` for Yes (insert the valid lines) and `false` for No.
 class ExcelImportDialog extends StatefulWidget {
@@ -97,15 +100,25 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
 
     final warningRows = widget.rows.where((row) => row.hasWarning).toList();
 
-    final validCount = total - errorRows.length;
+    // Red lines, and yellow lines with a Quantity to fix.
+    final blockingRows = widget.rows.where((row) => !row.canUpload).toList();
+
+    final validCount = total - blockingRows.length;
+
+    final quantityCount = blockingRows.length - errorRows.length;
 
     final String title;
 
     if (total == 0) {
       title = 'No lines left to upload';
-    } else if (errorRows.isNotEmpty) {
-      title = '${errorRows.length} of $total lines have errors. Fix or '
-          'delete the red lines to upload the other $validCount.';
+    } else if (blockingRows.isNotEmpty) {
+      final what = [
+        if (errorRows.isNotEmpty) 'the red lines',
+        if (quantityCount > 0) 'the quantity of the yellow lines',
+      ].join(' and ');
+
+      title = '${blockingRows.length} of $total lines need fixing. Fix '
+          '$what to upload the other $validCount.';
     } else {
       title = '${total == 1 ? 'Upload the line?' : 'Upload all $total lines?'}'
           '${warningRows.isEmpty ? '' : ' (${warningRows.length} with warnings)'}';
@@ -161,11 +174,12 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
             Get.back(result: false);
           },
         ),
-        // Disabled while a red line is left; yellow lines do not block it.
+        // Disabled while a red line or a Quantity to fix is left; other
+        // yellow lines do not block it.
         PrimaryButton(
           wait: false,
           text: 'Yes',
-          onPressed: errorRows.isNotEmpty || validCount == 0
+          onPressed: blockingRows.isNotEmpty || validCount == 0
               ? null
               : () async {
                   Get.back(result: true);
@@ -302,15 +316,19 @@ class _LinesGrid extends StatelessWidget {
                             label: const Text('Fix'),
                             onPressed: () => onFix(row),
                           ),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: VardhmanColors.darkGrey,
-                              visualDensity: VisualDensity.compact,
+                          // Only for an Article or Shade not in JDE; any
+                          // other line is deleted from its Fix modal.
+                          if (row.isNotFoundInJde)
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: VardhmanColors.darkGrey,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon:
+                                  const Icon(Icons.delete_outline, size: 16),
+                              label: const Text('Delete'),
+                              onPressed: () => onDelete(row),
                             ),
-                            icon: const Icon(Icons.delete_outline, size: 16),
-                            label: const Text('Delete'),
-                            onPressed: () => onDelete(row),
-                          ),
                         ],
                       ),
                     ),
@@ -410,7 +428,7 @@ class _IssuesPanel extends StatelessWidget {
               [
                 if (hasErrors) 'Errors (${errorRows.length})',
                 if (warningRows.isNotEmpty)
-                  'Warnings (${warningRows.length}), uploaded',
+                  'Warnings (${warningRows.length})',
               ].join(' · '),
               style: TextStyle(
                 fontSize: 13,
@@ -440,9 +458,11 @@ class _IssuesPanel extends StatelessWidget {
 }
 
 /// Edits one line. Save writes the edits to the line and re-validates it
-/// against JDE; the dialog closes once the line is valid (a warning does
-/// not keep it open), otherwise it shows the new error so the user can keep
-/// fixing. Delete removes the line from the upload.
+/// against JDE, the Article and the Shade each on its own when they are not
+/// found together. It closes once the line can be uploaded (a warning other
+/// than a Quantity one does not keep it open), otherwise it shows the new
+/// error or warning so the user can keep fixing. Delete removes the line
+/// from the upload: the only Delete for most lines (see [ExcelImportDialog]).
 class _FixLineDialog extends StatefulWidget {
   final ExcelImportRow row;
 
@@ -652,7 +672,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
               return;
             }
 
-            if (row.isValid) {
+            if (row.canUpload) {
               Get.back();
             } else {
               setState(() {});

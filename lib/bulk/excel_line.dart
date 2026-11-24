@@ -229,6 +229,12 @@ class ExcelLine {
   bool get hasError =>
       missingRequiredFields.isNotEmpty || quantityError != null;
 
+  /// What is wrong with the Quantity (none, 0, not a whole number), or
+  /// null. Shown in yellow: fixed in the Fix modal, and the line is not
+  /// uploaded until it is.
+  String? get quantityProblem =>
+      quantityText.isEmpty ? 'Missing Quantity' : quantityError;
+
   bool get isBlank =>
       merchandiser.isEmpty &&
       poNumber.isEmpty &&
@@ -252,14 +258,20 @@ class ExcelImportRow {
 
   ExcelLine line;
 
-  /// Why the line cannot be ordered (no Article, Shade or Quantity, a
-  /// Quantity under 1, an article the order or segment does not take, or a
-  /// UOM to choose), or null. Lines with an error are shown in red and not
-  /// uploaded.
+  /// Why the line cannot be ordered (no Article or Shade, the Article or
+  /// the Shade not in JDE, an article the order or segment does not take,
+  /// or a UOM to choose), or null. Lines with an error are shown in red and
+  /// not uploaded.
   String? error;
 
-  /// A note that does not stop the upload (the Article / Shade combination
-  /// not found in JDE), or null. Shown in yellow; the line is valid.
+  /// Whether [error] is the Article or the Shade, each checked on its own,
+  /// not being in the JDE item master: the only red rows with a Delete
+  /// button in the grid. Other rows are deleted from their Fix modal.
+  bool isNotFoundInJde = false;
+
+  /// Shown in yellow, or null: a Quantity to fix ([ExcelLine.quantityProblem],
+  /// which keeps the line from being uploaded until fixed), or a note that
+  /// does not stop the upload (the Article / Shade combination not found).
   String? warning;
 
   /// JDE unit price, or null when JDE has none: the line is uploaded
@@ -279,6 +291,10 @@ class ExcelImportRow {
   bool get isValid => error == null;
 
   bool get hasWarning => isValid && warning != null;
+
+  /// Not red, and its Quantity is fine: uploaded by Yes. Yes stays off
+  /// while any line cannot be.
+  bool get canUpload => isValid && line.quantityProblem == null;
 }
 
 /// The order lines of an import sheet, numbered 1, 2, 3… in display order

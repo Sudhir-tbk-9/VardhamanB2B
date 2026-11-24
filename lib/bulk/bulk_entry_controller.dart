@@ -1400,7 +1400,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         return;
       }
 
-      final validRows = importRows.where((row) => row.isValid).toList();
+      final validRows = importRows.where((row) => row.canUpload).toList();
 
       await _insertImportRows(validRows);
 
@@ -1417,12 +1417,15 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
   /// Validates every row not already found valid.
   ///
-  /// Red (not uploaded): no Article, Shade or Quantity, a Quantity under 1,
-  /// an article the TC rule or the segment does not allow (as in the form),
-  /// or several UOMs for the Article / Shade (one has to be entered in Fix).
+  /// Red (not uploaded): no Article or Shade; the Article or the Shade, each
+  /// checked on its own, not in the JDE item master (F4101; these rows get a
+  /// Delete button in the grid); an article the TC rule or the segment does
+  /// not allow (as in the form); or several UOMs for the Article / Shade
+  /// (one has to be entered in Fix).
   ///
-  /// Yellow (uploaded): the Article / Shade combination not found in the
-  /// JDE item master (F4101), or no UOM found for it.
+  /// Yellow: no Quantity or one under 1 (fixed in the Fix modal; not
+  /// uploaded until then), or, uploaded as is, the Article and the Shade in
+  /// JDE but not together, or no UOM found for them.
   ///
   /// The UOM comes from the sheet's uom column when it has one, otherwise
   /// it is looked up from the Article and Shade as the form does
@@ -1438,6 +1441,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       }
 
       row.error = null;
+      row.isNotFoundInJde = false;
       row.warning = null;
       row.unitPrice = null;
 
@@ -1461,12 +1465,18 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         '→ ${missingRequiredFields.isEmpty ? 'OK' : 'missing ${missingRequiredFields.join(', ')}'}',
       );
 
-      if (missingRequiredFields.isNotEmpty) {
-        row.error = 'Missing ${missingRequiredFields.join(', ')}';
-      } else if (line.quantityError case final quantityError?) {
-        // A 0 (or not a whole number): not uploaded, as an order line
-        // needs at least 1.
-        row.error = quantityError;
+      // Yellow, not red: fixed in the Fix modal. The line is not uploaded
+      // until then (ExcelImportRow.canUpload), as an order line needs at
+      // least 1. The Article and Shade are still checked.
+      row.warning = line.quantityProblem;
+
+      final missingArticleOrShade = [
+        for (final field in missingRequiredFields)
+          if (field != 'Quantity') field,
+      ];
+
+      if (missingArticleOrShade.isNotEmpty) {
+        row.error = 'Missing ${missingArticleOrShade.join(', ')}';
       } else if (!allowsArticle(line.article)) {
         // A TC Required order takes "R" articles only.
         row.error = 'TC Required order: only articles with an "R"';
@@ -1487,7 +1497,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
 
     for (final row in importRows) {
-      row.isChecked = row.isValid;
+      row.isChecked = row.canUpload;
 
       final warning = row.warning;
 
@@ -1499,13 +1509,14 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       );
     }
 
-    final invalidCount = importRows.where((row) => !row.isValid).length;
+    final invalidCount = importRows.where((row) => !row.canUpload).length;
 
     final warningCount = importRows.where((row) => row.hasWarning).length;
 
     debugPrint(
-      '[BULK IMPORT] ${importRows.length - invalidCount} valid '
-      '($warningCount with warnings), $invalidCount with errors',
+      '[BULK IMPORT] ${importRows.length - invalidCount} to upload, '
+      '$warningCount with warnings, $invalidCount to fix (errors or '
+      'quantity)',
     );
   }
 
@@ -1558,31 +1569,70 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       logLabel: '[BULK IMPORT] Article / Shade check (F4101)',
     );
 
+    String key(String value) => value.trim().toUpperCase();
+
+    // The pairs not found together: is the Article in JDE at all, and the
+    // Shade? Each is checked on its own.
+    final notFoundRows = pairs == null
+        ? const <ExcelImportRow>[]
+        : rowsToCheck
+            .where((row) =>
+                !pairs.contains((key(row.line.article), key(row.line.shade))))
+            .toList();
+
+    final articleExists = await _existsInItemMaster(
+      controlId: 'F4101.SEG1',
+      label: 'Article',
+      values: notFoundRows.map((row) => key(row.line.article)).toSet(),
+    );
+
+    final shadeExists = await _existsInItemMaster(
+      controlId: 'F4101.SEG3',
+      label: 'Shade',
+      values: notFoundRows.map((row) => key(row.line.shade)).toSet(),
+    );
+
     final rowsNeedingUom = <ExcelImportRow>[];
 
     for (final row in rowsToCheck) {
-      final article = row.line.article.trim().toUpperCase();
+      final article = key(row.line.article);
 
-      final shade = row.line.shade.trim().toUpperCase();
+      final shade = key(row.line.shade);
 
       final isFound = pairs != null && pairs.contains((article, shade));
 
+      final String result;
+
       if (pairs == null) {
-        row.warning = 'Could not check the Article / Shade in JDE';
-      } else if (!isFound) {
-        row.warning = 'Article / Shade combination not found in JDE';
+        _addWarning(row, 'Could not check the Article / Shade in JDE');
+
+        result = 'JDE call failed (warning)';
+      } else if (isFound) {
+        result = 'found in F4101';
+      } else {
+        final missing = [
+          if (articleExists[article] == false) 'Article $article',
+          if (shadeExists[shade] == false) 'Shade $shade',
+        ];
+
+        if (missing.isNotEmpty) {
+          // Red, with Delete in the grid.
+          row
+            ..error = '${missing.join(' and ')} not found in JDE'
+            ..isNotFoundInJde = true;
+
+          result = '${missing.join(' and ')} NOT in F4101 (error)';
+        } else {
+          _addWarning(row, 'Article / Shade combination not found in JDE');
+
+          result = 'Article and Shade in F4101, but not together (warning)';
+        }
       }
 
-      // Not found: JDE has no UOM for it either.
+      // Not found together: JDE has no UOM for it either.
       if (row.line.uom.isEmpty && (isFound || pairs == null)) {
         rowsNeedingUom.add(row);
       }
-
-      final result = pairs == null
-          ? 'JDE call failed (warning)'
-          : isFound
-              ? 'found in F4101'
-              : 'NOT found in F4101 (warning)';
 
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} Article "$article" + Shade '
@@ -1621,6 +1671,54 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         ),
       );
     }
+  }
+
+  /// Adds [text] to [row]'s yellow warning, after a Quantity one.
+  void _addWarning(ExcelImportRow row, String text) {
+    final warning = row.warning;
+
+    row.warning = warning == null ? text : '$warning; $text';
+  }
+
+  /// For each of [values], whether the JDE item master has it in
+  /// [controlId] on its own (Api.existsInItemMaster); null when the call
+  /// failed. Asked 10 at a time.
+  Future<Map<String, bool?>> _existsInItemMaster({
+    required String controlId,
+    required String label,
+    required Set<String> values,
+  }) async {
+    final exists = <String, bool?>{};
+
+    final list = values.toList();
+
+    const batchSize = 10;
+
+    for (int i = 0; i < list.length; i += batchSize) {
+      await Future.wait(
+        list.skip(i).take(batchSize).map(
+          (value) async {
+            exists[value] = await Api.existsInItemMaster(
+              controlId: controlId,
+              value: value,
+              logLabel: '[BULK IMPORT] $label check on its own ($controlId '
+                  '= $value)',
+            );
+
+            debugPrint(
+              '[BULK IMPORT] $label "$value" on its own in F4101: '
+              '${switch (exists[value]) {
+                true => 'found',
+                false => 'NOT found',
+                null => 'JDE call failed',
+              }}',
+            );
+          },
+        ),
+      );
+    }
+
+    return exists;
   }
 
   /// The UOM of each of [rows] from its Article and Shade, as the form picks
@@ -1682,7 +1780,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           ..line = row.line.copyWith(uom: uoms.first)
           ..uomLookedUp = true;
       } else if (uoms.isEmpty) {
-        row.warning ??= 'No UOM found in JDE for this Article / Shade';
+        _addWarning(row, 'No UOM found in JDE for this Article / Shade');
       } else {
         row.error = 'Several UOMs for this Article / Shade '
             '(${uoms.join(', ')}): enter one in Fix';
