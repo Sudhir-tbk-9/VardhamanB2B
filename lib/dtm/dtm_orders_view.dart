@@ -147,6 +147,11 @@ class DtmOrdersView extends StatelessWidget {
                             headingRowAlignment: MainAxisAlignment.center,
                           ),
                           DataColumn2(
+                            label: Text('Status'),
+                            size: ColumnSize.S,
+                            headingRowAlignment: MainAxisAlignment.center,
+                          ),
+                          DataColumn2(
                             label: Text('PO Number'),
                             size: ColumnSize.S,
                             headingRowAlignment: MainAxisAlignment.center,
@@ -223,6 +228,15 @@ class DtmOrdersView extends StatelessWidget {
                                       DateFormat('d MMM yy HH:mm').format(
                                         draftTableData.lastUpdated,
                                       ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                const DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Draft',
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -312,6 +326,18 @@ class DtmOrdersView extends StatelessWidget {
                                       ),
                                       style: textStyle,
                                       textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                // Order status from JDE (GetOrderStatus), as in the Bulk list.
+                                DataCell(
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      orderHeaderLine.orderStatus.trim(),
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ),
