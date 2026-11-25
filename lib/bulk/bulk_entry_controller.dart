@@ -1386,8 +1386,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       await _validateImportRows(importRows);
 
-      // TC Required per "R" article line, ticked in the dialog (one by one,
-      // or all with the header box). In a TC order they start ticked.
+      // TC Required, one box for all lines, offered only when every
+      // uploaded line is an "R" article (a TC order needs "R" articles
+      // anyway: the others are red). In a TC order it starts ticked.
+      final tcOffered = isTcLocked || offersTcRequired(importRows);
+
       for (final row in importRows) {
         row.tcRequired = isTcLocked;
       }
@@ -1397,6 +1400,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       final proceed = await Get.dialog<bool>(
         ExcelImportDialog(
           rows: importRows,
+          offersTc: tcOffered,
           onRevalidate: () => _validateImportRows(importRows),
         ),
         barrierDismissible: false,
@@ -1408,7 +1412,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       final validRows = importRows.where((row) => row.canUpload).toList();
 
-      await _insertImportRows(validRows);
+      await _insertImportRows(validRows, tcOffered: tcOffered);
 
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),
@@ -1797,16 +1801,21 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  /// An "R" article line ticked TC Required in the import dialog
-  /// ([ExcelImportRow.isTcLine]) is a TC line; every other line is a normal
-  /// line.
-  Future<void> _insertImportRows(List<ExcelImportRow> importRows) async {
+  /// TC Required ticked in the import dialog ([tcOffered]: the uploaded
+  /// sheet all "R" articles): every line is a TC line. Otherwise, and for a
+  /// sheet of normal or mixed articles, every line is a normal line.
+  Future<void> _insertImportRows(
+    List<ExcelImportRow> importRows, {
+    required bool tcOffered,
+  }) async {
     var lineNumber = _lastLineNumber;
 
     for (final importRow in importRows) {
       final excelLine = importRow.line;
 
-      final isTcImportLine = importRow.isTcLine;
+      // A TC line only when every uploaded line is an "R" article; a
+      // sheet mixed with other articles is a normal order.
+      final isTcImportLine = tcOffered && importRow.isTcLineIn(importRows);
 
       lineNumber++;
 

@@ -310,13 +310,19 @@ class ExcelImportRow {
   /// without one, as from the form.
   double? unitPrice;
 
-  /// "TC Required" ticked for this line in the import dialog: uploaded as a
-  /// TC line (direct delivery). Only counts for an "R" article ([isTcLine]).
+  /// "TC Required" ticked in the import dialog, for all lines at once:
+  /// uploaded as a TC line (direct delivery). Only counts when every line
+  /// of the upload is an "R" article ([isTcLineIn]).
   bool tcRequired = false;
 
-  /// Uploaded as a TC line: an "R" article with [tcRequired] ticked.
-  bool get isTcLine =>
-      tcRequired && line.article.toUpperCase().contains('R');
+  bool get isRArticle => line.article.toUpperCase().contains('R');
+
+  /// Uploaded as a TC line, as one of [rows]: [tcRequired] ticked, and
+  /// every line of [rows] an "R" article ([offersTcRequired]). A sheet that
+  /// mixes in other articles is a normal order: no line is a TC line.
+  bool isTcLineIn(List<ExcelImportRow> rows) =>
+      tcRequired && isRArticle && offersTcRequired(rows);
+
 
   /// Whether the last validation found the line valid; it is not checked
   /// again until it is edited.
@@ -393,3 +399,10 @@ List<ExcelImportRow> importRowsFromSheet(List<List<String>> sheetRows) {
 
   return importRows;
 }
+
+/// Whether the import offers "TC Required": only when every line has an
+/// "R" article. Mixed with other articles, the whole upload is a normal
+/// order (no TC box, no TC ticks).
+/// One box ticks or unticks all lines; no tick per line.
+bool offersTcRequired(List<ExcelImportRow> rows) =>
+    rows.isNotEmpty && rows.every((row) => row.isRArticle);

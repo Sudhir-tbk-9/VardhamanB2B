@@ -4,7 +4,6 @@ import 'package:vardhman_b2b/bulk/excel_line.dart';
 import 'package:vardhman_b2b/common/primary_button.dart';
 import 'package:vardhman_b2b/common/secondary_button.dart';
 import 'package:vardhman_b2b/constants.dart';
-import 'package:vardhman_b2b/orders/direct_delivery_tc.dart';
 import 'package:vardhman_b2b/common/table_header.dart';
 
 /// Light row shades, so the dark text stays readable on them, and the
@@ -37,11 +36,12 @@ abstract final class _Status {
 /// uploads the green and yellow lines, and is enabled once no red line and
 /// no Quantity to fix is left.
 ///
-/// TC Required: each "R" article line has its own tick in the TC column
-/// ([ExcelImportRow.tcRequired]); ticked, it is uploaded as a TC line
-/// (direct delivery, "TC Required"). "Tick if TC Required" in the header
-/// (shown when a line has an "R" article) ticks or unticks all of them at
-/// once. Lines without an "R" are always normal lines.
+/// TC Required, only when every uploaded line has an "R" article
+/// ([offersTc]): one "Tick if TC Required" box in the header, for all lines
+/// at once; ticked, every line is uploaded as a TC line (direct delivery),
+/// unticked, all as normal lines. No box for a sheet of normal articles or
+/// one mixing normal and "R" articles: a normal order. While it is ticked,
+/// Fix only accepts an "R" article in place of an "R" article.
 ///
 /// Pops with `true` for Yes (insert the valid lines) and `false` for No.
 class ExcelImportDialog extends StatefulWidget {
@@ -50,10 +50,15 @@ class ExcelImportDialog extends StatefulWidget {
   /// Re-runs the validation on every line not yet found valid.
   final Future<void> Function() onRevalidate;
 
+  /// Whether the uploaded sheet offers TC Required: every line an "R"
+  /// article ([offersTcRequired]), decided when it is uploaded.
+  final bool offersTc;
+
   const ExcelImportDialog({
     super.key,
     required this.rows,
     required this.onRevalidate,
+    this.offersTc = false,
   });
 
   @override
@@ -65,47 +70,28 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
 
   final _issuesScrollController = ScrollController();
 
-  List<ExcelImportRow> get _rArticleRows => widget.rows
-      .where((row) => DirectDeliveryTc.isRArticle(row.line.article))
-      .toList();
+  /// The TC box is shown: an all "R" sheet, still all "R" (an article
+  /// fixed to a normal one while unticked makes it a normal order).
+  bool get _showsTc => widget.offersTc && offersTcRequired(widget.rows);
 
-  /// The header box: ticked when every "R" line is, a dash when some are.
-  bool? get _allTcState {
-    final rRows = _rArticleRows;
+  /// TC Required ticked: all lines at once, never some.
+  bool get _tcTicked =>
+      _showsTc && widget.rows.every((row) => row.tcRequired);
 
-    final tickedCount = rRows.where((row) => row.tcRequired).length;
-
-    return tickedCount == 0
-        ? false
-        : tickedCount == rRows.length
-            ? true
-            : null;
-  }
-
-  void _logTc() => debugPrint(
-        '[BULK IMPORT] TC Required: '
-        '${widget.rows.where((row) => row.isTcLine).length} of '
-        '${_rArticleRows.length} "R" article line(s) ticked as TC lines, the '
-        'others as normal lines',
-      );
-
-  /// Header box: ticks every "R" line, or unticks them all when all are.
-  void _toggleAllTc() {
-    final tick = _allTcState != true;
+  /// Header box: ticks or unticks every line.
+  void _toggleTc() {
+    final tick = !_tcTicked;
 
     setState(() {
-      for (final row in _rArticleRows) {
+      for (final row in widget.rows) {
         row.tcRequired = tick;
       }
     });
 
-    _logTc();
-  }
-
-  void _toggleTc(ExcelImportRow row) {
-    setState(() => row.tcRequired = !row.tcRequired);
-
-    _logTc();
+    debugPrint(
+      '[BULK IMPORT] TC Required ${tick ? 'ticked' : 'unticked'}: all '
+      '${widget.rows.length} line(s) as ${tick ? 'TC' : 'normal'} lines',
+    );
   }
 
   @override
@@ -125,6 +111,7 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
       _FixLineDialog(
         row: row,
         number: _numberOf(row),
+        rArticleOnly: _tcTicked,
         onRevalidate: widget.onRevalidate,
         onDelete: () => widget.rows.remove(row),
       ),
@@ -174,7 +161,8 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
           '${warningRows.isEmpty ? '' : ' (${warningRows.length} with warnings)'}';
     }
 
-    final rArticleCount = _rArticleRows.length;
+    // Only when every line is an "R" article; mixed, a normal order.
+    final showsTc = _showsTc;
 
     return AlertDialog(
       title: Row(
@@ -185,12 +173,12 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-          if (rArticleCount > 0) ...[
+          if (showsTc) ...[
             const SizedBox(width: 16),
             _TcRequiredBox(
-              value: _allTcState,
-              rArticleCount: rArticleCount,
-              onTap: _toggleAllTc,
+              value: _tcTicked,
+              rArticleCount: total,
+              onTap: _toggleTc,
             ),
           ],
         ],
@@ -212,7 +200,6 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                     controller: _gridScrollController,
                     child: _LinesGrid(
                       rows: widget.rows,
-                      onToggleTc: _toggleTc,
                       onFix: _fix,
                       onDelete: _delete,
                     ),
@@ -257,10 +244,10 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
   }
 }
 
-/// "Tick if TC Required" in the import header: ticks or unticks every "R"
-/// article line at once; a dash when only some are ticked.
+/// "Tick if TC Required" in the import header (every line an "R" article):
+/// ticks or unticks every line at once.
 class _TcRequiredBox extends StatelessWidget {
-  final bool? value;
+  final bool value;
 
   final int rArticleCount;
 
@@ -275,10 +262,9 @@ class _TcRequiredBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Ticks or unticks all $rArticleCount line(s) with an "R" '
-          'article; each can also be ticked on its own in the TC column. '
-          'Ticked lines are uploaded as TC Required (direct delivery), the '
-          'others as normal lines',
+      message: 'Every line has an "R" article. Ticked, all '
+          '$rArticleCount line(s) are uploaded as TC Required (direct '
+          'delivery); unticked, all as normal lines',
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
         onTap: onTap,
@@ -289,7 +275,6 @@ class _TcRequiredBox extends StatelessWidget {
             children: [
               Checkbox(
                 value: value,
-                tristate: true,
                 activeColor: VardhmanColors.red,
                 visualDensity: VisualDensity.compact,
                 onChanged: (_) => onTap(),
@@ -321,16 +306,12 @@ class _TcRequiredBox extends StatelessWidget {
 class _LinesGrid extends StatelessWidget {
   final List<ExcelImportRow> rows;
 
-  /// The row's own TC tick ("R" articles only).
-  final void Function(ExcelImportRow row) onToggleTc;
-
   final void Function(ExcelImportRow row) onFix;
 
   final void Function(ExcelImportRow row) onDelete;
 
   const _LinesGrid({
     required this.rows,
-    required this.onToggleTc,
     required this.onFix,
     required this.onDelete,
   });
@@ -367,7 +348,6 @@ class _LinesGrid extends StatelessWidget {
               column('Buyer'),
               column('Light Source'),
               column('Article'),
-              column('TC'),
               column('Shade'),
               column('UOM'),
               column('Style No.'),
@@ -414,21 +394,6 @@ class _LinesGrid extends StatelessWidget {
                     cell(row.line.buyer),
                     cell(row.line.lightSources),
                     cell(row.line.article),
-                    // The line's own TC Required tick, "R" articles only;
-                    // other lines are always normal lines.
-                    DirectDeliveryTc.isRArticle(row.line.article)
-                        ? DataCell(
-                            Tooltip(
-                              message: 'TC Required for this line',
-                              child: Checkbox(
-                                value: row.tcRequired,
-                                activeColor: VardhmanColors.red,
-                                visualDensity: VisualDensity.compact,
-                                onChanged: (_) => onToggleTc(row),
-                              ),
-                            ),
-                          )
-                        : cell(''),
                     cell(row.line.shade),
                     cell(row.line.uom),
                     cell(row.line.styleNo),
@@ -676,6 +641,10 @@ class _FixLineDialog extends StatefulWidget {
   /// The row's number as shown in the list.
   final int number;
 
+  /// TC Required ticked: the Article can only be replaced with another
+  /// "R" article.
+  final bool rArticleOnly;
+
   final Future<void> Function() onRevalidate;
 
   final VoidCallback onDelete;
@@ -683,6 +652,7 @@ class _FixLineDialog extends StatefulWidget {
   const _FixLineDialog({
     required this.row,
     required this.number,
+    required this.rArticleOnly,
     required this.onRevalidate,
     required this.onDelete,
   });
@@ -817,6 +787,9 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                 _field(
                   label: 'Article',
                   upperCase: true,
+                  helperText: widget.rArticleOnly
+                      ? 'TC Required: "R" articles only'
+                      : null,
                   initialValue: _draft.article,
                   onChanged: (value) =>
                       _draft = _draft.copyWith(article: value.trim()),
@@ -880,6 +853,28 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           text: 'Save & validate',
           onPressed: () async {
             final row = widget.row;
+
+            // TC Required ticked for the sheet: an "R" article only, the
+            // row is left as it was.
+            if (widget.rArticleOnly &&
+                !_draft.article.toUpperCase().contains('R')) {
+              final error = 'TC Required is ticked: the Article can only be '
+                  'replaced with an "R" article (is "${_draft.article}")';
+
+              debugPrint(
+                '[BULK IMPORT] Fix row ${widget.number}: not saved, $error',
+              );
+
+              setState(
+                () => _draftProblems = _DraftProblems(
+                  error: error,
+                  warning: null,
+                  quantityProblem: _draft.quantityProblem,
+                ),
+              );
+
+              return;
+            }
 
             // The row as it was: put back when the edited values fail, so
             // a wrong Shade (or anything else) typed here never reaches the

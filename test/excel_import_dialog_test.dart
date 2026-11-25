@@ -596,9 +596,12 @@ void main() {
     expect(find.textContaining('ZZ9'), findsNothing);
   });
 
+  /// The dialog as the controller shows it: TC Required offered when the
+  /// uploaded sheet is all "R" articles.
   Future<void> pumpTcDialog(
     WidgetTester tester, {
     required List<ExcelImportRow> rows,
+    Future<void> Function()? onRevalidate,
   }) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
@@ -607,121 +610,223 @@ void main() {
     await tester.pumpWidget(
       GetMaterialApp(
         home: Scaffold(
-          body: ExcelImportDialog(rows: rows, onRevalidate: () async {}),
+          body: ExcelImportDialog(
+            rows: rows,
+            offersTc: offersTcRequired(rows),
+            onRevalidate: onRevalidate ?? () async {},
+          ),
         ),
       ),
     );
   }
 
-  List<ExcelImportRow> rAndOtherRows() => [
+  /// Every line an "R" article.
+  List<ExcelImportRow> allRRows() => [
+        ExcelImportRow(rowNumber: 1, line: _line(article: 'RS826')),
+        ExcelImportRow(rowNumber: 2, line: _line(article: 'HR8933')),
+        ExcelImportRow(rowNumber: 3, line: _line(article: 'MAR235')),
+      ];
+
+  /// "R" articles mixed with a normal one (A100).
+  List<ExcelImportRow> mixedRows() => [
         ExcelImportRow(rowNumber: 1, line: _line(article: 'RS826')),
         ExcelImportRow(rowNumber: 2, line: _line(article: 'A100')),
         ExcelImportRow(rowNumber: 3, line: _line(article: 'MAR235')),
       ];
 
-  // The TC ticks in the grid, one per "R" article line.
-  Finder rowTcBoxes() => find.descendant(
-        of: find.byType(DataTable),
+  List<bool> tcLines(List<ExcelImportRow> rows) =>
+      rows.map((row) => row.isTcLineIn(rows)).toList();
+
+  Finder allCheckboxes() => find.descendant(
+        of: find.byType(AlertDialog),
         matching: find.byType(Checkbox),
       );
 
-  Checkbox headerTcBox(WidgetTester tester) => tester.widget<Checkbox>(
-        find
-            .descendant(
-              of: find.byType(AlertDialog),
-              matching: find.byType(Checkbox),
-            )
-            .first,
-      );
+  test('TC Required is offered only when every line is an "R" article', () {
+    expect(offersTcRequired(allRRows()), isTrue);
+    expect(offersTcRequired(mixedRows()), isFalse);
+    expect(offersTcRequired(const []), isFalse);
+
+    // Ticked lines of a mixed sheet still go in as normal lines.
+    final mixed = mixedRows()..forEach((row) => row.tcRequired = true);
+
+    expect(tcLines(mixed), [false, false, false]);
+  });
 
   testWidgets(
-      'each "R" line has its own TC tick; lines without an "R" have none',
-      (tester) async {
-    final rows = rAndOtherRows();
+      'every line an "R" article: one box ticks or unticks all lines, no '
+      'tick per line', (tester) async {
+    final rows = allRRows();
 
     await pumpTcDialog(tester, rows: rows);
 
     expect(find.text('Tick if TC Required'), findsOneWidget);
-    expect(find.text('(2 "R" article lines)'), findsOneWidget);
+    expect(find.text('(3 "R" article lines)'), findsOneWidget);
+    expect(allCheckboxes(), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(DataTable), matching: find.text('TC')),
+      findsNothing,
+    );
+    expect(tcLines(rows), [false, false, false]);
 
-    // RS826 and MAR235 only.
-    expect(rowTcBoxes(), findsNWidgets(2));
-    expect(rows.any((row) => row.isTcLine), isFalse);
-
-    // Tick MAR235 alone.
-    await tester.tap(rowTcBoxes().last);
+    await tester.tap(find.text('Tick if TC Required'));
     await tester.pump();
 
-    expect(rows.map((row) => row.isTcLine), [false, false, true]);
+    expect(tcLines(rows), [true, true, true]);
+    expect(tester.widget<Checkbox>(allCheckboxes()).value, isTrue);
 
-    // Some ticked: the header box shows a dash.
-    expect(headerTcBox(tester).value, isNull);
-
-    // And untick it again.
-    await tester.tap(rowTcBoxes().last);
+    await tester.tap(find.text('Tick if TC Required'));
     await tester.pump();
 
-    expect(rows.any((row) => row.isTcLine), isFalse);
-    expect(headerTcBox(tester).value, isFalse);
+    expect(tcLines(rows), [false, false, false]);
+    expect(tester.widget<Checkbox>(allCheckboxes()).value, isFalse);
   });
 
-  testWidgets(
-      'the header box ticks every "R" line at once, then unticks them; one '
-      'can still be unticked on its own', (tester) async {
-    final rows = rAndOtherRows();
+  testWidgets('a sheet mixing "R" and normal articles: no TC box, normal order',
+      (tester) async {
+    final rows = mixedRows();
 
     await pumpTcDialog(tester, rows: rows);
 
-    await tester.tap(find.text('Tick if TC Required'));
-    await tester.pump();
-
-    expect(rows.map((row) => row.isTcLine), [true, false, true]);
-    expect(headerTcBox(tester).value, isTrue);
-
-    // RS826 unticked on its own: MAR235 stays a TC line.
-    await tester.tap(rowTcBoxes().first);
-    await tester.pump();
-
-    expect(rows.map((row) => row.isTcLine), [false, false, true]);
-
-    // From a dash, the header box ticks them all again.
-    await tester.tap(find.text('Tick if TC Required'));
-    await tester.pump();
-
-    expect(rows.map((row) => row.isTcLine), [true, false, true]);
-
-    await tester.tap(find.text('Tick if TC Required'));
-    await tester.pump();
-
-    expect(rows.any((row) => row.isTcLine), isFalse);
+    expect(find.text('Tick if TC Required'), findsNothing);
+    expect(allCheckboxes(), findsNothing);
+    expect(tcLines(rows), [false, false, false]);
   });
 
   testWidgets(
-      'a TC Required order: the "R" lines start ticked and can be unticked',
+      'a mixed sheet stays a normal order after its normal line is deleted',
       (tester) async {
-    // As the controller sets them for a TC order.
-    final rows = rAndOtherRows()
-      ..forEach((row) => row.tcRequired = true);
+    final rows = mixedRows();
+
+    // A100 not in JDE: Delete in the grid.
+    rows[1]
+      ..error = 'Article A100 not found in JDE'
+      ..isNotFoundInJde = true;
 
     await pumpTcDialog(tester, rows: rows);
 
-    expect(headerTcBox(tester).value, isTrue);
-    expect(rows.map((row) => row.isTcLine), [true, false, true]);
+    final delete = find.descendant(
+      of: find.byType(DataTable),
+      matching: find.text('Delete'),
+    );
 
-    await tester.tap(rowTcBoxes().first);
-    await tester.pump();
+    await tester.ensureVisible(delete);
+    await tester.pumpAndSettle();
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
 
-    expect(rows.map((row) => row.isTcLine), [false, false, true]);
+    // RS826 and MAR235 left, but the uploaded sheet was mixed.
+    expect(rows.length, 2);
+    expect(find.text('Tick if TC Required'), findsNothing);
   });
 
-  testWidgets('no "R" article: no TC Required box and no TC ticks',
-      (tester) async {
+  testWidgets('no "R" article: no TC Required box', (tester) async {
     await pumpTcDialog(
       tester,
       rows: [ExcelImportRow(rowNumber: 1, line: _line(article: 'A100'))],
     );
 
     expect(find.text('Tick if TC Required'), findsNothing);
-    expect(rowTcBoxes(), findsNothing);
+    expect(allCheckboxes(), findsNothing);
+  });
+
+  testWidgets('a TC Required order: the box starts ticked and can be unticked',
+      (tester) async {
+    // As the controller sets them for a TC order.
+    final rows = allRRows()..forEach((row) => row.tcRequired = true);
+
+    await pumpTcDialog(tester, rows: rows);
+
+    expect(tester.widget<Checkbox>(allCheckboxes()).value, isTrue);
+
+    await tester.tap(find.text('Tick if TC Required'));
+    await tester.pump();
+
+    expect(tcLines(rows), [false, false, false]);
+  });
+
+  Future<Finder> openFix(WidgetTester tester, int index) async {
+    final fix = find
+        .descendant(of: find.byType(DataTable), matching: find.text('Fix'))
+        .at(index);
+
+    await tester.ensureVisible(fix);
+    await tester.pumpAndSettle();
+    await tester.tap(fix);
+    await tester.pumpAndSettle();
+
+    return find.descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(TextFormField),
+    );
+  }
+
+  testWidgets(
+      'TC Required ticked: Fix replaces an "R" article only with an "R" '
+      'article', (tester) async {
+    final rows = allRRows();
+
+    var validations = 0;
+
+    await pumpTcDialog(
+      tester,
+      rows: rows,
+      onRevalidate: () async => validations++,
+    );
+
+    await tester.tap(find.text('Tick if TC Required'));
+    await tester.pump();
+
+    var fields = await openFix(tester, 0);
+
+    expect(inFixModal('TC Required: "R" articles only'), findsOneWidget);
+
+    // Article is the 5th field: a normal article is refused.
+    await tester.enterText(fields.at(4), 'A100');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(validations, 0);
+    expect(find.text('Fix row 1'), findsOneWidget);
+    expect(
+      find.textContaining('can only be replaced with an "R" article'),
+      findsOneWidget,
+    );
+    expect(rows.first.line.article, 'RS826');
+
+    // Another "R" article is saved.
+    fields = find.descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(TextFormField),
+    );
+
+    await tester.enterText(fields.at(4), 'RS900');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(validations, 1);
+    expect(find.text('Fix row 1'), findsNothing);
+    expect(rows.first.line.article, 'RS900');
+    expect(tcLines(rows), [true, true, true]);
+  });
+
+  testWidgets(
+      'TC Required unticked: Fix may change to a normal article, and the '
+      'order becomes a normal one', (tester) async {
+    final rows = allRRows();
+
+    await pumpTcDialog(tester, rows: rows);
+
+    final fields = await openFix(tester, 0);
+
+    expect(inFixModal('TC Required: "R" articles only'), findsNothing);
+
+    await tester.enterText(fields.at(4), 'A100');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(rows.first.line.article, 'A100');
+    expect(find.text('Tick if TC Required'), findsNothing);
+    expect(tcLines(rows), [false, false, false]);
   });
 }
