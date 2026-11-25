@@ -432,7 +432,9 @@ class _LinesGrid extends StatelessWidget {
                     cell(row.line.shade),
                     cell(row.line.uom),
                     cell(row.line.styleNo),
-                    cell(row.line.quantity > 0 ? '${row.line.quantity}' : ''),
+                    // As written, so a wrong one ("12.5", "-5", "12a")
+                    // shows what is to fix.
+                    cell(row.line.quantityText),
                     cell(row.unitPrice?.toStringAsFixed(2) ?? ''),
                     DataCell(
                       Row(
@@ -441,7 +443,10 @@ class _LinesGrid extends StatelessWidget {
                           // An icon only, so the buttons stay in view; the
                           // row's shade shows the status too.
                           Tooltip(
-                            message: row.error ?? row.warning ?? 'Valid',
+                            // Every problem, Article / Shade first.
+                            message: row.problems.isEmpty
+                                ? 'Valid'
+                                : row.problems.join('\n'),
                             child: Icon(
                               !isValid
                                   ? Icons.error_outline
@@ -531,8 +536,10 @@ class _IssuesPanel extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
+                // Every problem of the row, Article / Shade first, then
+                // Quantity.
                 'Row ${numberOf(row)} · ${itemNumber.isEmpty ? '-' : itemNumber}'
-                ' — ${isError ? row.error : row.warning}',
+                ' — ${row.problems.join('; ')}',
                 style: TextStyle(fontSize: 12, color: color),
               ),
             ),
@@ -688,9 +695,13 @@ class _FixLineDialogState extends State<_FixLineDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // All of the line's problems, in order: the red Article / Shade error
+    // first, then the yellow JDE note, then the Quantity.
     final error = widget.row.error;
 
-    final warning = widget.row.isValid ? widget.row.warning : null;
+    final warning = widget.row.warning;
+
+    final quantityProblem = widget.row.line.quantityProblem;
 
     return AlertDialog(
       title: Text(
@@ -705,6 +716,8 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           children: [
             if (error != null) _message(error, isError: true),
             if (warning != null) _message(warning, isError: false),
+            if (quantityProblem != null)
+              _message(quantityProblem, isError: false),
             Row(
               children: [
                 _field(

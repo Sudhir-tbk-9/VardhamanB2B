@@ -177,12 +177,16 @@ class ExcelLine {
     );
   }
 
-  static int parseQuantity(String text) {
-    final quantity = num.tryParse(text.trim());
+  /// Digits only: no sign, decimal point, spaces inside, letters or other
+  /// characters (so not "12.5", "-5", "+5", "1e2", "0x10" or "1,000").
+  static final _digitsOnly = RegExp(r'^[0-9]+$');
 
-    return quantity == null || quantity != quantity.truncate()
-        ? 0
-        : quantity.toInt();
+  /// The quantity in [text] when it is digits only, otherwise 0
+  /// ([quantityError] says why).
+  static int parseQuantity(String text) {
+    final trimmed = text.trim();
+
+    return _digitsOnly.hasMatch(trimmed) ? int.tryParse(trimmed) ?? 0 : 0;
   }
 
   ExcelLine copyWith({
@@ -220,18 +224,45 @@ class ExcelLine {
         if (quantityText.isEmpty) 'Quantity',
       ];
 
-  /// Why a Quantity that is given cannot be ordered (0, negative, not a
-  /// whole number), or null. An order line needs at least 1.
-  String? get quantityError => quantityText.isNotEmpty && quantity < 1
-      ? 'Quantity must be at least 1 (is "$quantityText")'
-      : null;
+  /// Why a Quantity that is given cannot be ordered, or null. It must be a
+  /// whole number of at least 1 written with digits only: not negative, no
+  /// decimals, no other characters.
+  String? get quantityError {
+    final text = quantityText.trim();
+
+    if (text.isEmpty) {
+      return null;
+    }
+
+    if (!_digitsOnly.hasMatch(text)) {
+      final isPlainNumber = RegExp(r'^[+-]?[0-9]+(\.[0-9]+)?$').hasMatch(text);
+
+      if (isPlainNumber && text.startsWith('-')) {
+        return 'Quantity cannot be negative (is "$text")';
+      }
+
+      if (isPlainNumber && text.contains('.')) {
+        return 'Quantity must be a whole number, no decimals (is "$text")';
+      }
+
+      return 'Quantity must be numbers only, no other characters '
+          '(is "$text")';
+    }
+
+    if (int.tryParse(text) == null) {
+      return 'Quantity is too large (is "$text")';
+    }
+
+    return quantity < 1 ? 'Quantity must be at least 1 (is "$text")' : null;
+  }
 
   bool get hasError =>
       missingRequiredFields.isNotEmpty || quantityError != null;
 
-  /// What is wrong with the Quantity (none, 0, not a whole number), or
-  /// null. Shown in yellow: fixed in the Fix modal, and the line is not
-  /// uploaded until it is.
+  /// What is wrong with the Quantity (none, 0, negative, decimal, other
+  /// characters), or null. Shown in yellow, after any Article / Shade
+  /// problem: fixed in the Fix modal, and the line is not uploaded until it
+  /// is.
   String? get quantityProblem =>
       quantityText.isEmpty ? 'Missing Quantity' : quantityError;
 
@@ -269,9 +300,10 @@ class ExcelImportRow {
   /// button in the grid. Other rows are deleted from their Fix modal.
   bool isNotFoundInJde = false;
 
-  /// Shown in yellow, or null: a Quantity to fix ([ExcelLine.quantityProblem],
-  /// which keeps the line from being uploaded until fixed), or a note that
-  /// does not stop the upload (the Article / Shade combination not found).
+  /// Shown in yellow, or null: a note from the JDE checks that does not stop
+  /// the upload (the Article / Shade combination not found, no UOM). The
+  /// Quantity problem is not part of it: see [ExcelLine.quantityProblem]
+  /// and [problems].
   String? warning;
 
   /// JDE unit price, or null when JDE has none: the line is uploaded
@@ -298,7 +330,27 @@ class ExcelImportRow {
 
   bool get isValid => error == null;
 
-  bool get hasWarning => isValid && warning != null;
+  /// Yellow: no error, but a JDE note or a Quantity to fix.
+  bool get hasWarning =>
+      isValid && (warning != null || line.quantityProblem != null);
+
+  /// Everything wrong with the line, all checked together and shown
+  /// together, most important first: the red [error] (Article / Shade
+  /// missing or not in JDE, ...), then the yellow JDE [warning], then the
+  /// Quantity problem.
+  List<String> get problems {
+    final error = this.error;
+
+    final warning = this.warning;
+
+    final quantityProblem = line.quantityProblem;
+
+    return [
+      if (error != null) error,
+      if (warning != null) warning,
+      if (quantityProblem != null) quantityProblem,
+    ];
+  }
 
   /// Not red, and its Quantity is fine: uploaded by Yes. Yes stays off
   /// while any line cannot be.

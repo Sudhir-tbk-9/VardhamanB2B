@@ -1471,11 +1471,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         '→ ${missingRequiredFields.isEmpty ? 'OK' : 'missing ${missingRequiredFields.join(', ')}'}',
       );
 
-      // Yellow, not red: fixed in the Fix modal. The line is not uploaded
-      // until then (ExcelImportRow.canUpload), as an order line needs at
-      // least 1. The Article and Shade are still checked.
-      row.warning = line.quantityProblem;
-
+      // The Quantity (ExcelLine.quantityProblem: yellow, fixed in the Fix
+      // modal, the line not uploaded until then) is checked with the
+      // Article and Shade, never instead of them: all the line's problems
+      // are shown together, the Article / Shade first
+      // (ExcelImportRow.problems).
       final missingArticleOrShade = [
         for (final field in missingRequiredFields)
           if (field != 'Quantity') field,
@@ -1505,13 +1505,15 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     for (final row in importRows) {
       row.isChecked = row.canUpload;
 
-      final warning = row.warning;
+      final problems = row.problems;
 
       // One line per row, so a row can be matched to the JDE calls above
-      // (debugPrint, so release builds log too).
+      // (debugPrint, so release builds log too). Problems most important
+      // first: Article / Shade, then Quantity.
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} ${row.line.itemNumber}: '
-        '${row.error ?? 'OK${warning == null ? '' : ' with warning: $warning'}, unit price ${row.unitPrice}'}',
+        '${problems.isEmpty ? 'OK' : '${row.isValid ? 'WARNING' : 'ERROR'}: ${problems.join('; ')}'}'
+        '${row.isValid ? ', unit price ${row.unitPrice}' : ''}',
       );
     }
 
@@ -1679,7 +1681,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  /// Adds [text] to [row]'s yellow warning, after a Quantity one.
+  /// Adds [text] to [row]'s yellow JDE warning (shown before any Quantity
+  /// problem).
   void _addWarning(ExcelImportRow row, String text) {
     final warning = row.warning;
 

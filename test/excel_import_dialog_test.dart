@@ -112,6 +112,76 @@ void main() {
     expect(zero.copyWith(shade: 'S2').quantityError, isNotNull);
   });
 
+  ExcelLine withQuantity(String text) => ExcelLine.fromCells(
+        ['PO1', 'M', 'B', 'D65', 'A100', 'S1', '', text],
+      );
+
+  test(
+      'Quantity: digits only, at least 1; no negative, decimal or other '
+      'characters', () {
+    for (final ok in ['1', '12', '0012', ' 25 ']) {
+      expect(withQuantity(ok).quantityError, isNull, reason: ok);
+    }
+
+    expect(withQuantity('0012').quantity, 12);
+
+    final expected = {
+      '0': 'Quantity must be at least 1 (is "0")',
+      '000': 'Quantity must be at least 1 (is "000")',
+      '-5': 'Quantity cannot be negative (is "-5")',
+      '-2.5': 'Quantity cannot be negative (is "-2.5")',
+      '12.5': 'Quantity must be a whole number, no decimals (is "12.5")',
+      '12.0': 'Quantity must be a whole number, no decimals (is "12.0")',
+      '12a': 'Quantity must be numbers only, no other characters (is "12a")',
+      '+5': 'Quantity must be numbers only, no other characters (is "+5")',
+      '1e2': 'Quantity must be numbers only, no other characters (is "1e2")',
+      '0x10':
+          'Quantity must be numbers only, no other characters (is "0x10")',
+      '1,000':
+          'Quantity must be numbers only, no other characters (is "1,000")',
+      '1 000':
+          'Quantity must be numbers only, no other characters (is "1 000")',
+      'abc': 'Quantity must be numbers only, no other characters (is "abc")',
+    };
+
+    expected.forEach((text, error) {
+      final line = withQuantity(text);
+
+      expect(line.quantityError, error, reason: text);
+      expect(line.quantityProblem, error, reason: text);
+      // Never taken as a quantity.
+      expect(line.quantity, 0, reason: text);
+    });
+  });
+
+  test(
+      'all problems are kept together, Article / Shade first, then the '
+      'Quantity', () {
+    final row = ExcelImportRow(rowNumber: 1, line: withQuantity('12.5'))
+      ..error = 'Article QQ1 and Shade RR2 not found in JDE'
+      ..isNotFoundInJde = true;
+
+    expect(row.problems, [
+      'Article QQ1 and Shade RR2 not found in JDE',
+      'Quantity must be a whole number, no decimals (is "12.5")',
+    ]);
+
+    // Red: the Article / Shade error decides the colour, not the Quantity.
+    expect(row.isValid, isFalse);
+    expect(row.hasWarning, isFalse);
+    expect(row.canUpload, isFalse);
+
+    // A yellow JDE note also comes before the Quantity.
+    final yellow = ExcelImportRow(rowNumber: 2, line: withQuantity('-5'))
+      ..warning = 'Article / Shade combination not found in JDE';
+
+    expect(yellow.problems, [
+      'Article / Shade combination not found in JDE',
+      'Quantity cannot be negative (is "-5")',
+    ]);
+    expect(yellow.hasWarning, isTrue);
+  });
+
   test('Article, Shade and Quantity are the only required fields', () {
     expect(_line().hasError, isFalse);
     expect(_line(poNumber: '').hasError, isFalse);
@@ -164,10 +234,10 @@ void main() {
   });
 
   test('a Quantity problem is yellow and keeps the line from upload', () {
-    final noQuantity = ExcelImportRow(rowNumber: 1, line: _line(quantity: 0))
-      ..warning = 'Missing Quantity';
+    final noQuantity = ExcelImportRow(rowNumber: 1, line: _line(quantity: 0));
 
     expect(noQuantity.line.quantityProblem, 'Missing Quantity');
+    expect(noQuantity.problems, ['Missing Quantity']);
     expect(noQuantity.isValid, isTrue);
     expect(noQuantity.hasWarning, isTrue);
     expect(noQuantity.canUpload, isFalse);
@@ -203,8 +273,7 @@ void main() {
       ExcelImportRow(rowNumber: 2, line: _line(article: 'A200'))
         ..warning = 'Article / Shade combination not found in JDE',
       if (withBlocking) ...[
-        ExcelImportRow(rowNumber: 3, line: _line(quantity: 0))
-          ..warning = 'Missing Quantity',
+        ExcelImportRow(rowNumber: 3, line: _line(quantity: 0)),
         ExcelImportRow(rowNumber: 4, line: _line(shade: 'ZZ9'))
           ..error = 'Shade ZZ9 not found in JDE'
           ..isNotFoundInJde = true,
@@ -321,6 +390,49 @@ void main() {
 
     expect(find.text('Fix row 3'), findsNothing);
     expect(rows.map((row) => row.rowNumber), [1, 2, 4, 5]);
+  });
+
+  testWidgets(
+      'a red row with a bad Quantity too: the Article / Shade error shows '
+      'first, the Quantity under it', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final row = ExcelImportRow(rowNumber: 1, line: withQuantity('12.5'))
+      ..error = 'Article A100 and Shade S1 not found in JDE'
+      ..isNotFoundInJde = true;
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: ExcelImportDialog(rows: [row], onRevalidate: () async {}),
+        ),
+      ),
+    );
+
+    const error = 'Article A100 and Shade S1 not found in JDE';
+    const quantity = 'Quantity must be a whole number, no decimals (is "12.5")';
+
+    // The issues list: one red entry naming both, error first.
+    expect(find.text('Errors (1)'), findsOneWidget);
+    expect(find.textContaining('$error; $quantity'), findsOneWidget);
+
+    // The grid shows the Quantity as written.
+    expect(inGrid('12.5'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Row 1 · '));
+    await tester.pumpAndSettle();
+
+    final errorBox = inFixModal(error);
+    final quantityBox = inFixModal(quantity);
+
+    expect(errorBox, findsOneWidget);
+    expect(quantityBox, findsOneWidget);
+    expect(
+      tester.getTopLeft(errorBox).dy,
+      lessThan(tester.getTopLeft(quantityBox).dy),
+    );
   });
 
   testWidgets('a yellow combination row is deleted from its Fix modal',
