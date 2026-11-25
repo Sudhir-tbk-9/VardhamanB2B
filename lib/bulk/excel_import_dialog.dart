@@ -612,6 +612,58 @@ class _IssuesPanel extends StatelessWidget {
   }
 }
 
+/// What a failed Save & validate found for the Fix modal's edited values.
+class _DraftProblems {
+  final String? error;
+
+  final String? warning;
+
+  final String? quantityProblem;
+
+  const _DraftProblems({this.error, this.warning, this.quantityProblem});
+
+  List<String> get all =>
+      [error, warning, quantityProblem].whereType<String>().toList();
+}
+
+/// A row's values and check results, to put back after a failed Save &
+/// validate.
+class _RowState {
+  final ExcelLine line;
+
+  final String? error;
+
+  final bool isNotFoundInJde;
+
+  final String? warning;
+
+  final double? unitPrice;
+
+  final bool isChecked;
+
+  final bool uomLookedUp;
+
+  _RowState.of(ExcelImportRow row)
+      : line = row.line,
+        error = row.error,
+        isNotFoundInJde = row.isNotFoundInJde,
+        warning = row.warning,
+        unitPrice = row.unitPrice,
+        isChecked = row.isChecked,
+        uomLookedUp = row.uomLookedUp;
+
+  void restore(ExcelImportRow row) {
+    row
+      ..line = line
+      ..error = error
+      ..isNotFoundInJde = isNotFoundInJde
+      ..warning = warning
+      ..unitPrice = unitPrice
+      ..isChecked = isChecked
+      ..uomLookedUp = uomLookedUp;
+  }
+}
+
 /// Edits one line. Save writes the edits to the line and re-validates it
 /// against JDE, the Article and the Shade each on its own when they are not
 /// found together. It closes once the line can be uploaded (a warning other
@@ -641,6 +693,11 @@ class _FixLineDialog extends StatefulWidget {
 
 class _FixLineDialogState extends State<_FixLineDialog> {
   late ExcelLine _draft = widget.row.line;
+
+  /// The problems found for the edited values by the last Save & validate
+  /// that failed; null until then (the row's own problems are shown). The
+  /// row itself keeps its earlier values: Cancel leaves it unchanged.
+  _DraftProblems? _draftProblems;
 
   Widget _field({
     required String label,
@@ -696,12 +753,19 @@ class _FixLineDialogState extends State<_FixLineDialog> {
   @override
   Widget build(BuildContext context) {
     // All of the line's problems, in order: the red Article / Shade error
-    // first, then the yellow JDE note, then the Quantity.
-    final error = widget.row.error;
+    // first, then the yellow JDE note, then the Quantity. After a failed
+    // Save & validate, those of the edited values.
+    final draftProblems = _draftProblems;
 
-    final warning = widget.row.warning;
+    final error =
+        draftProblems == null ? widget.row.error : draftProblems.error;
 
-    final quantityProblem = widget.row.line.quantityProblem;
+    final warning =
+        draftProblems == null ? widget.row.warning : draftProblems.warning;
+
+    final quantityProblem = draftProblems == null
+        ? widget.row.line.quantityProblem
+        : draftProblems.quantityProblem;
 
     return AlertDialog(
       title: Text(
@@ -817,6 +881,11 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           onPressed: () async {
             final row = widget.row;
 
+            // The row as it was: put back when the edited values fail, so
+            // a wrong Shade (or anything else) typed here never reaches the
+            // upload list, also after Cancel.
+            final saved = _RowState.of(row);
+
             // A UOM typed here is kept; an unchanged looked-up one is
             // looked up again for the (maybe fixed) Article and Shade.
             if (_draft.uom != row.line.uom) {
@@ -829,14 +898,31 @@ class _FixLineDialogState extends State<_FixLineDialog> {
 
             await widget.onRevalidate();
 
-            if (!mounted) {
+            if (row.canUpload) {
+              debugPrint('[BULK IMPORT] Fix row ${widget.number}: saved');
+
+              if (mounted) {
+                Get.back();
+              }
+
               return;
             }
 
-            if (row.canUpload) {
-              Get.back();
-            } else {
-              setState(() {});
+            final problems = _DraftProblems(
+              error: row.error,
+              warning: row.warning,
+              quantityProblem: row.line.quantityProblem,
+            );
+
+            saved.restore(row);
+
+            debugPrint(
+              '[BULK IMPORT] Fix row ${widget.number}: not saved, the row '
+              'keeps its values (${problems.all.join('; ')})',
+            );
+
+            if (mounted) {
+              setState(() => _draftProblems = problems);
             }
           },
         ),

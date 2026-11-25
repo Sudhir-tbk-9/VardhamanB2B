@@ -523,6 +523,79 @@ void main() {
     expect(row.canUpload, isTrue);
   });
 
+  testWidgets(
+      'a failed Save & validate keeps the row as it was: Cancel shows the '
+      'old values, not the wrong ones', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    // Valid Article and Shade, a Quantity to fix (yellow).
+    final row = ExcelImportRow(rowNumber: 1, line: _line(quantity: 0));
+
+    // Stands in for the controller: only A100 / S1 exist in JDE.
+    Future<void> revalidate() async {
+      final missing = [
+        if (row.line.article != 'A100') 'Article ${row.line.article}',
+        if (row.line.shade != 'S1') 'Shade ${row.line.shade}',
+      ];
+
+      row
+        ..error = missing.isEmpty
+            ? null
+            : '${missing.join(' and ')} not found in JDE'
+        ..isNotFoundInJde = missing.isNotEmpty;
+    }
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: ExcelImportDialog(rows: [row], onRevalidate: revalidate),
+        ),
+      ),
+    );
+
+    await tester.tap(find.textContaining('Row 1 · '));
+    await tester.pumpAndSettle();
+
+    final fields = find.descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(TextFormField),
+    );
+
+    // A random Shade and a decimal Quantity.
+    await tester.enterText(fields.at(5), 'ZZ9');
+    await tester.enterText(fields.at(8), '2.5');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    // The modal stays open with the edited values' problems, Shade first.
+    expect(find.text('Fix row 1'), findsOneWidget);
+    expect(inFixModal('Shade ZZ9 not found in JDE'), findsOneWidget);
+    expect(
+      inFixModal('Quantity must be a whole number, no decimals (is "2.5")'),
+      findsOneWidget,
+    );
+
+    // The row itself is unchanged: its old Shade, Quantity and status.
+    expect(row.line.shade, 'S1');
+    expect(row.line.quantityText, '');
+    expect(row.isValid, isTrue);
+    expect(row.problems, ['Missing Quantity']);
+
+    await tester.tap(inFixModal('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fix row 1'), findsNothing);
+
+    // The upload list shows the old values, not ZZ9 / 2.5.
+    expect(inGrid('S1'), findsOneWidget);
+    expect(inGrid('ZZ9'), findsNothing);
+    expect(inGrid('2.5'), findsNothing);
+    expect(find.textContaining('Missing Quantity'), findsOneWidget);
+    expect(find.textContaining('ZZ9'), findsNothing);
+  });
+
   Future<void> pumpTcDialog(
     WidgetTester tester, {
     required List<ExcelImportRow> rows,
