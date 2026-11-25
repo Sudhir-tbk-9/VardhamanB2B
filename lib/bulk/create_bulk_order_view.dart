@@ -23,6 +23,7 @@ import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/table_header.dart';
+import 'package:vardhman_b2b/common/light_sources.dart';
 
 class CreateBulkOrderView extends StatelessWidget {
   const CreateBulkOrderView({super.key});
@@ -703,7 +704,7 @@ class CreateBulkOrderView extends StatelessWidget {
               () => DataTable2(
               isHorizontalScrollBarVisible: true,
               isVerticalScrollBarVisible: true,
-              minWidth: 1600,
+              minWidth: 1720,
               columnSpacing: 0,
               showBottomBorder: true,
               border: TableBorder.symmetric(
@@ -746,6 +747,11 @@ class CreateBulkOrderView extends StatelessWidget {
                 DataColumn2(
                   label: OrderDetailColumnLabel(labelText: 'Buyer'),
                   size: ColumnSize.S,
+                  headingRowAlignment: MainAxisAlignment.end,
+                ),
+                DataColumn2(
+                  label: OrderDetailColumnLabel(labelText: 'Light Source'),
+                  size: ColumnSize.M,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
                 DataColumn2(
@@ -851,6 +857,11 @@ class CreateBulkOrderView extends StatelessWidget {
                       DataCell(
                         OrderDetailCell(
                           cellText: bulkOrderLine.buyer,
+                        ),
+                      ),
+                      DataCell(
+                        OrderDetailCell(
+                          cellText: bulkOrderLine.lightSourcesText,
                         ),
                       ),
                       DataCell(

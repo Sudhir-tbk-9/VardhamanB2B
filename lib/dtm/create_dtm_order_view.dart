@@ -23,6 +23,7 @@ import 'package:vardhman_b2b/common/order_form_title.dart';
 import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/table_header.dart';
+import 'package:vardhman_b2b/common/light_sources.dart';
 
 class CreateDtmOrderView extends StatelessWidget {
   const CreateDtmOrderView({super.key});
@@ -628,7 +629,7 @@ class CreateDtmOrderView extends StatelessWidget {
             () => DataTable2(
               isHorizontalScrollBarVisible: true,
               isVerticalScrollBarVisible: true,
-              minWidth: 1600,
+              minWidth: 1720,
               columnSpacing: 0,
               showBottomBorder: true,
               border: TableBorder.symmetric(
@@ -670,6 +671,11 @@ class CreateDtmOrderView extends StatelessWidget {
                 ),
                 DataColumn2(
                   label: OrderDetailColumnLabel(labelText: 'Buyer'),
+                  size: ColumnSize.M,
+                  headingRowAlignment: MainAxisAlignment.end,
+                ),
+                DataColumn2(
+                  label: OrderDetailColumnLabel(labelText: 'Light Source'),
                   size: ColumnSize.M,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
@@ -763,6 +769,11 @@ class CreateDtmOrderView extends StatelessWidget {
                       DataCell(
                         OrderDetailCell(
                           cellText: dtmOrderLine.buyer,
+                        ),
+                      ),
+                      DataCell(
+                        OrderDetailCell(
+                          cellText: dtmOrderLine.lightSourcesText,
                         ),
                       ),
                       DataCell(

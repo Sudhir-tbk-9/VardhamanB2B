@@ -20,6 +20,7 @@ import 'package:vardhman_b2b/orders/order_review_controller.dart';
 import 'package:vardhman_b2b/common/adaptive_row.dart';
 import 'package:vardhman_b2b/common/breakpoints.dart';
 import 'package:vardhman_b2b/common/table_header.dart';
+import 'package:vardhman_b2b/common/light_sources.dart';
 
 class CreateLabdipOrderView extends StatelessWidget {
   const CreateLabdipOrderView({super.key});
@@ -645,7 +646,7 @@ class CreateLabdipOrderView extends StatelessWidget {
               () => DataTable2(
               isHorizontalScrollBarVisible: true,
               isVerticalScrollBarVisible: true,
-              minWidth: 1600,
+              minWidth: 1720,
               columnSpacing: 0,
               showBottomBorder: true,
               border: TableBorder.symmetric(
@@ -686,6 +687,11 @@ class CreateLabdipOrderView extends StatelessWidget {
                 ),
                 DataColumn2(
                   label: OrderDetailColumnLabel(labelText: 'Buyer'),
+                  size: ColumnSize.M,
+                  headingRowAlignment: MainAxisAlignment.end,
+                ),
+                DataColumn2(
+                  label: OrderDetailColumnLabel(labelText: 'Light Source'),
                   size: ColumnSize.M,
                   headingRowAlignment: MainAxisAlignment.end,
                 ),
@@ -779,6 +785,11 @@ class CreateLabdipOrderView extends StatelessWidget {
                       DataCell(
                         OrderDetailCell(
                           cellText: labdipOrderLine.buyer,
+                        ),
+                      ),
+                      DataCell(
+                        OrderDetailCell(
+                          cellText: labdipOrderLine.lightSourcesText,
                         ),
                       ),
                       DataCell(
