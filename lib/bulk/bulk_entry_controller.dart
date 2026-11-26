@@ -1504,7 +1504,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         return;
       }
 
-      final validRows = importRows.where((row) => row.canUpload).toList();
+      // Not the duplicates: Yes is off while any is left.
+      final validRows = importRows.where((row) => row.isUploadable).toList();
 
       await _showImportLoader();
 
@@ -1537,6 +1538,9 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   /// Delete button in the grid); an article the TC rule or the segment does
   /// not allow (as in the form); or several UOMs for the Article / Shade
   /// (one has to be entered in Fix).
+  ///
+  /// Also red: a line with the Article and Shade of an earlier one, as the
+  /// form refuses a duplicate ([markDuplicates]).
   ///
   /// Yellow: no Quantity or one under 1 (fixed in the Fix modal; not
   /// uploaded until then), or, uploaded as is, the Article and the Shade in
@@ -1611,6 +1615,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       await _checkImportRowsInJde(rowsToCheck);
     }
 
+    // As the form, which refuses a line whose Article and Shade the order
+    // already has: a repeat of an earlier line is red (the dialog marks
+    // them again whenever the lines change).
+    final duplicateCount = markDuplicates(importRows);
+
     for (final row in importRows) {
       row.isChecked = row.canUpload;
 
@@ -1621,19 +1630,19 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       // first: Article / Shade, then Quantity.
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} ${row.line.itemNumber}: '
-        '${problems.isEmpty ? 'OK' : '${row.isValid ? 'WARNING' : 'ERROR'}: ${problems.join('; ')}'}'
+        '${problems.isEmpty ? 'OK' : '${row.isRed ? 'ERROR' : 'WARNING'}: ${problems.join('; ')}'}'
         '${row.isValid ? ', unit price ${row.unitPrice}' : ''}',
       );
     }
 
-    final invalidCount = importRows.where((row) => !row.canUpload).length;
+    final invalidCount = importRows.where((row) => !row.isUploadable).length;
 
     final warningCount = importRows.where((row) => row.hasWarning).length;
 
     debugPrint(
       '[BULK IMPORT] ${importRows.length - invalidCount} to upload, '
-      '$warningCount with warnings, $invalidCount to fix (errors or '
-      'quantity)',
+      '$warningCount with warnings, $invalidCount to fix (errors, '
+      '$duplicateCount duplicate(s) or quantity)',
     );
   }
 

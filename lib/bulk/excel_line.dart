@@ -322,6 +322,14 @@ class ExcelImportRow {
   bool isTcLineIn(List<ExcelImportRow> rows) =>
       tcRequired && isRArticle && offersTcRequired(rows);
 
+  /// "Duplicate Article and Shade combination: same as row N" when an
+  /// earlier line of the upload has the same Article and Shade, or null.
+  /// The form refuses such a line too. Red and not uploaded: deleted in
+  /// the grid, all at once with "Delete duplicates", or fixed. Set by
+  /// [markDuplicates] whenever the lines change.
+  String? duplicate;
+
+  bool get isDuplicate => duplicate != null;
 
   /// Whether the last validation found the line valid; it is not checked
   /// again until it is edited.
@@ -333,18 +341,25 @@ class ExcelImportRow {
 
   ExcelImportRow({required this.rowNumber, required this.line});
 
+  /// No [error] of its own (fields and JDE). A [duplicate] is red as well:
+  /// see [isRed].
   bool get isValid => error == null;
 
-  /// Yellow: no error, but a JDE note or a Quantity to fix.
+  /// Shown in red: an [error], or a [duplicate] of an earlier line.
+  bool get isRed => !isValid || isDuplicate;
+
+  /// Yellow: not red, but a JDE note or a Quantity to fix.
   bool get hasWarning =>
-      isValid && (warning != null || line.quantityProblem != null);
+      !isRed && (warning != null || line.quantityProblem != null);
 
   /// Everything wrong with the line, all checked together and shown
   /// together, most important first: the red [error] (Article / Shade
-  /// missing or not in JDE, ...), then the yellow JDE [warning], then the
-  /// Quantity problem.
+  /// missing or not in JDE, ...) and [duplicate], then the yellow JDE
+  /// [warning], then the Quantity problem.
   List<String> get problems {
     final error = this.error;
+
+    final duplicate = this.duplicate;
 
     final warning = this.warning;
 
@@ -352,14 +367,64 @@ class ExcelImportRow {
 
     return [
       if (error != null) error,
+      if (duplicate != null) duplicate,
       if (warning != null) warning,
       if (quantityProblem != null) quantityProblem,
     ];
   }
 
-  /// Not red, and its Quantity is fine: uploaded by Yes. Yes stays off
-  /// while any line cannot be.
+  /// Passes its own checks (no [error], Quantity fine), whatever the other
+  /// lines are: it is not checked against JDE again.
   bool get canUpload => isValid && line.quantityProblem == null;
+
+  /// Uploaded by Yes: [canUpload], and not a [duplicate]. Yes stays off
+  /// while any line is not.
+  bool get isUploadable => canUpload && !isDuplicate;
+}
+
+/// The Article and Shade the form's duplicate check compares (trimmed,
+/// upper case), or null when either is empty.
+(String, String)? _articleShadeOf(ExcelLine line) {
+  final article = line.article.trim().toUpperCase();
+
+  final shade = line.shade.trim().toUpperCase();
+
+  return article.isEmpty || shade.isEmpty ? null : (article, shade);
+}
+
+/// Whether [a] and [b] have the same Article and Shade (both given).
+bool isSameArticleShade(ExcelLine a, ExcelLine b) {
+  final key = _articleShadeOf(a);
+
+  return key != null && key == _articleShadeOf(b);
+}
+
+/// Marks every line of [rows] whose Article and Shade an earlier line
+/// already has ([ExcelImportRow.duplicate], naming that line by its
+/// number as shown: 1, 2, 3…), as the form refuses a line already in the
+/// order; the first of them stays as it is. Returns how many are marked.
+int markDuplicates(List<ExcelImportRow> rows) {
+  final firstIndexOf = <(String, String), int>{};
+
+  var count = 0;
+
+  for (final (index, row) in rows.indexed) {
+    final key = _articleShadeOf(row.line);
+
+    final firstIndex =
+        key == null ? index : firstIndexOf.putIfAbsent(key, () => index);
+
+    row.duplicate = firstIndex == index
+        ? null
+        : 'Duplicate Article and Shade combination: same as row '
+            '${firstIndex + 1}';
+
+    if (row.isDuplicate) {
+      count++;
+    }
+  }
+
+  return count;
 }
 
 /// The order lines of an import sheet, numbered 1, 2, 3… in display order

@@ -273,7 +273,7 @@ void main() {
       ExcelImportRow(rowNumber: 2, line: _line(article: 'A200'))
         ..warning = 'Article / Shade combination not found in JDE',
       if (withBlocking) ...[
-        ExcelImportRow(rowNumber: 3, line: _line(quantity: 0)),
+        ExcelImportRow(rowNumber: 3, line: _line(shade: 'S3', quantity: 0)),
         ExcelImportRow(rowNumber: 4, line: _line(shade: 'ZZ9'))
           ..error = 'Shade ZZ9 not found in JDE'
           ..isNotFoundInJde = true,
@@ -837,5 +837,199 @@ void main() {
     expect(rows.first.line.article, 'A100');
     expect(find.text('Tick if TC Required'), findsNothing);
     expect(tcLines(rows), [false, false, false]);
+  });
+
+  /// Rows 1 and 3 have the same Article and Shade (A100 / S1), as do rows
+  /// 2, 4 and 5 (A200 / S2, the last in lower case).
+  List<ExcelImportRow> duplicateRows() => [
+        ExcelImportRow(rowNumber: 1, line: _line()),
+        ExcelImportRow(rowNumber: 2, line: _line(article: 'A200', shade: 'S2')),
+        ExcelImportRow(rowNumber: 3, line: _line(quantity: 5)),
+        ExcelImportRow(rowNumber: 4, line: _line(article: 'A200', shade: 'S2')),
+        ExcelImportRow(rowNumber: 5, line: _line(article: 'a200 ', shade: 's2')),
+        ExcelImportRow(rowNumber: 6, line: _line(article: 'A300')),
+      ];
+
+  test('a line with the Article and Shade of an earlier one is a duplicate',
+      () {
+    final rows = duplicateRows();
+
+    expect(markDuplicates(rows), 3);
+    expect(rows.map((row) => row.isDuplicate), [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+    ]);
+    expect(
+      rows[2].duplicate,
+      'Duplicate Article and Shade combination: same as row 1',
+    );
+    expect(
+      rows[4].duplicate,
+      'Duplicate Article and Shade combination: same as row 2',
+    );
+    expect(rows[2].isRed, isTrue);
+    expect(rows[2].canUpload, isTrue);
+    expect(rows[2].isUploadable, isFalse);
+    expect(rows[2].problems.first, rows[2].duplicate);
+
+    // Lines without an Article or Shade are not compared.
+    final missing = [
+      ExcelImportRow(rowNumber: 1, line: _line(shade: '')),
+      ExcelImportRow(rowNumber: 2, line: _line(shade: '')),
+    ];
+
+    expect(markDuplicates(missing), 0);
+
+    // The first gone, the next one is the first.
+    rows.removeAt(0);
+
+    expect(markDuplicates(rows), 2);
+    expect(rows.first.isDuplicate, isFalse);
+  });
+
+  Finder duplicatesButton(int count) =>
+      find.text('Delete duplicates ($count)');
+
+  testWidgets(
+      'duplicates are red; Delete duplicates deletes them all, the first of '
+      'each stays, then Yes is on', (tester) async {
+    final rows = duplicateRows();
+
+    await pumpTcDialog(tester, rows: rows);
+
+    expect(duplicatesButton(3), findsOneWidget);
+    expect(rowColor(tester, 2), const Color(0xFFFDECEC));
+    expect(rowColor(tester, 3), const Color(0xFFFDECEC));
+    expect(rowColor(tester, 4), const Color(0xFFFDECEC));
+    expect(rowColor(tester, 0), const Color(0xFFEAF6EC));
+    expect(find.text('Errors (3)'), findsOneWidget);
+    expect(
+      find.textContaining('same as row 1'),
+      findsOneWidget,
+    );
+    expect(inGrid('Delete'), findsNWidgets(3));
+    expect(yesEnabled(tester), isFalse);
+
+    await tester.tap(duplicatesButton(3));
+    await tester.pumpAndSettle();
+
+    expect(rows.map((row) => row.rowNumber), [1, 2, 6]);
+    expect(find.textContaining('Delete duplicates'), findsNothing);
+    expect(find.text('Upload all 3 lines?'), findsOneWidget);
+    expect(yesEnabled(tester), isTrue);
+
+    // Yes has come on: the notice in the middle, gone after a few seconds.
+    expect(find.text('All lines are ready'), findsOneWidget);
+    expect(find.text('Press Yes to upload the 3 lines.'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All lines are ready'), findsNothing);
+    expect(yesEnabled(tester), isTrue);
+  });
+
+  testWidgets(
+      'the ready notice goes when tapped; none when the dialog opens ready',
+      (tester) async {
+    final rows = [
+      ExcelImportRow(rowNumber: 1, line: _line()),
+      ExcelImportRow(rowNumber: 2, line: _line(shade: ''))
+        ..error = 'Missing Shade',
+    ];
+
+    await pumpTcDialog(tester, rows: rows);
+
+    expect(find.text('All lines are ready'), findsNothing);
+
+    await tester.ensureVisible(inGrid('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(inGrid('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All lines are ready'), findsOneWidget);
+    expect(find.text('Press Yes to upload the 1 line.'), findsOneWidget);
+
+    await tester.tap(find.text('All lines are ready'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All lines are ready'), findsNothing);
+  });
+
+  testWidgets('no duplicates: no Delete duplicates button', (tester) async {
+    await pumpTcDialog(tester, rows: allRRows());
+
+    expect(find.textContaining('Delete duplicates'), findsNothing);
+    // Ready from the start: the title says so, no notice.
+    expect(find.text('All lines are ready'), findsNothing);
+  });
+
+  testWidgets(
+      'Fix: an Article and Shade another line has is not saved; another '
+      'Shade clears the duplicate', (tester) async {
+    final rows = [
+      ExcelImportRow(rowNumber: 1, line: _line()),
+      ExcelImportRow(rowNumber: 2, line: _line(shade: 'S2')),
+      ExcelImportRow(rowNumber: 3, line: _line()),
+    ];
+
+    var validations = 0;
+
+    await pumpTcDialog(
+      tester,
+      rows: rows,
+      onRevalidate: () async => validations++,
+    );
+
+    // Row 2 changed to row 1's Shade: refused, the row as it was.
+    var fields = await openFix(tester, 1);
+
+    await tester.enterText(fields.at(5), 'S1');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(validations, 0);
+    expect(find.text('Fix row 2'), findsOneWidget);
+    expect(
+      inFixModal('Duplicate Article and Shade combination: same as row 1'),
+      findsOneWidget,
+    );
+    expect(rows[1].line.shade, 'S2');
+
+    await tester.tap(inFixModal('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Row 3, the duplicate of row 1, shows it in Fix and is saved with a
+    // Shade no line has.
+    fields = await openFix(tester, 2);
+
+    expect(
+      inFixModal('Duplicate Article and Shade combination: same as row 1'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(fields.at(5), 'S3');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(validations, 1);
+    expect(find.text('Fix row 3'), findsNothing);
+    expect(rows[2].line.shade, 'S3');
+    expect(rows[2].isDuplicate, isFalse);
+    expect(yesEnabled(tester), isTrue);
+
+    // Row 1 keeps its Article and Shade when fixed (its Quantity here).
+    fields = await openFix(tester, 0);
+
+    await tester.enterText(fields.at(8), '20');
+    await tester.tap(inFixModal('Save & validate'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fix row 1'), findsNothing);
+    expect(rows.first.line.quantity, 20);
   });
 }

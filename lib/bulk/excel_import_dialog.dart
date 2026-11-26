@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vardhman_b2b/bulk/excel_line.dart';
@@ -42,6 +44,12 @@ abstract final class _Status {
 /// unticked, all as normal lines. No box for a sheet of normal articles or
 /// one mixing normal and "R" articles: a normal order. While it is ticked,
 /// Fix only accepts an "R" article in place of an "R" article.
+///
+/// Duplicates, as the form refuses a line whose Article and Shade the
+/// order already has: a line with the Article and Shade of an earlier line
+/// is red ([markDuplicates]), and "Delete duplicates" in the header deletes
+/// them all at once, the first of each staying. Fix does not save an
+/// Article and Shade another line has.
 ///
 /// Pops with `true` for Yes (insert the valid lines) and `false` for No.
 class ExcelImportDialog extends StatefulWidget {
@@ -94,8 +102,47 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     );
   }
 
+  /// Whether Yes was on at the last build; null before the first.
+  bool? _wasReady;
+
+  /// The "All lines are ready" notice is shown: Yes has just come on.
+  bool _showsReady = false;
+
+  Timer? _readyTimer;
+
+  /// Shows the notice when Yes comes on after a fix or a delete (not when
+  /// the dialog opens with every line ready: its title says so), for a
+  /// few seconds or until tapped.
+  void _noticeReady(bool isReady) {
+    final wasReady = _wasReady;
+
+    _wasReady = isReady;
+
+    if (wasReady == false && isReady) {
+      _showsReady = true;
+
+      _readyTimer?.cancel();
+
+      _readyTimer = Timer(const Duration(seconds: 3), _hideReady);
+
+      debugPrint('[BULK IMPORT] Every line can be uploaded: Yes is on');
+    } else if (!isReady) {
+      _showsReady = false;
+    }
+  }
+
+  void _hideReady() {
+    _readyTimer?.cancel();
+
+    if (mounted && _showsReady) {
+      setState(() => _showsReady = false);
+    }
+  }
+
   @override
   void dispose() {
+    _readyTimer?.cancel();
+
     _gridScrollController.dispose();
 
     _issuesScrollController.dispose();
@@ -112,6 +159,7 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
         row: row,
         number: _numberOf(row),
         rArticleOnly: _tcTicked,
+        duplicateRowNumberOf: (draft) => _duplicateRowNumberOf(row, draft),
         onRevalidate: widget.onRevalidate,
         onDelete: () => widget.rows.remove(row),
       ),
@@ -129,16 +177,54 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     debugPrint('[BULK IMPORT] Row ${row.rowNumber} deleted from the import');
   }
 
+  /// Header "Delete duplicates": every line with the Article and Shade of
+  /// an earlier one; the first of each stays.
+  void _deleteDuplicates() {
+    final duplicates = widget.rows.where((row) => row.isDuplicate).toList();
+
+    setState(() => widget.rows.removeWhere((row) => row.isDuplicate));
+
+    debugPrint(
+      '[BULK IMPORT] ${duplicates.length} duplicate line(s) deleted '
+      '(sheet rows ${duplicates.map((row) => row.rowNumber).join(', ')})',
+    );
+  }
+
+  /// The number (as shown) of another line with [draft]'s Article and
+  /// Shade, which Fix does not save for [row], or null. The first of
+  /// repeated lines may keep its Article and Shade: its repeats are the
+  /// ones marked.
+  int? _duplicateRowNumberOf(ExcelImportRow row, ExcelLine draft) {
+    final isChanged = !isSameArticleShade(draft, row.line);
+
+    final index = widget.rows.indexOf(row);
+
+    for (final (otherIndex, other) in widget.rows.indexed) {
+      if (other != row &&
+          isSameArticleShade(other.line, draft) &&
+          (isChanged || otherIndex < index)) {
+        return otherIndex + 1;
+      }
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Worked out from the lines as they are now (after a delete or a fix).
+    final duplicateCount = markDuplicates(widget.rows);
+
     final total = widget.rows.length;
 
-    final errorRows = widget.rows.where((row) => !row.isValid).toList();
+    // Errors and duplicates.
+    final errorRows = widget.rows.where((row) => row.isRed).toList();
 
     final warningRows = widget.rows.where((row) => row.hasWarning).toList();
 
     // Red lines, and yellow lines with a Quantity to fix.
-    final blockingRows = widget.rows.where((row) => !row.canUpload).toList();
+    final blockingRows =
+        widget.rows.where((row) => !row.isUploadable).toList();
 
     final validCount = total - blockingRows.length;
 
@@ -164,6 +250,10 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     // Only when every line is an "R" article; mixed, a normal order.
     final showsTc = _showsTc;
 
+    final isReady = blockingRows.isEmpty && validCount > 0;
+
+    _noticeReady(isReady);
+
     return AlertDialog(
       title: Row(
         children: [
@@ -173,6 +263,20 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
+          if (duplicateCount > 0) ...[
+            const SizedBox(width: 16),
+            Tooltip(
+              message: 'Deletes the $duplicateCount line(s) whose Article '
+                  'and Shade an earlier line already has; the first of each '
+                  'stays',
+              child: SecondaryButton(
+                wait: false,
+                iconData: Icons.delete_sweep_outlined,
+                text: 'Delete duplicates ($duplicateCount)',
+                onPressed: () async => _deleteDuplicates(),
+              ),
+            ),
+          ],
           if (showsTc) ...[
             const SizedBox(width: 16),
             _TcRequiredBox(
@@ -186,37 +290,28 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
       content: SizedBox(
         width: 1100,
         height: 540,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: VardhmanColors.dividerGrey),
-                ),
-                child: Scrollbar(
-                  controller: _gridScrollController,
-                  child: SingleChildScrollView(
-                    controller: _gridScrollController,
-                    child: _LinesGrid(
-                      rows: widget.rows,
-                      onFix: _fix,
-                      onDelete: _delete,
-                    ),
+            Positioned.fill(child: _content(errorRows, warningRows)),
+            // In the middle, over the lines; taps elsewhere go through.
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !_showsReady,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _showsReady
+                        ? _ReadyNotice(
+                            key: const ValueKey('ready'),
+                            count: validCount,
+                            warningCount: warningRows.length,
+                            onTap: _hideReady,
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
               ),
             ),
-            if (errorRows.isNotEmpty || warningRows.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _IssuesPanel(
-                errorRows: errorRows,
-                warningRows: warningRows,
-                numberOf: _numberOf,
-                scrollController: _issuesScrollController,
-                onFix: _fix,
-              ),
-            ],
           ],
         ),
       ),
@@ -233,13 +328,125 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
         PrimaryButton(
           wait: false,
           text: 'Yes',
-          onPressed: blockingRows.isNotEmpty || validCount == 0
+          onPressed: !isReady
               ? null
               : () async {
                   Get.back(result: true);
                 },
         ),
       ],
+    );
+  }
+
+  Widget _content(
+    List<ExcelImportRow> errorRows,
+    List<ExcelImportRow> warningRows,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: VardhmanColors.dividerGrey),
+            ),
+            child: Scrollbar(
+              controller: _gridScrollController,
+              child: SingleChildScrollView(
+                controller: _gridScrollController,
+                child: _LinesGrid(
+                  rows: widget.rows,
+                  onFix: _fix,
+                  onDelete: _delete,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (errorRows.isNotEmpty || warningRows.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _IssuesPanel(
+            errorRows: errorRows,
+            warningRows: warningRows,
+            numberOf: _numberOf,
+            scrollController: _issuesScrollController,
+            onFix: _fix,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// "All lines are ready": shown in the middle of the import dialog when
+/// Yes comes on after the last fix or delete. Tapped, it goes.
+class _ReadyNotice extends StatelessWidget {
+  /// Lines Yes uploads.
+  final int count;
+
+  /// Of them, yellow lines (uploaded as they are).
+  final int warningCount;
+
+  final VoidCallback onTap;
+
+  const _ReadyNotice({
+    super.key,
+    required this.count,
+    required this.warningCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Material(
+        elevation: 8,
+        color: _Status.validFill,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: _Status.validText, width: 1.2),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: _Status.validText,
+                size: 30,
+              ),
+              const SizedBox(width: 14),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'All lines are ready',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: _Status.validText,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Press Yes to upload the $count line'
+                    '${count == 1 ? '' : 's'}'
+                    '${warningCount == 0 ? '' : ' ($warningCount with warnings)'}'
+                    '.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: VardhmanColors.darkGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -359,7 +566,8 @@ class _LinesGrid extends StatelessWidget {
               ((int, ExcelImportRow) entry) {
                 final (index, row) = entry;
 
-                final isValid = row.isValid;
+                // Red for an error or a duplicate.
+                final isValid = !row.isRed;
 
                 final hasWarning = row.hasWarning;
 
@@ -435,8 +643,8 @@ class _LinesGrid extends StatelessWidget {
                             onPressed: () => onFix(row),
                           ),
                           // On every red line (Article / Shade missing or
-                          // not in JDE); any other line is deleted from its
-                          // Fix modal.
+                          // not in JDE, a duplicate); any other line is
+                          // deleted from its Fix modal.
                           if (!isValid)
                             TextButton.icon(
                               style: TextButton.styleFrom(
@@ -646,6 +854,11 @@ class _FixLineDialog extends StatefulWidget {
   /// "R" article.
   final bool rArticleOnly;
 
+  /// The number of another line with the edited Article and Shade, or
+  /// null: Save & validate does not save a duplicate, as the form does not
+  /// add one.
+  final int? Function(ExcelLine draft) duplicateRowNumberOf;
+
   final Future<void> Function() onRevalidate;
 
   final VoidCallback onDelete;
@@ -654,6 +867,7 @@ class _FixLineDialog extends StatefulWidget {
     required this.row,
     required this.number,
     required this.rArticleOnly,
+    required this.duplicateRowNumberOf,
     required this.onRevalidate,
     required this.onDelete,
   });
@@ -731,6 +945,9 @@ class _FixLineDialogState extends State<_FixLineDialog> {
     final error =
         draftProblems == null ? widget.row.error : draftProblems.error;
 
+    // The row's own duplicate mark, until a Save & validate.
+    final duplicate = draftProblems == null ? widget.row.duplicate : null;
+
     final warning =
         draftProblems == null ? widget.row.warning : draftProblems.warning;
 
@@ -750,6 +967,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (error != null) _message(error, isError: true),
+            if (duplicate != null) _message(duplicate, isError: true),
             if (warning != null) _message(warning, isError: false),
             if (quantityProblem != null)
               _message(quantityProblem, isError: false),
@@ -861,6 +1079,27 @@ class _FixLineDialogState extends State<_FixLineDialog> {
                 !_draft.article.toUpperCase().contains('R')) {
               final error = 'TC Required is ticked: the Article can only be '
                   'replaced with an "R" article (is "${_draft.article}")';
+
+              debugPrint(
+                '[BULK IMPORT] Fix row ${widget.number}: not saved, $error',
+              );
+
+              setState(
+                () => _draftProblems = _DraftProblems(
+                  error: error,
+                  warning: null,
+                  quantityProblem: _draft.quantityProblem,
+                ),
+              );
+
+              return;
+            }
+
+            // As the form: no line with the Article and Shade of another;
+            // the row is left as it was.
+            if (widget.duplicateRowNumberOf(_draft) case final number?) {
+              final error = 'Duplicate Article and Shade combination: same '
+                  'as row $number';
 
               debugPrint(
                 '[BULK IMPORT] Fix row ${widget.number}: not saved, $error',
