@@ -902,11 +902,18 @@ void main() {
     await pumpTcDialog(tester, rows: rows);
 
     expect(duplicatesButton(3), findsOneWidget);
-    expect(rowColor(tester, 2), const Color(0xFFFDECEC));
-    expect(rowColor(tester, 3), const Color(0xFFFDECEC));
-    expect(rowColor(tester, 4), const Color(0xFFFDECEC));
+    // Vibrant orange, not the red of the errors.
+    expect(rowColor(tester, 2), const Color(0xFFFFB74D));
+    expect(rowColor(tester, 3), const Color(0xFFFFB74D));
+    expect(rowColor(tester, 4), const Color(0xFFFFB74D));
     expect(rowColor(tester, 0), const Color(0xFFEAF6EC));
-    expect(find.text('Errors (3)'), findsOneWidget);
+    expect(find.text('Duplicates (3)'), findsOneWidget);
+    expect(find.textContaining('Errors ('), findsNothing);
+    expect(
+      find.text('3 of 6 lines need fixing. Fix the orange duplicates to '
+          'upload the other 3.'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('same as row 1'),
       findsOneWidget,

@@ -26,6 +26,13 @@ abstract final class _Status {
   static const warningBorder = Color(0xFFFFCA28);
 
   static const warningText = Color(0xFF8D6E00);
+
+  /// Duplicates: a vibrant orange, so they stand out from the errors.
+  static const duplicateFill = Color(0xFFFFB74D);
+
+  static const duplicateBorder = Color(0xFFF57C00);
+
+  static const duplicateText = Color(0xFFBF360C);
 }
 
 /// Shows every imported line in a grid, numbered 1, 2, 3… in display order:
@@ -235,8 +242,11 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
     if (total == 0) {
       title = 'No lines left to upload';
     } else if (blockingRows.isNotEmpty) {
+      final redCount = errorRows.length - duplicateCount;
+
       final what = [
-        if (errorRows.isNotEmpty) 'the red lines',
+        if (redCount > 0) 'the red lines',
+        if (duplicateCount > 0) 'the orange duplicates',
         if (quantityCount > 0) 'the quantity of the yellow lines',
       ].join(' and ');
 
@@ -269,11 +279,27 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
               message: 'Deletes the $duplicateCount line(s) whose Article '
                   'and Shade an earlier line already has; the first of each '
                   'stays',
-              child: SecondaryButton(
-                wait: false,
-                iconData: Icons.delete_sweep_outlined,
-                text: 'Delete duplicates ($duplicateCount)',
-                onPressed: () async => _deleteDuplicates(),
+              // Filled in the duplicates' orange, so it stands out.
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _Status.duplicateBorder,
+                  foregroundColor: Colors.white,
+                  elevation: 3,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                icon: const Icon(Icons.delete_sweep, size: 20),
+                label: Text('Delete duplicates ($duplicateCount)'),
+                onPressed: _deleteDuplicates,
               ),
             ),
           ],
@@ -566,14 +592,18 @@ class _LinesGrid extends StatelessWidget {
               ((int, ExcelImportRow) entry) {
                 final (index, row) = entry;
 
-                // Red for an error or a duplicate.
+                // Not uploaded: an error (red) or a duplicate (orange).
                 final isValid = !row.isRed;
+
+                final isDuplicate = row.isDuplicate;
 
                 final hasWarning = row.hasWarning;
 
-                final statusColor = !isValid
-                    ? _Status.errorText
-                    : hasWarning
+                final statusColor = isDuplicate
+                    ? _Status.duplicateText
+                    : !isValid
+                        ? _Status.errorText
+                        : hasWarning
                         ? _Status.warningText
                         : _Status.validText;
 
@@ -588,11 +618,13 @@ class _LinesGrid extends StatelessWidget {
 
                 return DataRow(
                   color: WidgetStatePropertyAll(
-                    !isValid
-                        ? _Status.errorFill
-                        : hasWarning
-                            ? _Status.warningFill
-                            : _Status.validFill,
+                    isDuplicate
+                        ? _Status.duplicateFill
+                        : !isValid
+                            ? _Status.errorFill
+                            : hasWarning
+                                ? _Status.warningFill
+                                : _Status.validFill,
                   ),
                   cells: [
                     // 1, 2, 3… in display order, also after a delete.
@@ -621,9 +653,11 @@ class _LinesGrid extends StatelessWidget {
                                 ? 'Valid'
                                 : row.problems.join('\n'),
                             child: Icon(
-                              !isValid
-                                  ? Icons.error_outline
-                                  : hasWarning
+                              isDuplicate
+                                  ? Icons.content_copy
+                                  : !isValid
+                                      ? Icons.error_outline
+                                      : hasWarning
                                       ? Icons.warning_amber_rounded
                                       : Icons.check_circle,
                               size: 16,
@@ -635,7 +669,7 @@ class _LinesGrid extends StatelessWidget {
                             style: TextButton.styleFrom(
                               foregroundColor: isValid
                                   ? VardhmanColors.darkGrey
-                                  : _Status.errorText,
+                                  : statusColor,
                               visualDensity: VisualDensity.compact,
                             ),
                             icon: const Icon(Icons.edit, size: 16),
@@ -643,8 +677,8 @@ class _LinesGrid extends StatelessWidget {
                             onPressed: () => onFix(row),
                           ),
                           // On every red line (Article / Shade missing or
-                          // not in JDE, a duplicate); any other line is
-                          // deleted from its Fix modal.
+                          // not in JDE) and orange duplicate; any other
+                          // line is deleted from its Fix modal.
                           if (!isValid)
                             TextButton.icon(
                               style: TextButton.styleFrom(
@@ -692,7 +726,11 @@ class _IssuesPanel extends StatelessWidget {
   });
 
   Widget _issue(ExcelImportRow row, {required bool isError}) {
-    final color = isError ? _Status.errorText : _Status.warningText;
+    final color = row.isDuplicate
+        ? _Status.duplicateText
+        : isError
+            ? _Status.errorText
+            : _Status.warningText;
 
     final itemNumber = row.line.itemNumber.trim();
 
@@ -703,7 +741,11 @@ class _IssuesPanel extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              isError ? Icons.error_outline : Icons.warning_amber_rounded,
+              row.isDuplicate
+                  ? Icons.content_copy
+                  : isError
+                      ? Icons.error_outline
+                      : Icons.warning_amber_rounded,
               size: 14,
               color: color,
             ),
@@ -737,6 +779,11 @@ class _IssuesPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasErrors = errorRows.isNotEmpty;
 
+    // Of the red lines, the orange duplicates, counted on their own.
+    final duplicateCount = errorRows.where((row) => row.isDuplicate).length;
+
+    final redCount = errorRows.length - duplicateCount;
+
     return Container(
       constraints: const BoxConstraints(maxHeight: 150),
       decoration: BoxDecoration(
@@ -755,7 +802,8 @@ class _IssuesPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
             child: Text(
               [
-                if (hasErrors) 'Errors (${errorRows.length})',
+                if (redCount > 0) 'Errors ($redCount)',
+                if (duplicateCount > 0) 'Duplicates ($duplicateCount)',
                 if (warningRows.isNotEmpty)
                   'Warnings (${warningRows.length})',
               ].join(' · '),
@@ -790,14 +838,23 @@ class _IssuesPanel extends StatelessWidget {
 class _DraftProblems {
   final String? error;
 
+  /// Another line has the edited Article and Shade (shown in orange).
+  final String? duplicate;
+
   final String? warning;
 
   final String? quantityProblem;
 
-  const _DraftProblems({this.error, this.warning, this.quantityProblem});
+  const _DraftProblems({
+    this.error,
+    this.duplicate,
+    this.warning,
+    this.quantityProblem,
+  });
 
-  List<String> get all =>
-      [error, warning, quantityProblem].whereType<String>().toList();
+  List<String> get all => [error, duplicate, warning, quantityProblem]
+      .whereType<String>()
+      .toList();
 }
 
 /// A row's values and check results, to put back after a failed Save &
@@ -912,14 +969,26 @@ class _FixLineDialogState extends State<_FixLineDialog> {
     );
   }
 
-  Widget _message(String text, {required bool isError}) {
+  Widget _message(
+    String text, {
+    required bool isError,
+    bool isDuplicate = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(8),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isError ? _Status.errorFill : _Status.warningFill,
+        color: isDuplicate
+            ? _Status.duplicateFill
+            : isError
+                ? _Status.errorFill
+                : _Status.warningFill,
         border: Border.all(
-          color: isError ? _Status.errorBorder : _Status.warningBorder,
+          color: isDuplicate
+              ? _Status.duplicateBorder
+              : isError
+                  ? _Status.errorBorder
+                  : _Status.warningBorder,
           width: 0.8,
         ),
         borderRadius: BorderRadius.circular(6),
@@ -928,7 +997,11 @@ class _FixLineDialogState extends State<_FixLineDialog> {
         text,
         style: TextStyle(
           fontSize: 13,
-          color: isError ? _Status.errorText : _Status.warningText,
+          color: isDuplicate
+              ? _Status.duplicateText
+              : isError
+                  ? _Status.errorText
+                  : _Status.warningText,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -945,8 +1018,11 @@ class _FixLineDialogState extends State<_FixLineDialog> {
     final error =
         draftProblems == null ? widget.row.error : draftProblems.error;
 
-    // The row's own duplicate mark, until a Save & validate.
-    final duplicate = draftProblems == null ? widget.row.duplicate : null;
+    // The row's own duplicate mark; after a Save & validate, the edited
+    // values' one.
+    final duplicate = draftProblems == null
+        ? widget.row.duplicate
+        : draftProblems.duplicate;
 
     final warning =
         draftProblems == null ? widget.row.warning : draftProblems.warning;
@@ -967,7 +1043,8 @@ class _FixLineDialogState extends State<_FixLineDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (error != null) _message(error, isError: true),
-            if (duplicate != null) _message(duplicate, isError: true),
+            if (duplicate != null)
+              _message(duplicate, isError: true, isDuplicate: true),
             if (warning != null) _message(warning, isError: false),
             if (quantityProblem != null)
               _message(quantityProblem, isError: false),
@@ -1107,8 +1184,7 @@ class _FixLineDialogState extends State<_FixLineDialog> {
 
               setState(
                 () => _draftProblems = _DraftProblems(
-                  error: error,
-                  warning: null,
+                  duplicate: error,
                   quantityProblem: _draft.quantityProblem,
                 ),
               );
