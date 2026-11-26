@@ -1139,7 +1139,6 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       rxShade.value != '' ||
       rxColor.value != '' ||
       rxQuantity.value != '' ||
-      rxRequestedDate.value != null ||
       rxRemark.value != '' ||
       rxPoNumber.value != '' ||
       rxPoFileName.value != '';

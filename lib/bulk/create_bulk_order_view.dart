@@ -75,7 +75,9 @@ class CreateBulkOrderView extends StatelessWidget {
                         // The modal stays open: its lines are gone (the draft is
                         // deleted) and the form is cleared, as with Clear Inputs.
                         onCleared: () {
-                          bulkEntryController.clearAllInputs();
+                          bulkEntryController.clearAllInputs(skipHashCodes: [
+                            bulkEntryController.rxRequestedDate.hashCode,
+                          ]);
 
                           bulkEntryController.rxSelectedBulkOrderLines.clear();
                         },
@@ -199,7 +201,13 @@ class CreateBulkOrderView extends StatelessWidget {
                             onPressed: !bulkEntryController.canClearInputs
                                 ? null
                                 : () async {
-                                    bulkEntryController.clearAllInputs();
+                                    // The Expected Delivery Date stays.
+                                    bulkEntryController.clearAllInputs(
+                                      skipHashCodes: [
+                                        bulkEntryController
+                                            .rxRequestedDate.hashCode,
+                                      ],
+                                    );
 
                                     bulkEntryController.rxSelectedBulkOrderLines
                                         .clear();

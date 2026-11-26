@@ -75,7 +75,9 @@ class CreateDtmOrderView extends StatelessWidget {
                       // The modal stays open: its lines are gone (the draft is
                       // deleted) and the form is cleared, as with Clear Inputs.
                       onCleared: () {
-                        dtmEntryController.clearAllInputs();
+                        dtmEntryController.clearAllInputs(skipHashCodes: [
+                          dtmEntryController.rxRequestedDate.hashCode,
+                        ]);
 
                         dtmEntryController.rxSelectedDtmOrderLines.clear();
                       },
@@ -146,7 +148,12 @@ class CreateDtmOrderView extends StatelessWidget {
                           onPressed: !dtmEntryController.canClearInputs
                               ? null
                               : () async {
-                                  dtmEntryController.clearAllInputs();
+                                  // The Expected Delivery Date stays.
+                                  dtmEntryController.clearAllInputs(
+                                    skipHashCodes: [
+                                      dtmEntryController.rxRequestedDate.hashCode,
+                                    ],
+                                  );
 
                                   dtmEntryController.rxSelectedDtmOrderLines
                                       .clear();

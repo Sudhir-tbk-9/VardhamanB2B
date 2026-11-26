@@ -928,7 +928,6 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
       rxShade.value != '' ||
       rxColor.value != '' ||
       rxQuantity.value != '' ||
-      rxRequestedDate.value != defaultEdd ||
       rxRemark.value != '' ||
       rxPoNumber.value != '' ||
       rxPoFileName.value != '';

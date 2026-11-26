@@ -405,7 +405,7 @@ void main() {
     expect(c.rxQuantity.value, '');
   });
 
-  test('DTM EDD: 18 days from today, user can change it, Clear restores it',
+  test('DTM EDD: 18 days from today, user can change it, Clear Inputs keeps it',
       () async {
     final c = DtmEntryController(orderNumber: 5);
     final today = DateTime.now();
@@ -417,8 +417,14 @@ void main() {
     final picked = DateTime(today.year, today.month, today.day + 30);
     c.rxRequestedDate.value = picked;
     expect(c.rxRequestedDate.value, picked);
-    expect(c.canClearInputs, isTrue);
+    // Clear Inputs leaves the EDD, so a changed EDD alone is nothing to clear.
+    expect(c.canClearInputs, isFalse);
 
+    // As the Clear Inputs button: the EDD stays.
+    c.clearAllInputs(skipHashCodes: [c.rxRequestedDate.hashCode]);
+    expect(c.rxRequestedDate.value, picked);
+
+    // Anywhere else (e.g. a line is picked) it goes back to the default.
     c.clearAllInputs();
     expect(c.rxRequestedDate.value, in18Days);
 
