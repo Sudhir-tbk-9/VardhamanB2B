@@ -413,6 +413,8 @@ class CreateDtmOrderView extends StatelessWidget {
                                                     .shadeDropdownKey,
                                                 searchList:
                                                     dtmEntryController.rxShades,
+                                                waitForItems: dtmEntryController
+                                                    .waitForShades,
                                               ),
                                             ),
                                           ],

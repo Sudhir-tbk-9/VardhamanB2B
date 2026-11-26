@@ -485,6 +485,9 @@ class CreateBulkOrderView extends StatelessWidget {
                                                       .shadeDropdownKey,
                                                   searchList: bulkEntryController
                                                       .rxShades,
+                                                  waitForItems:
+                                                      bulkEntryController
+                                                          .waitForShades,
                                                   // The article's shades only;
                                                   // typed text matching none
                                                   // cannot be picked.

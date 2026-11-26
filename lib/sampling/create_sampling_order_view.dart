@@ -365,6 +365,9 @@ class CreateSamplingOrderView extends StatelessWidget {
                                                       .shadeDropdownKey,
                                                   searchList:
                                                       samplingEntryController.rxShades,
+                                                  waitForItems:
+                                                      samplingEntryController
+                                                          .waitForShades,
                                                   shouldEnforceList: false,
                                                   invalidList:
                                                       samplingEntryController.skipShades,

@@ -355,6 +355,9 @@ class CreateLabdipOrderView extends StatelessWidget {
                                                       .shadeDropdownKey,
                                                   searchList:
                                                       labdipEntryController.rxShades,
+                                                  waitForItems:
+                                                      labdipEntryController
+                                                          .waitForShades,
                                                   shouldEnforceList: false,
                                                   invalidList:
                                                       labdipEntryController.skipShades,

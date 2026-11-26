@@ -24,7 +24,13 @@ class CatalogSearchField extends StatelessWidget {
     this.dropdownKey,
     this.onChanged,
     this.emptyText,
+    this.waitForItems,
   });
+
+  /// Awaited before the list is read when the field opens: a list still
+  /// loading (the Shades of a just picked Article) shows the dropdown's
+  /// spinner, then its items, instead of an empty list.
+  final Future<void> Function()? waitForItems;
 
   /// Shown in the list when nothing matches the typed text; null keeps the
   /// package's own message.
@@ -176,6 +182,8 @@ class CatalogSearchField extends StatelessWidget {
                               ),
                             ),
                             items: (searchText, cs) async {
+                              await waitForItems?.call();
+
                               final trimmedSearchText = searchText.trim();
 
                               if (shouldEnforceList ||

@@ -274,7 +274,7 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
     final uom = rxUomLocked.value ? '' : rxUom.value.trim();
 
     if (article.isNotEmpty) {
-      _shadeUomsFor(article).then(
+      _shadesLoading = _shadeUomsFor(article).then(
         (shadeUoms) {
           if (rxArticle.value.trim() != article) {
             return;
@@ -330,6 +330,30 @@ class DtmEntryController extends GetxController with DirectDeliveryTc {
   /// Set when the user picks an Article; Shade opens once the article's
   /// shades are loaded.
   bool _openShadeWhenLoaded = false;
+
+  /// The article's shades being loaded into [rxShades] (resetShade), or
+  /// null.
+  Future<void>? _shadesLoading;
+
+  /// For the Shade field opened while its list is still loading: waits
+  /// for it (the field shows its spinner) instead of showing "No record
+  /// found". The field is open already, so it is not opened again.
+  Future<void> waitForShades() async {
+    _openShadeWhenLoaded = false;
+
+    final loading = _shadesLoading;
+
+    if (loading != null && rxShades.isEmpty) {
+      debugPrint('[SHADES] Shade opened while ${rxArticle.value.trim()} '
+          'shades load: waiting for them');
+
+      try {
+        await loading;
+      } catch (e) {
+        debugPrint('[SHADES] Shades did not load: $e');
+      }
+    }
+  }
 
   /// Article picked by the user: the cursor moves on to Shade.
   void onArticlePicked(String article) {

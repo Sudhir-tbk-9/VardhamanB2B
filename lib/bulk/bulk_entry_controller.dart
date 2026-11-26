@@ -356,7 +356,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     final uom = rxUomLocked.value ? '' : rxUom.value.trim();
 
     if (article.isNotEmpty) {
-      _shadeUomsFor(article).then(
+      _shadesLoading = _shadeUomsFor(article).then(
         (shadeUoms) {
           if (rxArticle.value.trim() != article) {
             return;
@@ -400,6 +400,30 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   /// Set when the user picks an Article; Shade opens once the article's
   /// shades are loaded.
   bool _openShadeWhenLoaded = false;
+
+  /// The article's shades being loaded into [rxShades] (resetShade), or
+  /// null.
+  Future<void>? _shadesLoading;
+
+  /// For the Shade field opened while its list is still loading: waits
+  /// for it (the field shows its spinner) instead of showing "No record
+  /// found". The field is open already, so it is not opened again.
+  Future<void> waitForShades() async {
+    _openShadeWhenLoaded = false;
+
+    final loading = _shadesLoading;
+
+    if (loading != null && rxShades.isEmpty) {
+      debugPrint('[SHADES] Shade opened while ${rxArticle.value.trim()} '
+          'shades load: waiting for them');
+
+      try {
+        await loading;
+      } catch (e) {
+        debugPrint('[SHADES] Shades did not load: $e');
+      }
+    }
+  }
 
   /// Article picked by the user: the cursor moves on to Shade.
   void onArticlePicked(String article) {
@@ -1963,6 +1987,70 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
+  /// The catalog item giving an imported line its Ticket, Brand, Tex and
+  /// Substrate, as the form finds it when the line is clicked: the Article
+  /// with the line's UOM; failing that (no UOM, or the catalog writes it
+  /// otherwise), the Article alone when all its catalog items agree on
+  /// those four. Trimmed and upper case both sides. Each line is logged.
+  ItemCatalogInfo? _catalogItemForImport(
+    ExcelImportRow row,
+    Map<String, List<ItemCatalogInfo>> itemsByArticle,
+  ) {
+    String norm(String value) => value.trim().toUpperCase();
+
+    final article = norm(row.line.article);
+
+    final uom = norm(row.line.uom);
+
+    final ofArticle = itemsByArticle[article] ?? const <ItemCatalogInfo>[];
+
+    final withUom = ofArticle.firstWhereOrNull((item) => norm(item.uom) == uom);
+
+    String details(ItemCatalogInfo item) =>
+        'Ticket "${item.ticket}", Brand "${item.brandDesc}", Tex '
+        '"${item.tex}", Substrate "${item.substrateDesc}"';
+
+    if (withUom != null) {
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} catalog: $article / UOM $uom '
+        'found: ${details(withUom)}',
+      );
+
+      return withUom;
+    }
+
+    if (ofArticle.isEmpty) {
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} catalog: article $article NOT '
+        'in the catalog of this segment (${catalogController.orderItems.length} '
+        'items): Ticket, Brand, Tex, Substrate left empty',
+      );
+
+      return null;
+    }
+
+    final variants = ofArticle.map(details).toSet();
+
+    if (variants.length == 1) {
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} catalog: $article has no item '
+        'with UOM "$uom" (catalog UOMs '
+        '${ofArticle.map((item) => item.uom.trim()).toSet().join(', ')}); '
+        'taken from the article: ${variants.first}',
+      );
+
+      return ofArticle.first;
+    }
+
+    debugPrint(
+      '[BULK IMPORT] Row ${row.rowNumber} catalog: $article has no item with '
+      'UOM "$uom" and its ${ofArticle.length} items differ '
+      '(${variants.join(' | ')}): Ticket, Brand, Tex, Substrate left empty',
+    );
+
+    return null;
+  }
+
   /// TC Required ticked in the import dialog ([tcOffered]: the uploaded
   /// sheet all "R" articles): every line is a TC line. Otherwise, and for a
   /// sheet of normal or mixed articles, every line is a normal line.
@@ -1977,6 +2065,24 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     // form is drawn once, not once per line.
     final lines = <DraftTableCompanion>[];
 
+    // The catalog normally loads with the app; if it has not yet, it is
+    // loaded now, or every line would miss its Ticket, Brand, Tex and
+    // Substrate.
+    if (catalogController.orderItems.isEmpty) {
+      debugPrint('[BULK IMPORT] Catalog not loaded yet: loading it before '
+          'saving the lines');
+
+      await catalogController.refreshItems();
+    }
+
+    final itemsByArticle = <String, List<ItemCatalogInfo>>{};
+
+    for (final item in catalogController.orderItems) {
+      itemsByArticle
+          .putIfAbsent(item.article.trim().toUpperCase(), () => [])
+          .add(item);
+    }
+
     for (final importRow in importRows) {
       final excelLine = importRow.line;
 
@@ -1986,10 +2092,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       lineNumber++;
 
-      final catalogItem = catalogController.orderItem(
-        article: excelLine.article,
-        uom: excelLine.uom,
-      );
+      final catalogItem = _catalogItemForImport(importRow, itemsByArticle);
 
       final buyerInfo = _rxBuyerInfos.firstWhereOrNull(
         (buyerInfo) =>
