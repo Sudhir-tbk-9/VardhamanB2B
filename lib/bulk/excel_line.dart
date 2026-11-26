@@ -296,8 +296,7 @@ class ExcelImportRow {
   String? error;
 
   /// Whether [error] is the Article or the Shade, each checked on its own,
-  /// not being in the JDE item master: the only red rows with a Delete
-  /// button in the grid. Other rows are deleted from their Fix modal.
+  /// not being in the JDE item master.
   bool isNotFoundInJde = false;
 
   /// Shown in yellow, or null: a note from the JDE checks that does not stop

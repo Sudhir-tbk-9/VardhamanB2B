@@ -1327,7 +1327,68 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
+  /// Deletes the lines of this order put in by an earlier Excel import
+  /// (marked with their file name in qtxFileName, which Bulk lines do not
+  /// use otherwise). Lines added from the form stay.
+  Future<void> _deleteImportedLines() async {
+    final deleted = await _database.managers.draftTable
+        .filter((f) => f.orderNumber.equals(orderNumber))
+        .filter((f) => f.qtxFileName.equals('').not())
+        .delete();
+
+    debugPrint('[BULK IMPORT] $deleted line(s) of the earlier import cleared');
+  }
+
+  /// Whether [_showImportLoader]'s spinner is up.
+  bool _isImportLoaderShown = false;
+
+  /// A small spinner over the page, no text, while a file is read and
+  /// checked and while the lines are saved: nothing can be clicked until
+  /// [_hideImportLoader].
+  Future<void> _showImportLoader() async {
+    if (_isImportLoaderShown) {
+      return;
+    }
+
+    _isImportLoaderShown = true;
+
+    Get.dialog<void>(
+      const PopScope(
+        canPop: false,
+        child: Center(
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+      barrierColor: Colors.black26,
+    );
+
+    // Drawn before the work that follows (the sheet is read on the main
+    // thread).
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+
+  void _hideImportLoader() {
+    if (!_isImportLoaderShown) {
+      return;
+    }
+
+    _isImportLoaderShown = false;
+
+    Get.back<void>();
+  }
+
   Future<void> importExcel() async {
+    // As Clear Inputs: a new import starts from an empty form. The
+    // Expected Delivery Date stays: the imported lines are given it.
+    clearAllInputs(skipHashCodes: [rxRequestedDate.hashCode]);
+
+    rxSelectedBulkOrderLines.clear();
+
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1344,6 +1405,11 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       final pickedFile = result.files.single;
 
+      await _showImportLoader();
+
+      // The lines of the earlier import are replaced by this one.
+      await _deleteImportedLines();
+
       final List<List<String>> sheetRows;
 
       try {
@@ -1353,6 +1419,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         );
       } catch (e) {
         log('importExcel read error - $e');
+
+        _hideImportLoader();
 
         toastification.show(
           autoCloseDuration: Duration(seconds: 5),
@@ -1375,6 +1443,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       );
 
       if (importRows.isEmpty) {
+        _hideImportLoader();
+
         toastification.show(
           autoCloseDuration: Duration(seconds: 3),
           primaryColor: VardhmanColors.red,
@@ -1395,6 +1465,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         row.tcRequired = isTcLocked;
       }
 
+      _hideImportLoader();
+
       // Shown every time: valid lines in green, others in red, and any line
       // can be fixed or deleted before the upload.
       final proceed = await Get.dialog<bool>(
@@ -1412,7 +1484,15 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       final validRows = importRows.where((row) => row.canUpload).toList();
 
-      await _insertImportRows(validRows, tcOffered: tcOffered);
+      await _showImportLoader();
+
+      await _insertImportRows(
+        validRows,
+        tcOffered: tcOffered,
+        fileName: pickedFile.name,
+      );
+
+      _hideImportLoader();
 
       toastification.show(
         autoCloseDuration: Duration(seconds: 3),
@@ -1422,6 +1502,9 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       );
     } catch (e) {
       log('Error: $e');
+    } finally {
+      // Never left up, also after an error.
+      _hideImportLoader();
     }
   }
 
@@ -1553,11 +1636,46 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         '(${segment.code})';
   }
 
+  /// JDE calls at the same time while checking an import: a new one starts
+  /// as soon as one ends.
+  static const _importConcurrency = 8;
+
+  /// Runs [task] on each of [items], [_importConcurrency] at a time; a new
+  /// one starts as soon as one ends, never waiting for a whole batch.
+  static Future<void> _forEachConcurrently<T>(
+    Iterable<T> items,
+    Future<void> Function(T item) task,
+  ) async {
+    final queue = items.toList();
+
+    var next = 0;
+
+    Future<void> worker() async {
+      while (next < queue.length) {
+        await task(queue[next++]);
+      }
+    }
+
+    await Future.wait([
+      for (var i = 0; i < _importConcurrency && i < queue.length; i++)
+        worker(),
+    ]);
+  }
+
   /// JDE checks for [rowsToCheck]: the Article / Shade combination in the
   /// item master (F4101, any UOM, obsolete or not; a warning when not
   /// found), the UOM for rows without one, and the unit price. Each call is
   /// logged in full with a `[BULK IMPORT]` tag.
+  ///
+  /// As few calls as possible, at the same time where they do not depend
+  /// on each other: the pairs and the UOMs of all rows in two F4101 queries
+  /// run together; then the Article / Shade checks on their own (only for
+  /// pairs not found) and the unit prices (once per item) together.
   Future<void> _checkImportRowsInJde(List<ExcelImportRow> rowsToCheck) async {
+    final stopwatch = Stopwatch()..start();
+
+    String key(String value) => value.trim().toUpperCase();
+
     final articles =
         rowsToCheck.map((row) => row.line.article).toSet().toList();
 
@@ -1575,51 +1693,97 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
       'SHADES: ${shades.join(', ')}',
     );
 
-    final pairs = await Api.fetchArticleShadePairs(
+    final rowsWithoutUom =
+        rowsToCheck.where((row) => row.line.uom.isEmpty).toList();
+
+    // Both F4101 queries at once: they do not depend on each other.
+    final pairsCall = Api.fetchArticleShadePairs(
       articles: articles,
       shades: shades,
       logLabel: '[BULK IMPORT] Article / Shade check (F4101)',
     );
 
-    String key(String value) => value.trim().toUpperCase();
+    final uomsCall = rowsWithoutUom.isEmpty
+        ? Future.value(<(String, String), List<String>>{})
+        : Api.fetchUomsForPairs(
+            articles:
+                rowsWithoutUom.map((row) => row.line.article).toSet().toList(),
+            shades:
+                rowsWithoutUom.map((row) => row.line.shade).toSet().toList(),
+            logLabel: '[BULK IMPORT] UOM lookup (F4101 SEG2), all rows',
+          );
+
+    final pairs = await pairsCall;
+
+    final uomsByPair = await uomsCall;
+
+    bool isFound(ExcelImportRow row) =>
+        pairs != null &&
+        pairs.contains((key(row.line.article), key(row.line.shade)));
 
     // The pairs not found together: is the Article in JDE at all, and the
     // Shade? Each is checked on its own.
     final notFoundRows = pairs == null
         ? const <ExcelImportRow>[]
-        : rowsToCheck
-            .where((row) =>
-                !pairs.contains((key(row.line.article), key(row.line.shade))))
-            .toList();
+        : rowsToCheck.where((row) => !isFound(row)).toList();
 
-    final articleExists = await _existsInItemMaster(
-      controlId: 'F4101.SEG1',
-      label: 'Article',
-      values: notFoundRows.map((row) => key(row.line.article)).toSet(),
+    if (pairs == null) {
+      for (final row in rowsToCheck) {
+        _addWarning(row, 'Could not check the Article / Shade in JDE');
+      }
+    }
+    // Not found together: JDE has no UOM for it either.
+    await _lookUpImportUoms(
+      rowsToCheck
+          .where((row) => row.line.uom.isEmpty && (isFound(row) || pairs == null))
+          .toList(),
+      uomsByPair: uomsByPair,
     );
 
-    final shadeExists = await _existsInItemMaster(
-      controlId: 'F4101.SEG3',
-      label: 'Shade',
-      values: notFoundRows.map((row) => key(row.line.shade)).toSet(),
-    );
 
-    final rowsNeedingUom = <ExcelImportRow>[];
+    // Unit prices, once per item (rows of the same item share it).
+    final prices = <String, double?>{};
+
+    Future<void> priceRows(Iterable<ExcelImportRow> rows) async {
+      final items = rows
+          .where((row) => row.isValid && row.line.uom.isNotEmpty)
+          .map((row) => row.line.itemNumber)
+          .where((item) => !prices.containsKey(item))
+          .toSet();
+
+      await _forEachConcurrently(items, (item) async {
+        prices[item] = await _fetchUnitPrice(
+          item,
+          logLabel: '[BULK IMPORT] Unit price, item $item',
+        );
+      });
+    }
+
+    // The checks on their own and the prices of the rows found: together.
+    final (articleExists, shadeExists, _) = await (
+      _existsInItemMaster(
+        controlId: 'F4101.SEG1',
+        label: 'Article',
+        values: notFoundRows.map((row) => key(row.line.article)).toSet(),
+      ),
+      _existsInItemMaster(
+        controlId: 'F4101.SEG3',
+        label: 'Shade',
+        values: notFoundRows.map((row) => key(row.line.shade)).toSet(),
+      ),
+      priceRows(rowsToCheck.where((row) => !notFoundRows.contains(row))),
+    ).wait;
 
     for (final row in rowsToCheck) {
       final article = key(row.line.article);
 
       final shade = key(row.line.shade);
 
-      final isFound = pairs != null && pairs.contains((article, shade));
-
       final String result;
 
       if (pairs == null) {
-        _addWarning(row, 'Could not check the Article / Shade in JDE');
-
         result = 'JDE call failed (warning)';
-      } else if (isFound) {
+      } else if (isFound(row)) {
         result = 'found in F4101';
       } else {
         final missing = [
@@ -1641,48 +1805,39 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
         }
       }
 
-      // Not found together: JDE has no UOM for it either.
-      if (row.line.uom.isEmpty && (isFound || pairs == null)) {
-        rowsNeedingUom.add(row);
-      }
-
       debugPrint(
         '[BULK IMPORT] Row ${row.rowNumber} Article "$article" + Shade '
         '"$shade": $result'
-        '${row.line.uom.isEmpty ? '' : ', UOM ${row.line.uom} from the sheet'}',
+        '${row.line.uom.isEmpty ? '' : ', UOM ${row.line.uom}'}',
       );
     }
 
-    await _lookUpImportUoms(rowsNeedingUom);
+    // A combination not found but uploaded as is (its UOM from the sheet).
+    await priceRows(notFoundRows);
 
-    final rowsToPrice = rowsToCheck
-        .where((row) => row.isValid && row.line.uom.isNotEmpty)
-        .toList();
+    for (final row in rowsToCheck) {
+      if (!row.isValid || row.line.uom.isEmpty) {
+        continue;
+      }
 
-    const batchSize = 10;
+      final unitPrice = prices[row.line.itemNumber];
 
-    for (int i = 0; i < rowsToPrice.length; i += batchSize) {
-      await Future.wait(
-        rowsToPrice.skip(i).take(batchSize).map(
-          (row) async {
-            final unitPrice = await _fetchUnitPrice(
-              row.line.itemNumber,
-              logLabel: '[BULK IMPORT] Unit price, row ${row.rowNumber}',
-            );
+      // No price is not an error: the line goes without one.
+      if (unitPrice != null && unitPrice > 0) {
+        row.unitPrice = unitPrice;
+      }
 
-            // No price is not an error: the line goes without one.
-            if (unitPrice != null && unitPrice > 0) {
-              row.unitPrice = unitPrice;
-            }
-
-            debugPrint(
-              '[BULK IMPORT] Row ${row.rowNumber} unit price: '
-              '${row.unitPrice ?? 'none from JDE, uploaded without a price'}',
-            );
-          },
-        ),
+      debugPrint(
+        '[BULK IMPORT] Row ${row.rowNumber} unit price: '
+        '${row.unitPrice ?? 'none from JDE, uploaded without a price'}',
       );
     }
+
+    debugPrint(
+      '[BULK IMPORT] JDE checks of ${rowsToCheck.length} row(s) took '
+      '${stopwatch.elapsedMilliseconds} ms (${prices.length} unit price '
+      'call(s))',
+    );
   }
 
   /// Adds [text] to [row]'s yellow JDE warning (shown before any Quantity
@@ -1695,7 +1850,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
   /// For each of [values], whether the JDE item master has it in
   /// [controlId] on its own (Api.existsInItemMaster); null when the call
-  /// failed. Asked 10 at a time.
+  /// failed.
   Future<Map<String, bool?>> _existsInItemMaster({
     required String controlId,
     required String label,
@@ -1703,84 +1858,91 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   }) async {
     final exists = <String, bool?>{};
 
-    final list = values.toList();
-
-    const batchSize = 10;
-
-    for (int i = 0; i < list.length; i += batchSize) {
-      await Future.wait(
-        list.skip(i).take(batchSize).map(
-          (value) async {
-            exists[value] = await Api.existsInItemMaster(
-              controlId: controlId,
-              value: value,
-              logLabel: '[BULK IMPORT] $label check on its own ($controlId '
-                  '= $value)',
-            );
-
-            debugPrint(
-              '[BULK IMPORT] $label "$value" on its own in F4101: '
-              '${switch (exists[value]) {
-                true => 'found',
-                false => 'NOT found',
-                null => 'JDE call failed',
-              }}',
-            );
-          },
-        ),
+    await _forEachConcurrently(values, (value) async {
+      exists[value] = await Api.existsInItemMaster(
+        controlId: controlId,
+        value: value,
+        logLabel: '[BULK IMPORT] $label check on its own ($controlId '
+            '= $value)',
       );
-    }
+
+      debugPrint(
+        '[BULK IMPORT] $label "$value" on its own in F4101: '
+        '${switch (exists[value]) {
+          true => 'found',
+          false => 'NOT found',
+          null => 'JDE call failed',
+        }}',
+      );
+    });
 
     return exists;
   }
 
   /// The UOM of each of [rows] from its Article and Shade, as the form picks
-  /// it: the UOMs JDE has for the shade (Api.fetchUomsForShade), kept to
-  /// the article's catalog UOMs. One: used. Several: an error, the UOM to
-  /// be entered in Fix. None: a warning, the line goes without a UOM.
-  Future<void> _lookUpImportUoms(List<ExcelImportRow> rows) async {
+  /// it: the UOMs JDE has for the shade, kept to the article's catalog
+  /// UOMs. One: used. Several: an error, the UOM to be entered in Fix.
+  /// None: a warning, the line goes without a UOM.
+  ///
+  /// The JDE UOMs come from [uomsByPair] (one query for all rows,
+  /// Api.fetchUomsForPairs); when that call failed, from one
+  /// Api.fetchUomsForShade call per pair.
+  Future<void> _lookUpImportUoms(
+    List<ExcelImportRow> rows, {
+    required Map<(String, String), List<String>>? uomsByPair,
+  }) async {
     final uomsByItem = <(String, String), List<String>>{};
 
-    final pairsToFetch = rows
+    final pairsToLookUp = rows
         .map((row) => (row.line.article.trim(), row.line.shade.trim()))
-        .toSet()
-        .toList();
+        .toSet();
 
-    const batchSize = 10;
+    void keep((String, String) pair, List<String> jdeUoms) {
+      final (article, shade) = pair;
 
-    for (int i = 0; i < pairsToFetch.length; i += batchSize) {
-      await Future.wait(
-        pairsToFetch.skip(i).take(batchSize).map(
-          (pair) async {
-            final (article, shade) = pair;
+      final catalogUoms = catalogController.orderItems
+          .where((item) => item.article == article)
+          .map((item) => item.uom)
+          .toSet();
 
-            final jdeUoms =
-                await Api.fetchUomsForShade(article: article, shade: shade);
+      final uoms = catalogUoms.isEmpty
+          ? jdeUoms
+          : jdeUoms.where(catalogUoms.contains).toList();
 
-            final catalogUoms = catalogController.orderItems
-                .where((item) => item.article == article)
-                .map((item) => item.uom)
-                .toSet();
+      uomsByItem[pair] = uoms;
 
-            final uoms = catalogUoms.isEmpty
-                ? jdeUoms
-                : jdeUoms.where(catalogUoms.contains).toList();
+      final jdeText = jdeUoms.isEmpty ? 'none' : jdeUoms.join(', ');
 
-            uomsByItem[pair] = uoms;
+      final catalogText = catalogUoms.isEmpty
+          ? ''
+          : ', in the catalog ${uoms.isEmpty ? 'none' : uoms.join(', ')}';
 
-            final jdeText = jdeUoms.isEmpty ? 'none' : jdeUoms.join(', ');
-
-            final catalogText = catalogUoms.isEmpty
-                ? ''
-                : ', in the catalog ${uoms.isEmpty ? 'none' : uoms.join(', ')}';
-
-            debugPrint(
-              '[BULK IMPORT] UOM lookup (F4101 SEG2) for Article "$article" '
-              '+ Shade "$shade": JDE $jdeText$catalogText',
-            );
-          },
-        ),
+      debugPrint(
+        '[BULK IMPORT] UOM lookup (F4101 SEG2) for Article "$article" '
+        '+ Shade "$shade": JDE $jdeText$catalogText',
       );
+    }
+
+    if (uomsByPair != null) {
+      for (final pair in pairsToLookUp) {
+        final (article, shade) = pair;
+
+        keep(
+          pair,
+          uomsByPair[(article.toUpperCase(), shade.toUpperCase())] ??
+              const <String>[],
+        );
+      }
+    } else {
+      // The one query failed: one call per pair, as the form does.
+      await _forEachConcurrently(pairsToLookUp, (pair) async {
+        final (article, shade) = pair;
+
+        keep(
+          pair,
+          await Api.fetchUomsForShade(article: article, shade: shade),
+        );
+      });
     }
 
     for (final row in rows) {
@@ -1807,8 +1969,13 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
   Future<void> _insertImportRows(
     List<ExcelImportRow> importRows, {
     required bool tcOffered,
+    required String fileName,
   }) async {
     var lineNumber = _lastLineNumber;
+
+    // All lines saved in one batch (one transaction): the table below the
+    // form is drawn once, not once per line.
+    final lines = <DraftTableCompanion>[];
 
     for (final importRow in importRows) {
       final excelLine = importRow.line;
@@ -1844,8 +2011,8 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
             excelLightSourceParts.length > 1 ? excelLightSourceParts[1] : '';
       }
 
-      await _database.managers.draftTable.create(
-        (o) => o(
+      lines.add(
+        DraftTableCompanion.insert(
           poNumber: excelLine.poNumber,
           merchandiser: excelLine.merchandiser,
           buyer: excelLine.buyer,
@@ -1873,14 +2040,22 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           soldTo: _userController.rxUserDetail.value.soldToNumber,
           colorRemark: isTcImportLine ? DirectDeliveryTc.tcRequiredRemark : '',
           lastUpdated: DateTime.now(),
-          qtxFileName: '',
+          // Marks the line as imported: cleared by the next import.
+          qtxFileName: fileName,
           requestedDate: drift.Value(rxRequestedDate.value),
           poFileName: '',
           poFileBytes: drift.Value(null),
         ),
-        mode: drift.InsertMode.insertOrReplace,
       );
     }
+
+    await _database.batch(
+      (batch) => batch.insertAll(
+        _database.draftTable,
+        lines,
+        mode: drift.InsertMode.insertOrReplace,
+      ),
+    );
   }
 
   void _populateInputs({required DraftTableData bulkOrderLine}) {

@@ -258,8 +258,8 @@ void main() {
   });
 
   /// Row 1 valid, row 2 a combination warning, row 3 a Quantity to fix
-  /// (yellow), row 4 a Shade not in JDE (red, Delete in the grid), row 5 a
-  /// missing Shade (red, no Delete in the grid).
+  /// (yellow), row 4 a Shade not in JDE and row 5 a missing Shade (both
+  /// red, Delete in the grid).
   Future<List<ExcelImportRow>> pumpDialog(
     WidgetTester tester, {
     bool withBlocking = true,
@@ -339,8 +339,8 @@ void main() {
 
     expect(inGrid('Fix'), findsNWidgets(5));
 
-    // Delete in the grid only on the row whose Shade is not in JDE.
-    expect(inGrid('Delete'), findsOneWidget);
+    // Delete in the grid on both red rows (not in JDE, missing Shade).
+    expect(inGrid('Delete'), findsNWidgets(2));
 
     expect(yesEnabled(tester), isFalse);
   });
@@ -355,11 +355,12 @@ void main() {
     expect(yesEnabled(tester), isTrue);
   });
 
-  testWidgets('Delete in the grid removes a not-in-JDE row and renumbers',
+  testWidgets('Delete in the grid removes any red row and renumbers',
       (tester) async {
     final rows = await pumpDialog(tester);
 
-    final delete = inGrid('Delete');
+    // The first red row: Shade not in JDE (row 4).
+    final delete = inGrid('Delete').first;
 
     await tester.ensureVisible(delete);
     await tester.pumpAndSettle();
@@ -367,10 +368,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(rows.map((row) => row.rowNumber), [1, 2, 3, 5]);
-    expect(inGrid('Delete'), findsNothing);
+    expect(inGrid('Delete'), findsOneWidget);
 
-    // The missing-Shade row is now shown as row 4.
+    // The missing-Shade row is now shown as row 4, and has its own Delete.
     expect(find.textContaining('Row 4 · '), findsOneWidget);
+
+    await tester.ensureVisible(inGrid('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(inGrid('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(rows.map((row) => row.rowNumber), [1, 2, 3]);
+    expect(inGrid('Delete'), findsNothing);
   });
 
   testWidgets(

@@ -95,7 +95,7 @@ Future<bool> confirmClearDrafts({
 
 /// "Clear drafts" button: asks first, deletes the drafts [deleteDrafts]
 /// picks with [orderType] / [orderNumber], says how many went, then calls
-/// [onCleared] (e.g. to close the order screen).
+/// [onCleared] (e.g. to clear the order form).
 class ClearDraftsButton extends StatelessWidget {
   final String text;
 

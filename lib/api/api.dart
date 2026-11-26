@@ -686,6 +686,96 @@ class Api {
     return shadeUoms;
   }
 
+  /// [fetchUomsForShade] for many Article / Shade pairs in one F4101 query:
+  /// the UOMs (SEG2) of each (SEG1, SEG3) pair, upper case and trimmed, with
+  /// the same filters (segment, PRP1 Z or M, not obsolete). A pair JDE has no
+  /// UOM for is absent. Null when the call fails.
+  static Future<Map<(String, String), List<String>>?> fetchUomsForPairs({
+    required List<String> articles,
+    required List<String> shades,
+    String? logLabel,
+  }) async {
+    List<Map<String, String>> literals(List<String> values) => [
+          for (final value in values)
+            {"specialValueId": "LITERAL", "content": value},
+        ];
+
+    try {
+      final response = await _dio.post(
+        '/v2/dataservice',
+        data: {
+          "maxPageSize": "No Max",
+          "targetName": "F4101",
+          "targetType": "table",
+          "dataServiceType": "BROWSE",
+          "returnControlIDs": "F4101.SEG1|F4101.SEG2|F4101.SEG3",
+          "query": {
+            "autoFind": true,
+            "condition": [
+              {
+                "controlId": "F4101.SEG1",
+                "operator": "LIST",
+                "value": literals(articles),
+              },
+              {
+                "controlId": "F4101.SEG3",
+                "operator": "LIST",
+                "value": literals(shades),
+              },
+              _segmentCondition('fetchUomsForPairs'),
+              {
+                "controlId": "F4101.PRP1",
+                "operator": "LIST",
+                "value": [
+                  {"specialValueId": "LITERAL", "content": "Z"},
+                  {"specialValueId": "LITERAL", "content": "M"}
+                ]
+              },
+              {
+                "controlId": "F4101.STKT",
+                "operator": "NOT_EQUAL",
+                "value": [
+                  {"specialValueId": "LITERAL", "content": "O"}
+                ]
+              }
+            ],
+          },
+        },
+        options: Options(extra: {if (logLabel != null) 'logLabel': logLabel}),
+      );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final rowset = response.data['fs_DATABROWSE_F4101']['data']['gridData']
+          ['rowset'] as List;
+
+      final uomsByPair = <(String, String), List<String>>{};
+
+      for (final row in rowset) {
+        final pair = (
+          '${row['F4101_SEG1'] ?? ''}'.trim().toUpperCase(),
+          '${row['F4101_SEG3'] ?? ''}'.trim().toUpperCase(),
+        );
+
+        final uom = '${row['F4101_SEG2'] ?? ''}'.trim();
+
+        final uoms = uomsByPair.putIfAbsent(pair, () => []);
+
+        if (uom.isNotEmpty && !uoms.contains(uom)) {
+          uoms.add(uom);
+        }
+      }
+
+      return uomsByPair;
+    } catch (e) {
+      debugPrint('fetchUomsForPairs error - $e');
+
+      return null;
+    }
+  }
+
   /// UOMs (F4101.SEG2) under which [article] (SEG1) carries [shade] (SEG3).
   static Future<List<String>> fetchUomsForShade({
     required String article,

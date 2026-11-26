@@ -31,8 +31,8 @@ abstract final class _Status {
 /// or the Article and Shade in JDE but not together), lines with an error
 /// in red (no Article or Shade, the Article or the Shade not in JDE, …).
 /// Every line can be fixed (and re-validated against JDE via
-/// [onRevalidate]) and deleted from its Fix modal; only the red lines whose
-/// Article or Shade is not in JDE have a Delete button in the grid too. Yes
+/// [onRevalidate]) and deleted from its Fix modal; every red line has a
+/// Delete button in the grid too. Yes
 /// uploads the green and yellow lines, and is enabled once no red line and
 /// no Quantity to fix is left.
 ///
@@ -434,9 +434,10 @@ class _LinesGrid extends StatelessWidget {
                             label: const Text('Fix'),
                             onPressed: () => onFix(row),
                           ),
-                          // Only for an Article or Shade not in JDE; any
-                          // other line is deleted from its Fix modal.
-                          if (row.isNotFoundInJde)
+                          // On every red line (Article / Shade missing or
+                          // not in JDE); any other line is deleted from its
+                          // Fix modal.
+                          if (!isValid)
                             TextButton.icon(
                               style: TextButton.styleFrom(
                                 foregroundColor: VardhmanColors.darkGrey,

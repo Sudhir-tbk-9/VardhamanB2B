@@ -62,7 +62,7 @@ class CreateDtmOrderView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Only once the draft has lines: deletes this draft
-                  // order and closes the screen.
+                  // order's lines and clears the form; the screen stays.
                   if (dtmEntryController.rxDtmOrderLines.isNotEmpty) ...[
                     ClearDraftsButton(
                       text: 'Clear Draft',
@@ -72,7 +72,13 @@ class CreateDtmOrderView extends StatelessWidget {
                       confirmMessage: 'This draft order and its '
                           '${dtmEntryController.rxDtmOrderLines.length} line(s) will be '
                           'deleted.',
-                      onCleared: () => Get.back(),
+                      // The modal stays open: its lines are gone (the draft is
+                      // deleted) and the form is cleared, as with Clear Inputs.
+                      onCleared: () {
+                        dtmEntryController.clearAllInputs();
+
+                        dtmEntryController.rxSelectedDtmOrderLines.clear();
+                      },
                     ),
                     const SizedBox(width: 8),
                   ],
