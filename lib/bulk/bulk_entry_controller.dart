@@ -1351,16 +1351,14 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
     }
   }
 
-  /// Deletes the lines of this order put in by an earlier Excel import
-  /// (marked with their file name in qtxFileName, which Bulk lines do not
-  /// use otherwise). Lines added from the form stay.
-  Future<void> _deleteImportedLines() async {
+  /// Deletes every line of this order, imported or added from the form:
+  /// an import starts the order afresh.
+  Future<void> _deleteOrderLines() async {
     final deleted = await _database.managers.draftTable
         .filter((f) => f.orderNumber.equals(orderNumber))
-        .filter((f) => f.qtxFileName.equals('').not())
         .delete();
 
-    debugPrint('[BULK IMPORT] $deleted line(s) of the earlier import cleared');
+    debugPrint('[BULK IMPORT] $deleted earlier line(s) of this order cleared');
   }
 
   /// Whether [_showImportLoader]'s spinner is up.
@@ -1431,8 +1429,9 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
 
       await _showImportLoader();
 
-      // The lines of the earlier import are replaced by this one.
-      await _deleteImportedLines();
+      // The order's earlier lines (imported or added by hand) are replaced
+      // by this import.
+      await _deleteOrderLines();
 
       final List<List<String>> sheetRows;
 
@@ -2143,7 +2142,7 @@ class BulkEntryController extends GetxController with DirectDeliveryTc {
           soldTo: _userController.rxUserDetail.value.soldToNumber,
           colorRemark: isTcImportLine ? DirectDeliveryTc.tcRequiredRemark : '',
           lastUpdated: DateTime.now(),
-          // Marks the line as imported: cleared by the next import.
+          // The sheet the line was imported from.
           qtxFileName: fileName,
           requestedDate: drift.Value(rxRequestedDate.value),
           poFileName: '',
